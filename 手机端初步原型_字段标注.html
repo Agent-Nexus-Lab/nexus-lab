@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>校园日程 AI 助手 - MVP 简化原型</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: #f3f6fb;
+      color: #162033;
+    }
+
+    .wrap {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 390px));
+      gap: 28px;
+      padding: 28px;
+      align-items: start;
+      justify-content: center;
+    }
+
+    .phone {
+      width: 390px;
+      min-height: 820px;
+      background: #111827;
+      border-radius: 34px;
+      padding: 12px;
+      box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+    }
+
+    .screen {
+      min-height: 796px;
+      background: #fbfdff;
+      border-radius: 26px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status {
+      height: 30px;
+      padding: 7px 16px 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #dce4f2;
+      background: #fff;
+    }
+
+    .title {
+      font-size: 19px;
+      font-weight: 850;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #68758a;
+      line-height: 1.5;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #edf3ff;
+      color: #3155a4;
+      border: 1px solid #d5e2ff;
+      font-size: 10px;
+      font-weight: 750;
+      margin-top: 6px;
+    }
+
+    .content {
+      flex: 1;
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .section {
+      background: #fff;
+      border: 1px solid #dce4f2;
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 850;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      border: 1px solid #dce4f2;
+      background: #f8fbff;
+      padding: 7px 9px;
+      font-size: 12px;
+      color: #29364d;
+    }
+
+    .search-box {
+      display: grid;
+      gap: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 78px;
+      resize: none;
+      border: 1px solid #dce4f2;
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      outline: none;
+      background: #f8fbff;
+      color: #162033;
+    }
+
+    .free-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .free-field label {
+      font-size: 13px;
+      font-weight: 850;
+      color: #26344d;
+    }
+
+    .free-field input,
+    .free-field textarea {
+      width: 100%;
+      border: 1px solid #dce4f2;
+      border-radius: 13px;
+      padding: 10px 11px;
+      font-size: 13px;
+      line-height: 1.5;
+      background: #f8fbff;
+      outline: none;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      border: 1px solid #dce4f2;
+      background: #fff;
+      color: #26344d;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      flex: 1;
+    }
+
+    .btn.primary {
+      background: #2457ff;
+      border-color: #2457ff;
+      color: #fff;
+    }
+
+    .timeline {
+      border-left: 2px solid #dae5fb;
+      margin-left: 8px;
+      padding-left: 14px;
+      display: grid;
+      gap: 13px;
+    }
+
+    .slot {
+      position: relative;
+    }
+
+    .slot:before {
+      content: "";
+      position: absolute;
+      left: -20px;
+      top: 5px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #2457ff;
+      box-shadow: 0 0 0 4px #dce6ff;
+    }
+
+    .slot-time {
+      font-size: 12px;
+      color: #627087;
+      margin-bottom: 3px;
+    }
+
+    .slot-name {
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.4;
+    }
+
+    .slot-desc {
+      font-size: 12px;
+      line-height: 1.55;
+      color: #4d5c73;
+      margin-top: 4px;
+    }
+
+    .event-card {
+      border: 1px solid #dce4f2;
+      border-radius: 15px;
+      padding: 12px;
+      background: #fbfdff;
+      margin-top: 10px;
+    }
+
+    .chat-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bubble {
+      max-width: 86%;
+      border-radius: 16px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.6;
+      border: 1px solid #dce4f2;
+    }
+
+    .bubble.user {
+      justify-self: end;
+      background: #2457ff;
+      color: #fff;
+      border-color: #2457ff;
+      border-bottom-right-radius: 6px;
+    }
+
+    .bubble.ai {
+      justify-self: start;
+      background: #fff;
+      color: #26344d;
+      border-bottom-left-radius: 6px;
+    }
+
+    .progress {
+      display: grid;
+      gap: 8px;
+    }
+
+    .progress-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      border: 1px solid #dce4f2;
+      border-radius: 13px;
+      padding: 9px;
+      background: #f8fbff;
+      font-size: 12px;
+      color: #3c4b63;
+      line-height: 1.45;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2457ff;
+      margin-top: 5px;
+      flex: 0 0 auto;
+      animation: pulse 1.2s infinite;
+    }
+
+    .history-item {
+      border: 1px solid #dce4f2;
+      border-radius: 15px;
+      padding: 12px;
+      background: #fbfdff;
+      margin-bottom: 10px;
+    }
+
+    .history-title {
+      font-size: 14px;
+      font-weight: 850;
+      margin-bottom: 6px;
+    }
+
+    .history-meta {
+      font-size: 12px;
+      color: #5d6b82;
+      line-height: 1.55;
+    }
+
+    .mini-input {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      align-items: center;
+    }
+
+    .mini-input input {
+      min-width: 0;
+      flex: 1;
+      border: 1px solid #dce4f2;
+      border-radius: 13px;
+      padding: 10px 11px;
+      font-size: 13px;
+      outline: none;
+      background: #f8fbff;
+    }
+
+    .handoff {
+      margin-top: 10px;
+      border: 1px dashed #b9c9f3;
+      background: #f2f6ff;
+      color: #2d467b;
+      border-radius: 14px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: .35; transform: scale(.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    .event-title {
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.4;
+      margin-bottom: 7px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #5d6b82;
+      line-height: 1.55;
+    }
+
+    .reason {
+      margin-top: 8px;
+      background: #f0f5ff;
+      color: #2b477f;
+      border: 1px dashed #c9d9ff;
+      border-radius: 12px;
+      padding: 9px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .tiny {
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.55;
+    }
+
+    .legend h1 {
+      margin: 0 0 10px;
+      font-size: 26px;
+    }
+
+    .legend p {
+      margin: 0 0 14px;
+      line-height: 1.75;
+      color: #526178;
+      max-width: 760px;
+    }
+
+    .legend-card {
+      background: #fff;
+      border: 1px solid #dce4f2;
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 12px;
+      max-width: 760px;
+    }
+
+    .legend-card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .legend-card ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.8;
+      color: #334155;
+      font-size: 14px;
+    }
+
+    code {
+      background: #eef3ff;
+      color: #254aa5;
+      border-radius: 6px;
+      padding: 2px 5px;
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+
+      .legend {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="phone">
+      <div class="screen">
+        <div class="status">
+          <span>9:38</span>
+          <span>首次登录</span>
+        </div>
+
+        <header class="header">
+          <div class="title">随便说说你的偏好</div>
+          <div class="subtitle">不用选标签，用自己的话描述就好。系统会把这些内容作为上下文交给 Agent。</div>
+          <div class="tag">对应：PRD 7.1 自由偏好描述 / user_profiles.raw_preference_text</div>
+        </header>
+
+        <div class="content">
+          <section class="section">
+            <div class="section-title">
+              <span>自由输入</span>
+              <span class="tag">raw_preference_text</span>
+            </div>
+            <div class="free-field">
+              <label>你平时在哪活动比较多？</label>
+              <input value="我主要在江湾，偶尔去邯郸。" />
+            </div>
+            <div class="free-field">
+              <label>你现在大概是什么身份？</label>
+              <input value="本科生。" />
+            </div>
+            <div class="free-field">
+              <label>你最近对什么事情感兴趣？</label>
+              <textarea>最近对 AI、游泳、校园里的猫、吉他都挺感兴趣。</textarea>
+            </div>
+            <div class="free-field">
+              <label>你通常什么时候有空？</label>
+              <input value="工作日晚上，周末下午也可以。" />
+            </div>
+            <div class="free-field">
+              <label>你喜欢什么样的活动氛围？</label>
+              <textarea>不太喜欢特别吵、必须强社交的活动，更喜欢可以安静旁听或小范围交流的。</textarea>
+            </div>
+            <div class="handoff">
+              点击“生成我的偏好摘要”后：保存原文，并抽取到 campus、school_identity、interest_tags、available_time、activity_style_tags。
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>系统理解到的偏好</span>
+              <span class="tag">profile_summary / extraction_confidence</span>
+            </div>
+            <div class="chips">
+              <span class="chip">常用校区：江湾</span>
+              <span class="chip">身份：本科</span>
+              <span class="chip">兴趣：AI / 游泳 / 猫 / 吉他</span>
+              <span class="chip">时间：工作日晚间、周末下午</span>
+              <span class="chip">风格：安静、小型交流</span>
+            </div>
+            <div class="handoff">
+              这些标签只作为后端检索和排序字段，不在产品上定义你。你可以随时改掉。
+            </div>
+            <div class="button-row" style="margin-top:10px;">
+              <button class="btn">跳过</button>
+              <button class="btn primary">开始规划</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="phone">
+      <div class="screen">
+        <div class="status">
+          <span>9:41</span>
+          <span>FDU · 92%</span>
+        </div>
+
+        <header class="header">
+          <div class="title">日程 AI 助手</div>
+          <div class="subtitle">MVP 只保留一个核心入口：输入需求，生成今天或未来几天的校园活动安排。</div>
+          <div class="tag">对应：PRD 5.0 / 7.3 / 7.4，工程 9.1</div>
+        </header>
+
+        <div class="content">
+          <section class="section">
+            <div class="section-title">
+              <span>我的基础偏好</span>
+              <span class="tag">PRD 7.1</span>
+            </div>
+            <div class="chips">
+              <span class="chip">校区：江湾</span>
+              <span class="chip">身份：本科</span>
+              <span class="chip">兴趣：AI</span>
+              <span class="chip">兴趣：游泳</span>
+              <span class="chip">风格：安静旁听</span>
+              <span class="chip">时间：晚间</span>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>搜索并生成日程</span>
+              <span class="tag">PRD 7.3 / 7.4</span>
+            </div>
+            <div class="search-box">
+              <textarea>帮我安排今天晚上，最好有 AI 相关活动，也别太累。</textarea>
+              <div class="button-row">
+                <button class="btn">改偏好</button>
+                <button class="btn primary">生成日程</button>
+              </div>
+              <div class="tiny">
+                对应字段：用户 query、用户画像、时间范围、可选地点、Event DB 候选活动。
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>生成结果</span>
+              <span class="tag">PRD 7.4 输出</span>
+            </div>
+            <div class="timeline">
+              <div class="slot">
+                <div class="slot-time">18:10 - 18:45</div>
+                <div class="slot-name">晚饭 + 去江湾教学楼</div>
+                <div class="slot-desc">对应：交通/换场提醒。给活动前预留通勤和缓冲时间。</div>
+              </div>
+              <div class="slot">
+                <div class="slot-time">19:00 - 20:30</div>
+                <div class="slot-name">AI 讲座：大模型时代的研究与应用</div>
+                <div class="slot-desc">对应：分时段日程。该项可回溯到下方活动卡片。</div>
+              </div>
+              <div class="slot">
+                <div class="slot-time">20:45 - 21:30</div>
+                <div class="slot-name">备选：轻量游泳训练</div>
+                <div class="slot-desc">对应：备选活动。若讲座结束后还想运动，可以考虑。</div>
+              </div>
+            </div>
+            <div class="reason">
+              冲突检查：当前安排没有两个线下活动时间重叠。活动开始前预留了 15 分钟以上换场时间。
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>候选活动卡片</span>
+              <span class="tag">PRD 7.2</span>
+            </div>
+            <article class="event-card">
+              <div class="event-title">AI 讲座：大模型时代的研究与应用</div>
+              <div class="meta">时间和持续时长：今晚 19:00 - 20:30</div>
+              <div class="meta">地点、校区：江湾校区 · 教学楼 205</div>
+              <div class="meta">活动类型和标签：讲座 / AI / 计算机</div>
+              <div class="meta">来源名称和原文链接：学院官网</div>
+              <div class="meta">可信度与验证状态：已验证 · 高可信</div>
+              <div class="reason">
+                推荐理由：匹配你的 AI 兴趣，时间在晚间，地点在江湾，适合作为今天主活动。
+              </div>
+              <div class="button-row" style="margin-top:10px;">
+                <button class="btn">时间不合适</button>
+                <button class="btn">已过期/纠错</button>
+              </div>
+            </article>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="phone">
+      <div class="screen">
+        <div class="status">
+          <span>9:42</span>
+          <span>运行中 · 5G</span>
+        </div>
+
+        <header class="header">
+          <div class="title">生成中</div>
+          <div class="subtitle">发送日程需求后，前端只展示用户能理解的任务状态；底层 session 字段作为调试标注，不建议直接暴露。</div>
+          <div class="tag">对应：工程 4.8 / 4.9 / 4.10 / 4.11 / 8.3</div>
+        </header>
+
+        <div class="content">
+          <section class="section">
+            <div class="section-title">
+              <span>本轮规划状态</span>
+              <span class="tag">sessions.status</span>
+            </div>
+            <div class="chips">
+              <span class="chip">对用户显示：本轮规划中</span>
+              <span class="chip">调试字段：session_type=planning</span>
+              <span class="chip">调试字段：current_session_id</span>
+            </div>
+            <div class="tiny" style="margin-top:8px;">
+              是否显示不同 session：普通用户不显示 session 列表，只显示“重新开始本轮规划”。开发/后台可查看 session_id、run_id、trace_id。
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>规划任务流</span>
+              <span class="tag">messages.role/content</span>
+            </div>
+            <div class="chat-list">
+              <div class="bubble user">
+                帮我安排今天晚上，最好有 AI 相关活动，也别太累。
+                <div class="tag" style="background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.3);">role=user</div>
+              </div>
+              <div class="bubble ai">
+                好的，我会先读取你的偏好，再查找今晚可参加的活动，并检查时间冲突。
+                <div class="tag">role=assistant</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>动态加载状态</span>
+              <span class="tag">run events</span>
+            </div>
+            <div class="progress">
+              <div class="progress-item">
+                <span class="dot"></span>
+                <span>Memory Read：读取校区、兴趣、近期反馈。<br />字段：memory_items / user_profiles</span>
+              </div>
+              <div class="progress-item">
+                <span class="dot"></span>
+                <span>search_events：检索今晚江湾附近的候选活动。<br />字段：events.tags / start_time / campus</span>
+              </div>
+              <div class="progress-item">
+                <span class="dot"></span>
+                <span>verify_event：核验来源、时间、地点、报名状态。<br />字段：event_evidence / verification_status</span>
+              </div>
+              <div class="progress-item">
+                <span class="dot"></span>
+                <span>build_schedule：生成不冲突的晚间安排。<br />字段：sessions.context_pack / messages.metadata</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>流式输出预览</span>
+              <span class="tag">token_delta / event_card</span>
+            </div>
+            <div class="bubble ai" style="max-width:100%;">
+              我找到了 2 个比较适合你的选择。主推荐是 19:00 的 AI 讲座，地点在江湾；如果你之后还有精力，可以把游泳作为备选...
+            </div>
+            <div class="event-card">
+              <div class="event-title">候选卡片正在加载...</div>
+              <div class="meta">字段：event_card 事件流，前端直接渲染结构化卡片，不从自然语言里解析。</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>操作</span>
+              <span class="tag">cancel / reset</span>
+            </div>
+            <div class="button-row">
+              <button class="btn">停止生成</button>
+              <button class="btn primary">重新开始本轮</button>
+            </div>
+            <div class="tiny" style="margin-top:8px;">
+              停止生成对应 cancel run；重新开始对应 session reset。普通用户看动作，不看底层 session 编号。
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="phone">
+      <div class="screen">
+        <div class="status">
+          <span>9:40</span>
+          <span>历史日程</span>
+        </div>
+
+        <header class="header">
+          <div class="title">我的历史日程</div>
+          <div class="subtitle">最省开发成本版本：不展示完整聊天历史，只展示每次生成过的日程结果。</div>
+          <div class="tag">对应：conversations / sessions / messages.metadata</div>
+        </header>
+
+        <div class="content">
+          <section class="section">
+            <div class="section-title">
+              <span>最近生成</span>
+              <span class="tag">历史日程列表</span>
+            </div>
+
+            <div class="history-item">
+              <div class="history-title">5 月 13 日晚间安排</div>
+              <div class="history-meta">来源：messages.metadata.generated_schedule</div>
+              <div class="history-meta">摘要：AI 讲座 + 轻量游泳备选</div>
+              <div class="history-meta">状态：已完成 · 2 个候选活动</div>
+            </div>
+
+            <div class="history-item">
+              <div class="history-title">5 月 12 日周末安排</div>
+              <div class="history-meta">来源：session_summary / messages.metadata</div>
+              <div class="history-meta">摘要：读书会 + 吉他社表演</div>
+              <div class="history-meta">状态：已完成 · 3 个候选活动</div>
+            </div>
+
+            <div class="tiny">
+              普通用户看到的是“历史日程结果”，不是每一轮聊天 transcript。后台仍可按 conversation_id / session_id 调试完整消息。
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>开启新日程</span>
+              <span class="tag">POST /api/agent/plan-day</span>
+            </div>
+            <div class="mini-input">
+              <input value="明天下午帮我安排一下" aria-label="新日程输入" />
+              <button class="btn primary" style="flex:0 0 auto;">发送</button>
+            </div>
+            <div class="handoff">
+              点击发送后：创建新的 planning session，写入一条 user message，然后跳转/切换到“生成中”页面。
+              <br />字段：sessions.session_type=planning，messages.role=user，conversations_meta.current_session_id 更新。
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">
+              <span>衔接到生成中</span>
+              <span class="tag">页面流转</span>
+            </div>
+            <div class="progress-item">
+              <span class="dot"></span>
+              <span>历史日程页输入新需求 -> 发送 -> 进入第二个手机图的“生成中”状态。</span>
+            </div>
+            <div class="progress-item">
+              <span class="dot"></span>
+              <span>生成完成后 -> 新日程写入历史列表 -> 回到本页可查看。</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <aside class="legend">
+      <h1>MVP 简化版手机页面</h1>
+      <p>
+        这一版只保留“日程”功能界面里的搜索入口，不做首页推荐流、独立搜索页、收藏列表和被动推送。
+        目标是把第一版开发范围压到最小：用户主动输入需求，系统返回可执行的校园活动安排。
+      </p>
+
+      <div class="legend-card">
+        <h2>保留的前端元素</h2>
+        <ul>
+          <li>首次登录偏好引导：自由输入个人偏好，后端抽取结构化字段。</li>
+          <li>简化偏好区：校区、身份、兴趣、时间、活动风格。</li>
+          <li>日程搜索入口：自然语言输入 + 生成日程按钮。</li>
+          <li>生成结果：分时段日程、通勤/换场提醒、冲突检查、备选活动。</li>
+          <li>候选活动卡片：标题、时间、地点、标签、来源、验证状态、推荐理由、纠错反馈。</li>
+          <li>发送后的动态加载：任务气泡、工具进度、流式输出、停止生成、重新开始本轮。</li>
+          <li>历史日程页：只展示生成过的日程结果，并提供一个新日程输入入口。</li>
+        </ul>
+      </div>
+
+      <div class="legend-card">
+        <h2>Session 显示策略</h2>
+        <ul>
+          <li>普通用户不直接看到多个 session，也不显示 session_id。</li>
+          <li>用户只看到“本轮规划中”“重新开始本轮”“继续上次规划”这类自然语言状态。</li>
+          <li>开发调试和后台可查看 <code>conversation_id</code>、<code>session_id</code>、<code>run_id</code>、<code>trace_id</code>。</li>
+        </ul>
+      </div>
+
+      <div class="legend-card">
+        <h2>历史日程与生成中的衔接</h2>
+        <ul>
+          <li>用户打开历史日程页，只看到“生成结果摘要”，不看到完整任务 transcript。</li>
+          <li>用户在底部输入新需求并发送，服务端创建新的 planning session。</li>
+          <li>前端进入“生成中”页面，展示工具进度和流式输出。</li>
+          <li>生成完成后，把结果摘要写回历史日程列表。</li>
+        </ul>
+      </div>
+
+      <div class="legend-card">
+        <h2>MVP 暂不做</h2>
+        <ul>
+          <li>不做被动推送和订阅提醒。</li>
+          <li>不做首页今日推荐流。</li>
+          <li>不做独立搜索页。</li>
+          <li>不做完整收藏体系。</li>
+          <li>不做复杂“我的记忆”可视化，只保留基础偏好编辑入口。</li>
+        </ul>
+      </div>
+
+      <div class="legend-card">
+        <h2>对应文档位置</h2>
+        <ul>
+          <li><code>PRD.md</code>：5.0 MVP 范围收缩，7.1、7.2、7.3、7.4。</li>
+          <li><code>工程架构设计.md</code>：9.1 学生端页面架构，6.2 Agent 执行流程。</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>
