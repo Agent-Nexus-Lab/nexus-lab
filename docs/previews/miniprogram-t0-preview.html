@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>校园日程 AI 助手 - 今日交互预览</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f6f7f9;
+      color: #172033;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 14px 44px; display: grid; gap: 22px; }
+    .preview-title { color: #647086; font-size: 13px; line-height: 1.6; }
+    .screen { border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 12px 34px rgba(23,32,51,.08); }
+    .screen.hidden { display: none; }
+    .nav { height: 48px; display: flex; align-items: center; justify-content: center; background: #f7f9fc; border-bottom: 1px solid #e5eaf2; font-size: 15px; font-weight: 700; }
+    .page { padding: 18px 14px 24px; }
+    .hero { padding: 2px 1px 18px; }
+    .eyebrow { color: #4263b0; font-size: 12px; font-weight: 700; }
+    .title { margin-top: 5px; font-size: 24px; line-height: 1.22; font-weight: 800; letter-spacing: 0; }
+    .subtitle { margin-top: 7px; color: #68758a; font-size: 14px; line-height: 1.6; }
+    .panel { margin-bottom: 12px; padding: 13px 12px; border: 1px solid #e5eaf2; border-radius: 16px; background: #fff; box-shadow: 0 4px 10px rgba(23,32,51,.035); }
+    .panel-head { display: flex; justify-content: space-between; gap: 9px; margin-bottom: 9px; }
+    .panel-title { font-size: 15px; font-weight: 800; }
+    .field-name { display: none; }
+    .chip-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip { min-height: 32px; padding: 0 11px; border: 1px solid #dde5f0; border-radius: 999px; background: #fff; color: #2a364a; font-size: 13px; line-height: 32px; cursor: pointer; user-select: none; }
+    .chip.active { border-color: #2f65e8; background: #2f65e8; color: #fff; box-shadow: 0 4px 8px rgba(47,101,232,.16); }
+    .hint { margin-top: 8px; color: #77869a; font-size: 12px; line-height: 1.55; }
+    textarea { width: 100%; min-height: 82px; resize: none; padding: 11px; border: 1px solid #dde5f0; border-radius: 14px; background: #fafcff; color: #182235; font-size: 14px; line-height: 1.55; outline: none; }
+    .button { width: 100%; height: 46px; border: 0; border-radius: 14px; background: #2f65e8; color: #fff; font-size: 15px; font-weight: 800; box-shadow: 0 7px 13px rgba(47,101,232,.18); cursor: pointer; }
+    .button.secondary { margin-top: 8px; border: 1px solid #dde5f0; background: #fff; color: #2a364a; box-shadow: none; }
+    .summary-list { display: grid; gap: 6px; }
+    .summary-row { display: flex; gap: 7px; padding: 8px 9px; border-radius: 14px; background: #f7f9fc; font-size: 13px; }
+    .summary-label { flex: 0 0 70px; color: #65748a; font-weight: 750; }
+    .summary-value { flex: 1; color: #1f2b3f; }
+    .loading-card { padding: 30px 18px 22px; border: 1px solid #e5eaf2; border-radius: 18px; background: #fff; text-align: center; box-shadow: 0 8px 20px rgba(23,32,51,.045); }
+    .spinner { width: 42px; height: 42px; margin: 0 auto 16px; border: 4px solid #e6edfb; border-top-color: #2f65e8; border-radius: 50%; animation: spin .9s linear infinite; }
+    .progress-track { height: 7px; margin-top: 18px; border-radius: 999px; background: #eef2f8; overflow: hidden; }
+    .progress-bar { height: 100%; width: 18%; border-radius: 999px; background: #2f65e8; transition: width .3s ease; }
+    .step-list { display: grid; gap: 10px; margin-top: 18px; text-align: left; }
+    .step-item { display: flex; gap: 8px; align-items: center; color: #8a96a8; font-size: 13px; }
+    .step-item.active { color: #25324a; font-weight: 750; }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #c9d2df; }
+    .step-item.active .step-dot { background: #2f65e8; }
+    .request-card { padding: 10px 11px; border-radius: 14px; background: #f7f9fc; color: #26344a; font-size: 13px; line-height: 1.55; }
+    .event-card { margin-top: 10px; padding: 13px 12px; border: 1px solid #dde5f0; border-radius: 16px; background: #fbfcff; }
+    .event-topline { display: flex; justify-content: space-between; gap: 9px; margin-bottom: 7px; color: #68758a; font-size: 11px; font-weight: 750; }
+    .event-title { color: #172033; font-size: 16px; font-weight: 850; line-height: 1.4; }
+    .event-summary { margin-top: 5px; color: #5f6d82; font-size: 13px; line-height: 1.55; }
+    .event-meta { display: grid; gap: 4px; margin-top: 10px; color: #344258; font-size: 12px; line-height: 1.45; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+    .small-tag { padding: 3px 7px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 700; }
+    .reason-box { margin-top: 10px; padding: 9px; border-radius: 14px; background: #f0f5ff; color: #294576; font-size: 12px; line-height: 1.55; }
+    .source-text { margin-top: 7px; color: #7c8797; font-size: 11px; line-height: 1.45; word-break: break-all; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="preview-title">今日预览：偏好页 -> 日程页 -> 生成中 loading -> 假 JSON 活动卡片。真实小程序页面同步在 pages/loading 和 pages/result。</div>
+
+    <section class="screen" id="profileScreen">
+      <div class="nav">偏好设置</div>
+      <div class="page">
+        <div class="hero"><div class="eyebrow">偏好设置</div><div class="title">先选几个常用条件</div><div class="subtitle">这些内容会作为后续活动检索和排序的基础条件。</div></div>
+        <section class="panel"><div class="panel-head"><div class="panel-title">常用校区</div><div class="field-name">campus</div></div><div class="chip-grid" data-mode="single" data-field="campus"><span class="chip active">江湾</span><span class="chip">邯郸</span><span class="chip">枫林</span><span class="chip">张江</span><span class="chip">其他</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">你的身份</div><div class="field-name">identity</div></div><div class="chip-grid" data-mode="single" data-field="identity"><span class="chip active">本科生</span><span class="chip">硕士生</span><span class="chip">博士生</span><span class="chip">教职工</span><span class="chip">其他</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">兴趣标签</div><div class="field-name">interest_tags</div></div><div class="chip-grid" data-mode="multi" data-field="interest_tags"><span class="chip active">AI</span><span class="chip">创业</span><span class="chip">学术</span><span class="chip">职业</span><span class="chip">技术</span><span class="chip">人文</span><span class="chip">艺术</span><span class="chip">体育</span><span class="chip">公益</span><span class="chip">社交</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">空闲时间</div><div class="field-name">available_time</div></div><div class="chip-grid" data-mode="multi" data-field="available_time"><span class="chip">工作日白天</span><span class="chip active">工作日晚上</span><span class="chip">周末上午</span><span class="chip">周末下午</span><span class="chip">周末晚上</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">活动氛围</div><div class="field-name">activity_style_tags</div></div><div class="chip-grid" data-mode="multi" data-field="activity_style_tags"><span class="chip active">轻松</span><span class="chip">互动</span><span class="chip">实践</span><span class="chip">理论</span><span class="chip">正式</span><span class="chip">自由</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">还有什么想补充？</div><div class="field-name">raw_preference_text</div></div><textarea id="rawPreferenceText" placeholder="例如：最近想看 AI 和创业相关活动，最好别太正式。"></textarea></section>
+        <button class="button" id="nextButton">下一步</button>
+      </div>
+    </section>
+
+    <section class="screen hidden" id="planScreen">
+      <div class="nav">生成日程</div>
+      <div class="page">
+        <div class="hero"><div class="eyebrow">日程生成</div><div class="title">今天想怎么安排？</div><div class="subtitle">输入一句话，模拟几秒钟生成，再展示活动卡片。</div></div>
+        <section class="panel">
+          <div class="panel-head"><div class="panel-title">当前偏好</div><div class="field-name">profile</div></div>
+          <div class="summary-list">
+            <div class="summary-row"><div class="summary-label">校区</div><div class="summary-value" id="summaryCampus">江湾</div></div>
+            <div class="summary-row"><div class="summary-label">身份</div><div class="summary-value" id="summaryIdentity">本科生</div></div>
+            <div class="summary-row"><div class="summary-label">兴趣</div><div class="summary-value" id="summaryInterests">AI</div></div>
+            <div class="summary-row"><div class="summary-label">时间</div><div class="summary-value" id="summaryTime">工作日晚上</div></div>
+            <div class="summary-row"><div class="summary-label">风格</div><div class="summary-value" id="summaryStyles">轻松</div></div>
+          </div>
+          <button class="button secondary" id="backButton">重新选择偏好</button>
+        </section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">时间范围</div><div class="field-name">date_scope</div></div><div class="chip-grid" data-mode="single" data-field="date_scope"><span class="chip active" data-value="today">今天</span><span class="chip" data-value="tomorrow">明天</span><span class="chip" data-value="this_week">本周</span></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">日程需求</div><div class="field-name">request_text</div></div><textarea id="requestText">今晚想安排点 AI 相关但别太累的活动</textarea></section>
+        <button class="button" id="generateButton">生成日程</button>
+      </div>
+    </section>
+
+    <section class="screen hidden" id="loadingScreen">
+      <div class="nav">生成中</div>
+      <div class="page">
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <div class="title" id="loadingMessage">正在拼命检索校园活动...</div>
+          <div class="subtitle">正在根据你的偏好、时间范围和活动库模拟生成结果。</div>
+          <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+          <div class="step-list" id="stepList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen hidden" id="resultScreen">
+      <div class="nav">生成结果</div>
+      <div class="page">
+        <div class="hero"><div class="eyebrow">生成结果</div><div class="title" id="resultTitle">今晚 AI 轻量活动安排</div><div class="subtitle" id="resultSummary"></div></div>
+        <section class="panel"><div class="panel-head"><div class="panel-title">本次输入</div><div class="field-name" id="resultScope">today</div></div><div class="request-card" id="resultRequest"></div></section>
+        <section class="panel"><div class="panel-head"><div class="panel-title">活动卡片</div><div class="field-name" id="resultCount"></div></div><div id="eventList"></div></section>
+        <button class="button" id="againButton">重新生成</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let profilePayload = null
+    let timer = null
+    const steps = ['读取你的偏好设置', '模拟检索活动库', '筛选时间、校区和兴趣标签', '生成活动卡片列表']
+    const messages = ['正在拼命检索校园活动...', '正在筛选时间和校区...', '正在匹配你的兴趣标签...', '正在整理活动卡片...']
+
+    function show(id) {
+      document.querySelectorAll('.screen').forEach((screen) => screen.classList.add('hidden'))
+      document.getElementById(id).classList.remove('hidden')
+    }
+    function getSelected(field) {
+      const grid = document.querySelector(`[data-field="${field}"]`)
+      if (!grid) return []
+      return Array.from(grid.querySelectorAll('.chip.active')).map((chip) => chip.textContent.trim())
+    }
+    function getSingle(field) { return getSelected(field)[0] || '' }
+    function getDateScope() {
+      const active = document.querySelector('[data-field="date_scope"] .chip.active')
+      return active ? active.dataset.value : 'today'
+    }
+    document.querySelectorAll('.chip-grid').forEach((grid) => {
+      grid.addEventListener('click', (event) => {
+        const chip = event.target.closest('.chip')
+        if (!chip) return
+        if (grid.dataset.mode === 'single') {
+          grid.querySelectorAll('.chip').forEach((item) => item.classList.remove('active'))
+          chip.classList.add('active')
+        } else {
+          chip.classList.toggle('active')
+        }
+      })
+    })
+    document.getElementById('nextButton').addEventListener('click', () => {
+      const campus = getSingle('campus')
+      profilePayload = {
+        nickname: '微信用户',
+        campus,
+        identity: getSingle('identity'),
+        raw_preference_text: document.getElementById('rawPreferenceText').value,
+        interest_tags: getSelected('interest_tags'),
+        preferred_campuses: campus ? [campus] : [],
+        available_time: getSelected('available_time').join('、'),
+        activity_style_tags: getSelected('activity_style_tags'),
+        profile_summary: ''
+      }
+      document.getElementById('summaryCampus').textContent = profilePayload.campus || '未选择'
+      document.getElementById('summaryIdentity').textContent = profilePayload.identity || '未选择'
+      document.getElementById('summaryInterests').textContent = profilePayload.interest_tags.join('、') || '未选择'
+      document.getElementById('summaryTime').textContent = profilePayload.available_time || '未选择'
+      document.getElementById('summaryStyles').textContent = profilePayload.activity_style_tags.join('、') || '未选择'
+      show('planScreen')
+    })
+    document.getElementById('backButton').addEventListener('click', () => show('profileScreen'))
+    document.getElementById('againButton').addEventListener('click', () => show('planScreen'))
+    document.getElementById('generateButton').addEventListener('click', () => {
+      const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope() }
+      console.log('profilePayload for POST /api/profile:', profilePayload)
+      console.log('planDayPayload for POST /api/agent/plan-day:', planDayPayload)
+      startLoading(planDayPayload)
+    })
+    function startLoading(planDayPayload) {
+      show('loadingScreen')
+      let tick = 0
+      renderSteps(0)
+      document.getElementById('progressBar').style.width = '18%'
+      document.getElementById('loadingMessage').textContent = messages[0]
+      clearInterval(timer)
+      timer = setInterval(() => {
+        tick += 1
+        const index = Math.min(tick, messages.length - 1)
+        document.getElementById('loadingMessage').textContent = messages[index]
+        document.getElementById('progressBar').style.width = Math.min(18 + tick * 26, 100) + '%'
+        renderSteps(index)
+        if (tick >= messages.length) {
+          clearInterval(timer)
+          renderResult(buildMockResult(planDayPayload))
+          show('resultScreen')
+        }
+      }, 900)
+    }
+    function renderSteps(active) {
+      document.getElementById('stepList').innerHTML = steps.map((step, index) => `<div class="step-item ${index <= active ? 'active' : ''}"><span class="step-dot"></span><span>${step}</span></div>`).join('')
+    }
+    function buildMockResult(planDayPayload) {
+      return {
+        title: '今晚 AI 轻量活动安排',
+        summary: '今晚为你找到 3 个偏轻松的 AI 相关活动，优先考虑江湾校区与晚间时间。',
+        date_scope: planDayPayload.date_scope,
+        request_text: planDayPayload.request_text,
+        items: [
+          { display_order: 1, quality_score: 0.86, title: 'AI 讲座：大模型在产业中的应用', summary: '邀请业界专家分享大模型落地案例，适合对 AI 应用感兴趣的同学。', time_text: '19:00 - 20:30', location: '江湾校区教学楼 A205', campus: '江湾', organizer: '计算机学院', tags: ['AI', '讲座', '产业'], source_url: 'https://www.example.edu.cn/events/123', reason_text: '主题匹配你的 AI 兴趣，时间在晚间，地点也符合你的校区偏好。' },
+          { display_order: 2, quality_score: 0.82, title: 'AI 创业沙龙：从实验室到产品', summary: '小型圆桌讨论，聊聊如何把 AI 研究变成可用的产品。', time_text: '20:40 - 21:30', location: '江湾校区创新创业空间 1 楼', campus: '江湾', organizer: '创新创业中心', tags: ['AI', '创业', '沙龙'], source_url: 'https://www.example.edu.cn/events/456', reason_text: '同时匹配 AI 和创业两个标签，活动形式更轻松，适合作为讲座后的延伸选择。' },
+          { display_order: 3, quality_score: 0.78, title: '技术读书会：AI Agent 产品案例讨论', summary: '围绕 AI Agent 产品案例做轻量分享和自由讨论。', time_text: '18:30 - 20:00', location: '邯郸校区学生创新中心 204', campus: '邯郸', organizer: '产品与技术社', tags: ['AI', '产品', '社交'], source_url: 'https://www.example.edu.cn/events/789', reason_text: '如果你愿意扩大到明天或邯郸校区，这是一个更偏交流和产品视角的备选。' }
+        ]
+      }
+    }
+    function renderResult(result) {
+      document.getElementById('resultTitle').textContent = result.title
+      document.getElementById('resultSummary').textContent = result.summary
+      document.getElementById('resultScope').textContent = result.date_scope
+      document.getElementById('resultRequest').textContent = result.request_text
+      document.getElementById('resultCount').textContent = result.items.length + ' 个结果'
+      document.getElementById('eventList').innerHTML = result.items.map((item) => `
+        <article class="event-card">
+          <div class="event-topline"><span>#${item.display_order}</span><span>质量分 ${item.quality_score}</span></div>
+          <div class="event-title">${item.title}</div>
+          <div class="event-summary">${item.summary}</div>
+          <div class="event-meta"><div>时间：${item.time_text}</div><div>地点：${item.location}</div><div>校区：${item.campus}</div><div>主办：${item.organizer}</div></div>
+          <div class="tag-row">${item.tags.map((tag) => `<span class="small-tag">${tag}</span>`).join('')}</div>
+          <div class="reason-box">${item.reason_text}</div>
+          <div class="source-text">来源：${item.source_url}</div>
+        </article>
+      `).join('')
+    }
+  </script>
+</body>
+</html>

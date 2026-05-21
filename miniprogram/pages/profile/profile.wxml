@@ -1,0 +1,108 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">偏好设置</view>
+    <view class="title">先选几个常用条件</view>
+    <view class="subtitle">这些内容会作为后续活动检索和排序的基础条件。</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">常用校区</view>
+      <view class="field-name">campus</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{campusOptions}}"
+        wx:key="*this"
+        class="chip {{campus === item ? 'chip-active' : ''}}"
+        data-value="{{item}}"
+        bindtap="selectCampus"
+      >{{item}}</view>
+    </view>
+    <view class="hint">当前只选主校区，提交时自动同步到偏好校区列表。</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">你的身份</view>
+      <view class="field-name">identity</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{identityOptions}}"
+        wx:key="*this"
+        class="chip {{identity === item ? 'chip-active' : ''}}"
+        data-value="{{item}}"
+        bindtap="selectIdentity"
+      >{{item}}</view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">兴趣标签</view>
+      <view class="field-name">interest_tags</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{interestChips}}"
+        wx:key="label"
+        class="chip {{item.selected ? 'chip-active' : ''}}"
+        data-field="interest_tags"
+        data-value="{{item.label}}"
+        bindtap="toggleArrayField"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">空闲时间</view>
+      <view class="field-name">available_time</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{timeChips}}"
+        wx:key="label"
+        class="chip {{item.selected ? 'chip-active' : ''}}"
+        data-field="selectedAvailableTimes"
+        data-value="{{item.label}}"
+        bindtap="toggleArrayField"
+      >{{item.label}}</view>
+    </view>
+    <view class="hint">可多选，保存时会合并成一段时间描述。</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">活动氛围</view>
+      <view class="field-name">activity_style_tags</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{styleChips}}"
+        wx:key="label"
+        class="chip {{item.selected ? 'chip-active' : ''}}"
+        data-field="activity_style_tags"
+        data-value="{{item.label}}"
+        bindtap="toggleArrayField"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">还有什么想补充？</view>
+      <view class="field-name">raw_preference_text</view>
+    </view>
+    <textarea
+      class="textarea"
+      value="{{raw_preference_text}}"
+      maxlength="500"
+      placeholder="例如：最近想看 AI 和创业相关活动，最好别太正式。"
+      bindinput="onRawPreferenceInput"
+    />
+  </view>
+
+  <button class="primary-button" bindtap="saveProfile">下一步</button>
+</view>
