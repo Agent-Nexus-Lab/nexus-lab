@@ -11,7 +11,7 @@ class BaseData(BaseModel):
 # ============================================================
 
 class ProfileRequest(BaseModel):
-    """POST/PUT /api/profile 请求体"""
+    """POST/PUT /api/profile"""
     nickname: str = Field(..., max_length=32, description="用户昵称")
     campus: str = Field(..., description="主校区：江湾/邯郸/枫林/张江/其他")
     identity: Optional[str] = Field(None, description="本科/硕士/博士/教职工/其他")
@@ -24,7 +24,7 @@ class ProfileRequest(BaseModel):
 
 
 class ProfileData(BaseModel):
-    """GET/POST/PUT /api/profile 响应 data"""
+    """GET /api/profile"""
     user_id: str
     nickname: str
     campus: str
