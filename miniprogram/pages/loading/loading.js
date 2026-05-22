@@ -1,6 +1,8 @@
 const PLAN_REQUEST_STORAGE_KEY = 'planDayRequest'
 const MOCK_RESULT_STORAGE_KEY = 'mockPlanResult'
 
+const api = require('../../utils/api')
+
 const POLL_MESSAGES = [
   '正在拼命检索校园活动...',
   '正在筛选时间和校区...',
@@ -76,10 +78,10 @@ Page({
     currentMessage: POLL_MESSAGES[0],
     progress: 18,
     steps: [
-      { text: '读取你的偏好设置' },
-      { text: '模拟检索活动库' },
-      { text: '筛选时间、校区和兴趣标签' },
-      { text: '生成活动卡片列表' }
+      { text: '读取生成任务 run_id' },
+      { text: '请求后端运行状态' },
+      { text: '等待活动卡片返回' },
+      { text: '整理结果页数据' }
     ]
   },
 
@@ -99,7 +101,7 @@ Page({
     }
 
     let tick = 0
-    this.timer = setInterval(() => {
+    this.timer = setInterval(async () => {
       tick += 1
       const activeStep = Math.min(tick, POLL_MESSAGES.length - 1)
       this.setData({
@@ -108,8 +110,29 @@ Page({
         progress: Math.min(18 + tick * 26, 100)
       })
 
-      if (tick >= POLL_MESSAGES.length) {
-        this.finishMockRun(request)
+      try {
+        const res = await api.getRunStatus(request.run_id)
+        console.log('GET /api/agent/runs response:', res)
+
+        if (res.code !== 0) {
+          throw new Error(res.message || '查询生成状态失败')
+        }
+
+        if (res.data && res.data.status === 'completed') {
+          this.finishRealRun(res.data, request)
+          return
+        }
+
+        if (res.data && res.data.status === 'failed') {
+          throw new Error(res.data.error_message || '生成任务失败')
+        }
+      } catch (error) {
+        this.failRun(error)
+        return
+      }
+
+      if (tick >= 8) {
+        this.failRun(new Error('轮询超时，请确认后端是否返回 completed'))
       }
     }, 900)
   },
@@ -129,6 +152,33 @@ Page({
     wx.setStorageSync(MOCK_RESULT_STORAGE_KEY, buildMockResult(request))
     wx.redirectTo({
       url: '/pages/result/result'
+    })
+  },
+
+  finishRealRun(runData, request) {
+    this.clearTimer()
+    wx.setStorageSync(MOCK_RESULT_STORAGE_KEY, {
+      ...runData,
+      request_text: request.planDayPayload.request_text,
+      items: runData.items || []
+    })
+    wx.redirectTo({
+      url: '/pages/result/result'
+    })
+  },
+
+  failRun(error) {
+    console.error('轮询后端失败:', error)
+    this.clearTimer()
+    wx.showModal({
+      title: '获取结果失败',
+      content: `${error.message || '请检查后端服务是否在线'}`,
+      showCancel: false,
+      success: () => {
+        wx.redirectTo({
+          url: '/pages/plan/plan'
+        })
+      }
     })
   }
 })

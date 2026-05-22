@@ -1,6 +1,8 @@
 const PROFILE_STORAGE_KEY = 'profileDraft'
 const PLAN_REQUEST_STORAGE_KEY = 'planDayRequest'
 
+const api = require('../../utils/api')
+
 Page({
   data: {
     profile: null,
@@ -56,7 +58,7 @@ Page({
     })
   },
 
-  generatePlan() {
+  async generatePlan() {
     const profilePayload = wx.getStorageSync(PROFILE_STORAGE_KEY) || null
     const planDayPayload = {
       request_text: this.data.request_text.trim(),
@@ -82,14 +84,43 @@ Page({
       return
     }
 
-    wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, {
-      profilePayload,
-      planDayPayload,
-      created_at: new Date().toISOString()
+    wx.showLoading({
+      title: '连接后端中',
+      mask: true
     })
 
-    wx.navigateTo({
-      url: '/pages/loading/loading'
-    })
+    try {
+      const profileRes = await api.saveProfile(profilePayload)
+      console.log('POST /api/profile response:', profileRes)
+
+      const planRes = await api.planDay(planDayPayload)
+      console.log('POST /api/agent/plan-day response:', planRes)
+
+      if (planRes.code !== 0 || !planRes.data || !planRes.data.run_id) {
+        throw new Error(planRes.message || '生成任务创建失败')
+      }
+
+      wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, {
+        profilePayload,
+        planDayPayload,
+        run_id: planRes.data.run_id,
+        status: planRes.data.status,
+        api_base_url: api.API_BASE_URL,
+        created_at: new Date().toISOString()
+      })
+
+      wx.hideLoading()
+      wx.navigateTo({
+        url: '/pages/loading/loading'
+      })
+    } catch (error) {
+      console.error('生成日程接口调用失败:', error)
+      wx.hideLoading()
+      wx.showModal({
+        title: '连接后端失败',
+        content: `${error.message || '请检查 cpolar 链接、后端服务和小程序网络设置'}`,
+        showCancel: false
+      })
+    }
   }
 })
