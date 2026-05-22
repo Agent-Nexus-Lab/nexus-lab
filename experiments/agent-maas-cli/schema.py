@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 
 TOP_LEVEL_FIELDS = ["source_name", "source_url", "events", "warnings"]
+EVENTS_FILE_FIELDS = ["events"]
 EVENT_FIELDS = [
     "title",
     "summary",
@@ -14,6 +16,13 @@ EVENT_FIELDS = [
     "organizer",
     "tags",
     "evidence_text",
+]
+AGGREGATED_EVENT_FIELDS = [
+    "event_id",
+    "source_file",
+    "source_name",
+    "source_url",
+    *EVENT_FIELDS,
 ]
 
 
@@ -95,6 +104,43 @@ def validate_response(payload: dict[str, Any]) -> None:
         raise ValueError("warnings must be a string array")
 
 
+def build_aggregated_event(
+    event: dict[str, Any],
+    *,
+    event_id: str,
+    source_file: str,
+    source_name: str | None,
+    source_url: str | None,
+) -> dict[str, Any]:
+    aggregated = {
+        "event_id": event_id,
+        "source_file": source_file,
+        "source_name": _null_or_string(source_name),
+        "source_url": _null_or_string(source_url),
+    }
+    for field in EVENT_FIELDS:
+        aggregated[field] = event.get(field)
+    _validate_aggregated_event(aggregated, 1)
+    return aggregated
+
+
+def validate_events_file(payload: dict[str, Any]) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("events file must be a JSON object")
+
+    missing = [field for field in EVENTS_FILE_FIELDS if field not in payload]
+    if missing:
+        raise ValueError(f"events file missing fields: {', '.join(missing)}")
+    extra = [field for field in payload if field not in EVENTS_FILE_FIELDS]
+    if extra:
+        raise ValueError(f"events file has unexpected fields: {', '.join(extra)}")
+
+    if not isinstance(payload["events"], list):
+        raise ValueError("events must be an array")
+    for index, event in enumerate(payload["events"], start=1):
+        _validate_aggregated_event(event, index)
+
+
 def build_error_response(message: str, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
     fallback = fallback or {}
     return normalize_response(
@@ -128,6 +174,8 @@ def _normalize_events(value: Any) -> list[dict[str, Any]]:
             "tags": _normalize_string_list(raw_event.get("tags")),
             "evidence_text": _null_or_string(raw_event.get("evidence_text")),
         }
+        event["start_time"] = _remove_unsubstantiated_full_day_time(event["start_time"], event["evidence_text"])
+        event["end_time"] = _remove_unsubstantiated_full_day_time(event["end_time"], event["evidence_text"])
         if _has_event_signal(event):
             events.append(event)
 
@@ -148,11 +196,31 @@ def _validate_event(event: Any, index: int) -> None:
                 raise ValueError(f"events[{index}].tags must be a string array")
         else:
             _assert_null_or_string(event[field], f"events[{index}].{field}")
+            if field in {"start_time", "end_time"} and _is_date_only_string(event[field]):
+                raise ValueError(f"events[{index}].{field} must include time and timezone or be null")
 
     if not event["title"]:
         raise ValueError(f"events[{index}].title must be non-empty")
     if not (event["start_time"] or event["location"] or event["evidence_text"]):
         raise ValueError(f"events[{index}] must include start_time, location, or evidence_text")
+
+
+def _validate_aggregated_event(event: Any, index: int) -> None:
+    if not isinstance(event, dict):
+        raise ValueError(f"events[{index}] must be an object")
+
+    missing = [field for field in AGGREGATED_EVENT_FIELDS if field not in event]
+    if missing:
+        raise ValueError(f"events[{index}] missing fields: {', '.join(missing)}")
+    extra = [field for field in event if field not in AGGREGATED_EVENT_FIELDS]
+    if extra:
+        raise ValueError(f"events[{index}] has unexpected fields: {', '.join(extra)}")
+
+    _assert_uuid4(event["event_id"], f"events[{index}].event_id")
+    _assert_nonempty_string(event["source_file"], f"events[{index}].source_file")
+    _assert_null_or_string(event["source_name"], f"events[{index}].source_name")
+    _assert_null_or_string(event["source_url"], f"events[{index}].source_url")
+    _validate_event({field: event[field] for field in EVENT_FIELDS}, index)
 
 
 def _has_event_signal(event: dict[str, Any]) -> bool:
@@ -188,3 +256,37 @@ def _is_null_like_string(value: str) -> bool:
 def _assert_null_or_string(value: Any, name: str) -> None:
     if value is not None and not isinstance(value, str):
         raise ValueError(f"{name} must be a string or null")
+
+
+def _assert_nonempty_string(value: Any, name: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+
+
+def _assert_uuid4(value: Any, name: str) -> None:
+    _assert_nonempty_string(value, name)
+    try:
+        parsed = uuid.UUID(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a UUID") from exc
+    if parsed.version != 4 or str(parsed) != value.lower():
+        raise ValueError(f"{name} must be a UUIDv4 string")
+
+
+def _remove_unsubstantiated_full_day_time(value: str | None, evidence_text: str | None) -> str | None:
+    if value is None:
+        return None
+    if _is_date_only_string(value):
+        return None
+    evidence = evidence_text or ""
+    if "T00:00:00" in value and "00:00" not in evidence:
+        return None
+    if "T23:59:59" in value and "23:59" not in evidence:
+        return None
+    return value
+
+
+def _is_date_only_string(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return len(value) == 10 and value[4] == "-" and value[7] == "-" and value.replace("-", "").isdigit()

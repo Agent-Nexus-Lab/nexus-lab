@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ try:
 except ImportError:  # Python 3.8 fallback
     ZoneInfo = None
 
-from schema import build_error_response, maas_tool_schema, normalize_response
+from schema import build_aggregated_event, build_error_response, maas_tool_schema, normalize_response, validate_events_file
 
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
@@ -81,7 +82,7 @@ def parse_args() -> argparse.Namespace:
         default=Path(os.getenv("AGENT_MAAS_OUTPUT_DIR", str(DEFAULT_OUTPUT_DIR))),
         help="批量输出目录，默认 experiments/agent-maas-cli/outputs",
     )
-    parser.add_argument("--output-file", type=Path, help="单文件模式下写入指定 JSON 文件")
+    parser.add_argument("--output-file", type=Path, help="单文件模式下写入指定 JSON；批量模式下写入聚合 events.json")
     parser.add_argument("--write-output", action="store_true", help="单文件模式下同时写入标准输出目录")
     parser.add_argument(
         "--api-style",
@@ -97,8 +98,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-name", default=os.getenv("SOURCE_NAME"), help="信息源名称，优先写入输出 source_name")
     parser.add_argument("--source-url", default=os.getenv("SOURCE_URL"), help="信息源 URL，优先写入输出 source_url")
     parser.add_argument("--temperature", type=float, default=float(os.getenv("MAAS_TEMPERATURE", "0.1")))
-    parser.add_argument("--max-tokens", type=int, default=int(os.getenv("MAAS_MAX_TOKENS", "4096")))
-    parser.add_argument("--timeout", type=float, default=float(os.getenv("MAAS_TIMEOUT", "60")))
+    parser.add_argument("--max-tokens", type=int, default=optional_int_env("MAAS_MAX_TOKENS"))
+    parser.add_argument("--timeout", type=float, default=optional_float_env("MAAS_TIMEOUT"))
     parser.add_argument(
         "--thinking",
         choices=["default", "enabled", "disabled"],
@@ -131,36 +132,57 @@ def run_batch(args: argparse.Namespace) -> int:
         return 2
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = args.output_file or output_dir / "events.json"
+    events: list[dict[str, Any]] = []
     results: list[dict[str, Any]] = []
     for input_file in files:
         source_text = input_file.read_text(encoding="utf-8")
 
         if args.dry_run:
-            output_file = output_dir / f"{input_file.stem}.request.json"
+            request_file = output_dir / "dry-run" / f"{input_file.stem}.request.json"
             payload = build_request_payload(args, source_text)
-            write_json_output(output_file, payload)
+            write_json_output(request_file, payload)
             status = "dry_run"
+            event_count = 0
+            result_output = str(request_file)
         else:
-            output_file = output_dir / f"{input_file.stem}.json"
             normalized = process_source_text(args, source_text, input_file=input_file)
-            write_json_output(output_file, normalized)
             status = "completed" if normalized["events"] else "empty"
+            event_count = len(normalized["events"])
+            result_output = str(output_file)
+            for event in normalized["events"]:
+                events.append(
+                    build_aggregated_event(
+                        event,
+                        event_id=str(uuid.uuid4()),
+                        source_file=input_file.name,
+                        source_name=normalized["source_name"],
+                        source_url=normalized["source_url"],
+                    )
+                )
 
         results.append(
             {
                 "input_file": str(input_file),
-                "output_file": str(output_file),
+                "output_file": result_output,
                 "status": status,
+                "events": event_count,
             }
         )
+
+    if not args.dry_run:
+        payload = {"events": events}
+        validate_events_file(payload)
+        write_json_output(output_file, payload)
 
     summary = {
         "code": 0,
         "data": {
             "input_dir": str(input_dir),
-            "output_dir": str(output_dir),
+            "output_file": str(output_file),
             "total": len(results),
-            "items": results,
+            "total_events": len(events),
+            "sources": results,
         },
         "message": "ok",
     }
@@ -290,6 +312,16 @@ def preload_env_file() -> None:
     load_env_file(args.env_file)
 
 
+def optional_int_env(name: str) -> int | None:
+    value = os.getenv(name)
+    return int(value) if value else None
+
+
+def optional_float_env(name: str) -> float | None:
+    value = os.getenv(name)
+    return float(value) if value else None
+
+
 def build_request_payload(
     args: argparse.Namespace,
     source_text: str,
@@ -309,8 +341,9 @@ def build_request_payload(
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ],
         "temperature": args.temperature,
-        "max_tokens": args.max_tokens,
     }
+    if args.max_tokens is not None:
+        payload["max_tokens"] = args.max_tokens
     if args.api_style == "openai":
         payload["tools"] = [maas_tool_schema()]
         payload["tool_choice"] = {
