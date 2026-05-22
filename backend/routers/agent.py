@@ -15,10 +15,10 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     user = db.query(User).first()
     if not user:
         return {
-    "code": 1001,
-    "data": None,
-    "message": "用户画像未创建，请先提交偏好信息"
-    }
+        "code": 1001,
+        "data": None,
+        "message": "用户画像未创建，请先提交偏好信息"
+        }
     profile = db.query(UserProfile).filter_by(user_id=user.id).first()
     if not profile:
         return {
@@ -47,7 +47,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
     run = db.query(PlanRun).filter_by(id=run_id).first()
     if not run:
         raise HTTPException(404, "运行记录不存在")
-    elapsed = time.time() - run.started_at()
+    elapsed = time.time() - run.started_at.timestamp()
     if elapsed < 5:
         return {
             "code": 0,
