@@ -46,7 +46,7 @@ class RawDocument(Base):
     content_text = Column(Text)
     fetched_at = Column(DateTime(timezone=True), server_default=func.now())
     content_hash = Column(String(64))
-    status = Column(String(20), default="pending") 
+    status = Column(String(20), default="pending")
 
 class Event(Base):
     __tablename__ = "events"
