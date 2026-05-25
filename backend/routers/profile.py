@@ -10,6 +10,37 @@ router = APIRouter(prefix="/api", tags=["profile"])
 
 @router.post("/profile")
 def create_profile(req: ProfileRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.openid == "placeholder").first()
+    if existing_user:
+        user = existing_user
+        user.nickname = req.nickname
+        user.campus = req.campus
+
+        profile = db.query(UserProfile).filter_by(user_id=user.id).first()
+        if not profile:
+            profile = UserProfile(
+                user_id=user.id,
+                identity=req.identity,
+                raw_preference_text=req.raw_preference_text,
+                interest_tags=req.interest_tags,
+                preferred_campuses=req.preferred_campuses,
+                available_time=req.available_time,
+                activity_style_tags=req.activity_style_tags,
+                profile_summary=req.profile_summary,
+            )
+            db.add(profile)
+        else:
+            profile.identity = req.identity
+            profile.raw_preference_text = req.raw_preference_text
+            profile.interest_tags = req.interest_tags
+            profile.preferred_campuses = req.preferred_campuses
+            profile.available_time = req.available_time
+            profile.activity_style_tags = req.activity_style_tags
+            profile.profile_summary = req.profile_summary
+        db.commit()
+        db.refresh(user)
+        db.refresh(profile)
+        return {"code": 0, "data": _to_profile_data(user, profile).model_dump(mode="json"), "message": "ok"}
     user = User(
         id=str(uuid.uuid4()),
         openid="placeholder",       # 后续从 Header 解析

@@ -39,7 +39,7 @@ def list_plans(page: int = 1, page_size: int = 20, db: Session = Depends(get_db)
         ))
     return {
         "code": 0,
-        "data": PlanListData(items=items, total=(total-1)/page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
+        "data": PlanListData(items=items, total=(total-1)//page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
         "message": "ok",
     }
 
