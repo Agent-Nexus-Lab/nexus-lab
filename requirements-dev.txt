@@ -1,0 +1,3 @@
+# Install all Python dependencies used by local development and prototypes.
+-r backend/requirements.txt
+-r experiments/agent-maas-cli/requirements.txt
