@@ -126,7 +126,7 @@ python experiments\agent-maas-cli\cli.py --input-dir experiments\agent-maas-cli\
       "start_time": "2026-05-15T20:00:00+08:00",
       "end_time": null,
       "location": "光草东北角",
-      "campus": null,
+      "campus": "邯郸",
       "organizer": "复旦天协",
       "tags": ["天文", "观星"],
       "evidence_text": "时间：今晚（5.15）20:00开始\n地点：光草东北角"
@@ -136,6 +136,12 @@ python experiments\agent-maas-cli\cli.py --input-dir experiments\agent-maas-cli\
 ```
 
 字段定义以 `docs/API字段定义_MVP版.md` 5.5 节为准。`event_id` 由脚本在每次聚合时生成 UUIDv4，因此重复运行会变化。
+
+校区规则：
+
+- `campus` 使用 `邯郸`、`江湾`、`枫林`、`张江`、`其他`。
+- 原文未明确校区时默认 `邯郸`。
+- 同一活动明确涉及多个校区时拆成多条 event，每条 event 只保留一个 `campus`。
 
 ## 5. 文件职责
 

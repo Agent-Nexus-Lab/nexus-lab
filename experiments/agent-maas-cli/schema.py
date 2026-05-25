@@ -6,6 +6,8 @@ from typing import Any
 
 TOP_LEVEL_FIELDS = ["source_name", "source_url", "events", "warnings"]
 EVENTS_FILE_FIELDS = ["events"]
+CAMPUS_VALUES = ["邯郸", "江湾", "枫林", "张江", "其他"]
+DEFAULT_CAMPUS = "邯郸"
 EVENT_FIELDS = [
     "title",
     "summary",
@@ -177,7 +179,7 @@ def _normalize_events(value: Any) -> list[dict[str, Any]]:
         event["start_time"] = _remove_unsubstantiated_full_day_time(event["start_time"], event["evidence_text"])
         event["end_time"] = _remove_unsubstantiated_full_day_time(event["end_time"], event["evidence_text"])
         if _has_event_signal(event):
-            events.append(event)
+            events.extend(_expand_event_by_campus(event))
 
     return events
 
@@ -194,6 +196,10 @@ def _validate_event(event: Any, index: int) -> None:
         if field == "tags":
             if not isinstance(event[field], list) or any(not isinstance(tag, str) for tag in event[field]):
                 raise ValueError(f"events[{index}].tags must be a string array")
+        elif field == "campus":
+            _assert_nonempty_string(event[field], f"events[{index}].campus")
+            if event[field] not in CAMPUS_VALUES:
+                raise ValueError(f"events[{index}].campus must be one of: {', '.join(CAMPUS_VALUES)}")
         else:
             _assert_null_or_string(event[field], f"events[{index}].{field}")
             if field in {"start_time", "end_time"} and _is_date_only_string(event[field]):
@@ -225,6 +231,55 @@ def _validate_aggregated_event(event: Any, index: int) -> None:
 
 def _has_event_signal(event: dict[str, Any]) -> bool:
     return bool(event.get("title") and (event.get("start_time") or event.get("location") or event.get("evidence_text")))
+
+
+def _expand_event_by_campus(event: dict[str, Any]) -> list[dict[str, Any]]:
+    campuses = _extract_event_campuses(event) or [DEFAULT_CAMPUS]
+    expanded: list[dict[str, Any]] = []
+    for campus in campuses:
+        campus_event = dict(event)
+        campus_event["campus"] = campus
+        expanded.append(campus_event)
+    return expanded
+
+
+def _extract_event_campuses(event: dict[str, Any]) -> list[str]:
+    field_campuses = _extract_campuses(event.get("campus"), allow_short=True)
+    text_campuses = _unique_preserving_order(
+        [
+            *_extract_campuses(event.get("location"), allow_short=False),
+            *_extract_campuses(event.get("evidence_text"), allow_short=False),
+        ]
+    )
+    if text_campuses:
+        return text_campuses
+    return _unique_preserving_order(field_campuses)
+
+
+def _extract_campuses(value: Any, *, allow_short: bool) -> list[str]:
+    text = _null_or_string(value)
+    if text is None:
+        return []
+
+    campuses: list[str] = []
+    for campus in CAMPUS_VALUES:
+        if campus == "其他":
+            if "其他" in text or "校外" in text:
+                campuses.append(campus)
+            continue
+        if f"{campus}校区" in text or (allow_short and campus in text):
+            campuses.append(campus)
+    return campuses
+
+
+def _unique_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique_values: list[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            unique_values.append(value)
+    return unique_values
 
 
 def _normalize_string_list(value: Any) -> list[str]:
