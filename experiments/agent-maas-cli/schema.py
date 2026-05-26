@@ -36,7 +36,7 @@ def maas_tool_schema() -> dict[str, Any]:
         "start_time": {"type": ["string", "null"]},
         "end_time": {"type": ["string", "null"]},
         "location": {"type": ["string", "null"]},
-        "campus": {"type": ["string", "null"]},
+        "campus": {"type": "string"},
         "organizer": {"type": ["string", "null"]},
         "tags": {"type": "array", "items": {"type": "string"}},
         "evidence_text": {"type": ["string", "null"]},
