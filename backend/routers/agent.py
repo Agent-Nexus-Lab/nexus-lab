@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
+import uuid
 from schemas import PlanDayRequest, PlanDayResponseData, RunItem, RunStatusData
 from models import User, PlanRun, Plan, PlanItem, Event, UserProfile
-import uuid
 from datetime import datetime
 import time
+from typing import Any
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from event_extract.experiments.runtime.runtime import plan_day as plan_day_funct
+from event_extract.experiments.runtime.runtime import parse_now, DEFAULT_TIMEZONE
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
-
 
 @router.post("/plan-day")
 def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
@@ -19,57 +24,99 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "data": None,
         "message": "用户画像未创建，请先提交偏好信息"
         }
-    profile = db.query(UserProfile).filter_by(user_id=user.id).first()
-    if not profile:
+    profile_raw = db.query(UserProfile).filter_by(user_id=user.id).first()
+    if not profile_raw:
         return {
             "code": 1001,
             "data": None,
             "message": "用户画像未创建，请先提交偏好信息"
         }
+    events_raw = db.query(Event).all()
+    events = []
+    for event in events_raw:
+        event_dict = {
+        "event_id": event.id,
+        "title": event.title,
+        "summary": event.summary,
+        "start_time": event.start_time.isoformat() if event.start_time else None,
+        "end_time": event.end_time.isoformat() if event.end_time else None,
+        "location": event.location,
+        "campus": event.campus,
+        "organizer": event.organizer,
+        "tags": event.tags,
+        "source_url": event.source_url,
+        "quality_score": event.quality_score,
+        }
+        events.append(event_dict)
+    profile = {
+        "preferred_campuses": profile_raw.preferred_campuses or [],
+        "interest_tags": profile_raw.interest_tags or [],
+        "activity_style_tags": profile_raw.activity_style_tags or [],
+        "available_time": profile_raw.available_time or "",
+        "campus": user.campus or "",
+        "profile_summary": profile_raw.profile_summary or "",
+    }
     runid = str(uuid.uuid4())
     run = PlanRun(
         id=runid,
         user_id=user.id,
-        status="queued",
+        status="running",
         request_text=req.request_text,
+        ended_at = None,
+        error_message = None
     )
     db.add(run)
     db.flush()
-    planid = str(uuid.uuid4())
-    plan = Plan(
-        id=planid,
-        run_id = runid,
-        user_id=user.id,
-        title="标题测试",
-        date_scope=req.date_scope,
-        summary=req.request_text,
-    )
-    db.add(plan)
-    db.flush()
-    planitem = PlanItem(
-        id = str(uuid.uuid4()),
-        plan_id = planid,
-        event_id = "17fe89ad-feb2-49a8-9015-6fbd29cb9e4f",
-        start_time = datetime.fromisoformat("2026-05-18T19:00:00+08:00"),
-        end_time = datetime.fromisoformat("2026-05-18T20:30:00+08:00"),
-        reason_text = "主题高度匹配你的 AI 兴趣标签，时间在晚间符合你的空闲时段，步行 5 分钟可达",
-        display_order = 1,
-    )
-    db.add(planitem)
-    db.flush()
-    planitem = PlanItem(
-        id = str(uuid.uuid4()),
-        plan_id = planid,
-        event_id = "1ec741ec-421a-43a4-8bb8-48fe9aa726f5",
-        start_time = datetime.fromisoformat("2026-05-18T20:00:00+08:00"),
-        end_time = datetime.fromisoformat("2026-05-18T21:30:00+08:00"),
-        reason_text = "同时匹配 AI 和创业两个兴趣标签，互动形式契合你偏好的活动风格",
-        display_order = 2,
-    )
-    db.add(planitem)
-    db.flush()
+    try:
+        result = plan_day_funct(
+            events = events,
+            profile = profile,
+            request_text = req.request_text,
+            date_scope = req.date_scope,
+            # 方便调试这改成固定时间，记得再改回来
+            now = datetime.fromisoformat("2026-05-15T12:00:00+08:00"),
+            include_debug = True
+        )
+        data = result["data"]
+        plan_id = data.get("plan_id") or str(uuid.uuid4())
+        plan = Plan(
+            id = plan_id,
+            run_id = runid,
+            user_id = user.id,
+            title = data.get("title"),
+            date_scope = data.get("date_scope"),
+            summary = data.get("summary"),
+        )
+        db.add(plan)
+        db.flush()
+
+        items = data.get("items") or []
+        for item_raw in items:
+            item = PlanItem(
+                id = str(uuid.uuid4()),
+                plan_id = plan_id,
+                event_id = item_raw.get("event_id"),
+                start_time=datetime.fromisoformat(item_raw["start_time"]).astimezone(DEFAULT_TIMEZONE),
+                end_time=datetime.fromisoformat(item_raw["end_time"]).astimezone(DEFAULT_TIMEZONE) if item_raw.get("end_time") else None,
+                reason_text=item_raw.get("reason_text", ""),
+                display_order=item_raw.get("display_order", 0),
+            )
+            db.add(item)
+        run.status = "completed"
+        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+    except  Exception as e:
+        run.status = "failed"
+        run.error_message = str(e)
+        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+        db.commit()
+        return{
+            "code": 500,
+            "data": None,
+            "message": f"生成失败：{str(e)}"
+        }
     db.commit()
     db.refresh(run)
+
     # 这应该是post根据plan生成planitem并保存到planitem的数据库中
     return {
         "code": 0,
@@ -83,9 +130,8 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
     run = db.query(PlanRun).filter_by(id=run_id).first()
     if not run:
         raise HTTPException(404, "运行记录不存在")
-    elapsed = time.time() - run.started_at.timestamp()
-    # 这应该怎样判断之前安排planitem是否安排完成
-    if elapsed < 5:
+    # 这应该判断之前安排planitem是否安排完成
+    if run.status == "running":
         return {
             "code": 0,
             "data": {
@@ -95,7 +141,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
                 "title": None,
                 "summary": None,
                 "items": None,
-                "started_at": datetime.now().isoformat() + "+08:00",
+                "started_at": run.started_at.isoformat() + "+08:00",
                 "error_message": None
             },
             "message": "ok"
@@ -131,7 +177,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
         "code": 0,
         "data": RunStatusData(
             run_id=run.id,
-            status="completed",
+            status=run.status,
             plan_id=plan.id if plan else None,
             title=plan.title if plan else None,
             summary=plan.summary if plan else None,
