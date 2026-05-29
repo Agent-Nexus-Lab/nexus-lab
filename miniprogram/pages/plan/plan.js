@@ -118,7 +118,7 @@ Page({
       wx.hideLoading()
       wx.showModal({
         title: '连接后端失败',
-        content: `${error.message || '请检查 cpolar 链接、后端服务和小程序网络设置'}`,
+        content: `${error.message || '请检查公网 IP、后端服务和小程序网络设置'}`,
         showCancel: false
       })
     }

@@ -1,6 +1,6 @@
-// 联调地址：昕宇的 cpolar -> FastAPI localhost:8000
+// 联调地址：昕宇公网 IP -> FastAPI :8000。
 // 微信开发者工具里需要勾选“不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书”。
-const API_BASE_URL = 'https://473128a5.r21.vip.cpolar.cn/api'
+const API_BASE_URL = 'http://1.117.75.184:8000/api'
 
 function request({ url, method = 'GET', data }) {
   return new Promise((resolve, reject) => {

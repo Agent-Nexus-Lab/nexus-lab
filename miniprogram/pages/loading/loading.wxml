@@ -2,7 +2,7 @@
   <view class="loading-card">
     <view class="spinner"></view>
     <view class="loading-title">{{currentMessage}}</view>
-    <view class="loading-subtitle">正在根据你的偏好、时间范围和活动库模拟生成结果。</view>
+    <view class="loading-subtitle">正在根据你的偏好、时间范围和活动库生成结果。</view>
 
     <view class="progress-track">
       <view class="progress-bar" style="width: {{progress}}%;"></view>

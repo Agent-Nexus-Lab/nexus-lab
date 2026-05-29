@@ -6,8 +6,8 @@
 
 - `pages/profile`：偏好设置页，收集校区、身份、兴趣、时间和活动风格。
 - `pages/plan`：日程输入页，收集 `request_text` 和 `date_scope`。
-- `pages/loading`：生成中页面，用 `setInterval` 模拟轮询和 loading 进度。
-- `pages/result`：结果页，渲染本地 mock JSON 活动卡片。
+- `pages/loading`：生成中页面，轮询后端 `plan_run` 状态机。
+- `pages/result`：结果页，渲染后端返回的活动卡片，并处理空字段兜底。
 
 ## 本地预览
 
@@ -25,9 +25,21 @@ docs/previews/miniprogram-t0-preview.html
 
 ## 当前边界
 
-当前版本只跑本地假交互，不请求真实后端。后续联调时可将：
+当前版本请求真实后端联调地址：
+
+```text
+http://1.117.75.184:8000/api
+```
+
+生成流程：
 
 - `POST /api/agent/plan-day`
 - `GET /api/agent/runs/{run_id}`
 
-替换掉 `pages/loading/loading.js` 中的 mock 逻辑。
+前端会一直轮询到 `completed` 后进入结果页；如果返回 `failed` 或轮询超时，会停在错误提示。
+
+字段契约见：
+
+```text
+docs/frontend-api-contract.md
+```
