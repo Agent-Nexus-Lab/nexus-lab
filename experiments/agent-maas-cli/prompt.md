@@ -26,7 +26,7 @@ events[*].evidence_text
 规则：
 
 1. 只抽取原文事实和输入字段，不得编造。
-2. `source_name`、`source_url` 优先使用输入字段；没有输入时，若原文第一行或署名行是账号/社团/机构名，可填入 `source_name`，否则填 `null`。
+2. `source_name`、`source_url`：输入字段有值则直接使用；输入字段为空时，必须从原文头部 `author:`、`source_url:` 行提取（由 fetch_weixin.py 写入），不得跳过。原文没有 `author:` 行时，从 `#js_name` 或文末署名推断，仍无法确定才填 `null`。
 3. 活动、开放日、参观、返校日线下专场、咨询、展览、演出、福利兑换等事项，只要原文给出标题或主题且有时间或地点，即可放入 `events`。
 4. 不按日期、地点完整度或链接缺失过滤活动；早于 `reference_date` 的活动也要抽取。
 5. 缺失标量填 `null`；缺失数组填 `[]`。

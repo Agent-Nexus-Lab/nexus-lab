@@ -66,7 +66,10 @@ async def fetch_article(url: str, timeout: float = 30) -> dict[str, str]:
             title = title_el.get_text(strip=True) if title_el else "Untitled"
 
             author_el = soup.select_one("#js_author_name")
-            author = author_el.get_text(strip=True) if author_el else "Unknown"
+            author = author_el.get_text(strip=True) if author_el else ""
+
+            account_el = soup.select_one("#js_name")
+            account = account_el.get_text(strip=True) if account_el else author
 
             pub_el = soup.select_one("#publish_time")
             pub_date = pub_el.get_text(strip=True) if pub_el else ""
@@ -81,6 +84,7 @@ async def fetch_article(url: str, timeout: float = 30) -> dict[str, str]:
 
             return {
                 "title": title,
+                "account": account,
                 "author": author,
                 "date": pub_date,
                 "url": url,
@@ -92,8 +96,9 @@ async def fetch_article(url: str, timeout: float = 30) -> dict[str, str]:
 
 def write_output(path: Path, result: dict[str, str]) -> None:
     lines = [
+        f"account: {result['account']}",
         f"title: {result['title']}",
-        f"author: {result['author']}",
+        f"author: {result.get('author', '')}",
         f"date: {result['date']}",
         f"source_url: {result['url']}",
         "",
