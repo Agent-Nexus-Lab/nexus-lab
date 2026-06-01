@@ -104,7 +104,7 @@
       <div class="page">
         <div class="loading-card">
           <div class="spinner"></div>
-          <div class="title" id="loadingMessage">正在拼命检索校园活动...</div>
+          <div class="title" id="loadingMessage">正在理解你的需求...</div>
           <div class="subtitle" id="loadingSubtitle">正在请求 FastAPI，并轮询生成结果。</div>
           <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
           <div class="step-list" id="stepList"></div>
@@ -127,8 +127,9 @@
     let profilePayload = null
     let timer = null
     const API_BASE_URL = 'http://1.117.75.184:8000/api'
-    const steps = ['读取你的偏好设置', '创建 plan_run 任务', '轮询 plan_run 状态', '整理活动卡片列表']
-    const messages = ['正在拼命检索校园活动...', '正在筛选时间和校区...', '正在匹配你的兴趣标签...', '正在整理活动卡片...']
+    const steps = ['正在理解需求', '正在检索活动', '正在编排日程', '正在整理结果']
+    const messages = ['正在理解你的需求...', '正在检索校园活动...', '正在编排你的日程...', '正在整理推荐结果...']
+    const stageIndex = { intent_parsing: 0, understanding_request: 0, search_events: 1, searching_events: 1, build_schedule: 2, arranging_schedule: 2, rewrite_plan: 3, saving_plan: 3 }
     function show(id) {
       document.querySelectorAll('.screen').forEach((screen) => screen.classList.add('hidden'))
       document.getElementById(id).classList.remove('hidden')
@@ -178,7 +179,7 @@
     document.getElementById('backButton').addEventListener('click', () => show('profileScreen'))
     document.getElementById('againButton').addEventListener('click', () => show('planScreen'))
     document.getElementById('generateButton').addEventListener('click', () => {
-      const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope() }
+      const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope(), include_debug: true }
       console.log('profilePayload for POST /api/profile:', profilePayload)
       console.log('planDayPayload for POST /api/agent/plan-day:', planDayPayload)
       if (!profilePayload) {
@@ -222,7 +223,7 @@
       document.getElementById('progressBar').style.width = '18%'
       document.getElementById('loadingMessage').textContent = '正在连接昕宇的 FastAPI...'
       document.getElementById('loadingSubtitle').textContent = API_BASE_URL
-      clearInterval(timer)
+      clearTimeout(timer)
 
       try {
         const profileRes = await apiRequest('/profile', {
@@ -250,13 +251,8 @@
         document.getElementById('progressBar').style.width = '50%'
         renderSteps(2)
 
-        timer = setInterval(async () => {
+        async function pollRunStatus() {
           tick += 1
-          const index = Math.min(2 + tick, messages.length - 1)
-          document.getElementById('loadingMessage').textContent = messages[index]
-          document.getElementById('progressBar').style.width = Math.min(50 + tick * 12, 96) + '%'
-          renderSteps(index)
-
           try {
             const runRes = await apiRequest(`/agent/runs/${runId}`)
             console.log('GET /api/agent/runs response:', runRes)
@@ -264,28 +260,39 @@
               throw new Error(runRes && runRes.message ? runRes.message : '查询任务失败')
             }
             if (runRes.data && runRes.data.status === 'completed') {
-              clearInterval(timer)
+              clearTimeout(timer)
               document.getElementById('progressBar').style.width = '100%'
-              renderResult({
-                ...runRes.data,
-                date_scope: runRes.data.date_scope || planDayPayload.date_scope,
-                request_text: planDayPayload.request_text,
-                items: Array.isArray(runRes.data.items) ? runRes.data.items : []
-              })
-              show('resultScreen')
+              document.getElementById('loadingMessage').textContent = '日程已生成'
+              renderSteps(messages.length - 1)
+              timer = setTimeout(() => {
+                renderResult({
+                  ...runRes.data,
+                  date_scope: runRes.data.date_scope || planDayPayload.date_scope,
+                  request_text: planDayPayload.request_text,
+                  items: Array.isArray(runRes.data.items) ? runRes.data.items : []
+                })
+                show('resultScreen')
+              }, 350)
               return
             }
             if (runRes.data && runRes.data.status === 'failed') {
               throw new Error(runRes.data.error_message || '后端生成失败')
             }
+            const index = stageIndex[runRes.data && runRes.data.stage]
+            document.getElementById('loadingMessage').textContent = index == null ? 'Agent 正在运行...' : messages[index]
+            document.getElementById('progressBar').style.width = (index == null ? 55 : 55 + index * 12) + '%'
+            renderSteps(index == null ? -1 : index)
             if (tick >= 10) {
               throw new Error('轮询超时：后端一直没有从 queued/running 进入 completed 或 failed')
             }
+            timer = setTimeout(pollRunStatus, 1200)
           } catch (error) {
-            clearInterval(timer)
+            clearTimeout(timer)
             showApiError(error)
           }
-        }, 1200)
+        }
+
+        pollRunStatus()
       } catch (error) {
         showApiError(error)
       }

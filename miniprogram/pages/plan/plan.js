@@ -62,7 +62,8 @@ Page({
     const profilePayload = wx.getStorageSync(PROFILE_STORAGE_KEY) || null
     const planDayPayload = {
       request_text: this.data.request_text.trim(),
-      date_scope: this.data.date_scope
+      date_scope: this.data.date_scope,
+      include_debug: api.ENABLE_DEBUG_VIEW
     }
 
     console.log('profilePayload for POST /api/profile:', profilePayload)

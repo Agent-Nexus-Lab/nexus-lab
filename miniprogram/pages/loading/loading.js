@@ -3,31 +3,44 @@ const PLAN_RESULT_STORAGE_KEY = 'planRunResult'
 
 const api = require('../../utils/api')
 
-const POLL_MESSAGES = [
-  '正在拼命检索校园活动...',
-  '正在筛选时间和校区...',
-  '正在匹配你的兴趣标签...',
-  '正在整理活动卡片...'
-]
+const POLL_INTERVAL_MS = 1200
+const MAX_POLL_COUNT = 60
+const STAGE_INDEX = {
+  intent_parsing: 0,
+  understanding_request: 0,
+  search_events: 1,
+  searching_events: 1,
+  build_schedule: 2,
+  arranging_schedule: 2,
+  rewrite_plan: 3,
+  saving_plan: 3
+}
 
 Page({
   data: {
-    activeStep: 0,
-    currentMessage: POLL_MESSAGES[0],
+    viewState: 'running',
+    runStatus: 'queued',
+    statusLabel: '任务已入队',
+    currentMessage: '正在理解你的需求...',
     progress: 18,
+    activeStep: 0,
+    errorMessage: '',
+    debugText: '',
     steps: [
-      { text: '读取生成任务 run_id' },
-      { text: '轮询 plan_run 状态' },
-      { text: '等待 completed 结果' },
-      { text: '整理结果页数据' }
+      { text: '正在理解需求' },
+      { text: '正在检索活动' },
+      { text: '正在编排日程' },
+      { text: '正在整理结果' }
     ]
   },
 
   timer: null,
+  pollCount: 0,
+  request: null,
 
   onLoad() {
-    const request = wx.getStorageSync(PLAN_REQUEST_STORAGE_KEY)
-    if (!request) {
+    this.request = wx.getStorageSync(PLAN_REQUEST_STORAGE_KEY)
+    if (!this.request || !this.request.run_id) {
       wx.showToast({
         title: '请先输入日程需求',
         icon: 'none'
@@ -38,78 +51,135 @@ Page({
       return
     }
 
-    let tick = 0
-    this.timer = setInterval(async () => {
-      tick += 1
-      const activeStep = Math.min(tick, POLL_MESSAGES.length - 1)
-      this.setData({
-        activeStep,
-        currentMessage: POLL_MESSAGES[activeStep],
-        progress: Math.min(18 + tick * 26, 100)
-      })
-
-      try {
-        const res = await api.getRunStatus(request.run_id)
-        console.log('GET /api/agent/runs response:', res)
-
-        if (res.code !== 0) {
-          throw new Error(res.message || '查询生成状态失败')
-        }
-
-        if (res.data && res.data.status === 'completed') {
-          this.finishRealRun(res.data, request)
-          return
-        }
-
-        if (res.data && res.data.status === 'failed') {
-          throw new Error(res.data.error_message || '生成任务失败')
-        }
-      } catch (error) {
-        this.failRun(error)
-        return
-      }
-
-      if (tick >= 8) {
-        this.failRun(new Error('轮询超时，请确认后端是否从 queued/running 进入 completed 或 failed'))
-      }
-    }, 900)
+    this.pollRunStatus()
   },
 
   onUnload() {
     this.clearTimer()
   },
 
+  async pollRunStatus() {
+    this.clearTimer()
+    this.pollCount += 1
+
+    try {
+      const res = await api.getRunStatus(this.request.run_id)
+      console.log('GET /api/agent/runs response:', res)
+
+      if (!res || res.code !== 0 || !res.data) {
+        throw new Error((res && res.message) || '查询生成状态失败')
+      }
+
+      const runData = res.data
+      if (runData.status === 'completed') {
+        this.finishRealRun(runData)
+        return
+      }
+
+      if (runData.status === 'failed') {
+        this.failRun(runData.error_message || '生成任务失败', runData.debug)
+        return
+      }
+
+      if (runData.status !== 'queued' && runData.status !== 'running') {
+        throw new Error(`未知运行状态：${runData.status || '空'}`)
+      }
+
+      this.updateRunningState(runData)
+
+      if (this.pollCount >= MAX_POLL_COUNT) {
+        this.failRun('轮询超时，请确认后端是否从 queued/running 进入 completed 或 failed', runData.debug)
+        return
+      }
+
+      this.timer = setTimeout(() => {
+        this.pollRunStatus()
+      }, POLL_INTERVAL_MS)
+    } catch (error) {
+      this.failRun(error.message || '请检查后端服务是否在线')
+    }
+  },
+
+  updateRunningState(runData) {
+    const activeStep = STAGE_INDEX[runData.stage] == null ? -1 : STAGE_INDEX[runData.stage]
+    const messages = [
+      '正在理解你的需求...',
+      '正在检索校园活动...',
+      '正在编排你的日程...',
+      '正在整理推荐结果...'
+    ]
+    const currentMessage = activeStep === -1
+      ? (runData.status === 'queued' ? '任务已入队，等待 Agent 处理...' : 'Agent 正在运行...')
+      : messages[activeStep]
+
+    this.setData({
+      viewState: 'running',
+      runStatus: runData.status,
+      statusLabel: runData.status === 'queued' ? '任务已入队' : 'Agent 正在运行',
+      currentMessage,
+      activeStep,
+      progress: activeStep === -1 ? 32 : Math.min(28 + activeStep * 20, 88),
+      debugText: this.formatDebug(runData.debug)
+    })
+  },
+
+  finishRealRun(runData) {
+    this.clearTimer()
+    this.setData({
+      viewState: 'completed',
+      runStatus: 'completed',
+      statusLabel: '生成完成',
+      currentMessage: '日程已生成',
+      activeStep: this.data.steps.length - 1,
+      progress: 100
+    })
+
+    wx.setStorageSync(PLAN_RESULT_STORAGE_KEY, {
+      ...runData,
+      date_scope: runData.date_scope || this.request.planDayPayload.date_scope,
+      request_text: this.request.planDayPayload.request_text,
+      items: Array.isArray(runData.items) ? runData.items : []
+    })
+
+    this.timer = setTimeout(() => {
+      wx.redirectTo({
+        url: '/pages/result/result'
+      })
+    }, 350)
+  },
+
+  failRun(message, debug) {
+    console.error('轮询后端失败:', message, debug)
+    this.clearTimer()
+    this.setData({
+      viewState: 'failed',
+      runStatus: 'failed',
+      statusLabel: '生成失败',
+      currentMessage: '这次没有成功生成日程',
+      errorMessage: message,
+      debugText: this.formatDebug(debug),
+      progress: 100
+    })
+  },
+
+  goPlan() {
+    wx.redirectTo({
+      url: '/pages/plan/plan'
+    })
+  },
+
   clearTimer() {
     if (!this.timer) return
-    clearInterval(this.timer)
+    clearTimeout(this.timer)
     this.timer = null
   },
 
-  finishRealRun(runData, request) {
-    this.clearTimer()
-    wx.setStorageSync(PLAN_RESULT_STORAGE_KEY, {
-      ...runData,
-      date_scope: runData.date_scope || request.planDayPayload.date_scope,
-      request_text: request.planDayPayload.request_text,
-      items: Array.isArray(runData.items) ? runData.items : []
-    })
-    wx.redirectTo({
-      url: '/pages/result/result'
-    })
-  },
-
-  failRun(error) {
-    console.error('轮询后端失败:', error)
-    this.clearTimer()
-    wx.showModal({
-      title: '获取结果失败',
-      content: `${error.message || '请检查后端服务是否在线'}`,
-      showCancel: false,
-      success: () => {
-        wx.redirectTo({
-          url: '/pages/plan/plan'
-        })
-      }
-    })
+  formatDebug(debug) {
+    if (!api.ENABLE_DEBUG_VIEW || !debug) return ''
+    try {
+      return JSON.stringify(debug, null, 2)
+    } catch (error) {
+      return String(debug)
+    }
   }
 })

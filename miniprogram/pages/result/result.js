@@ -1,4 +1,5 @@
 const PLAN_RESULT_STORAGE_KEY = 'planRunResult'
+const api = require('../../utils/api')
 
 Page({
   data: {
@@ -38,7 +39,8 @@ Page({
           quality_score: item.quality_score == null ? '待评估' : item.quality_score,
           time_text: this.formatTimeRange(item.start_time, item.end_time)
         }))
-      }
+      },
+      debugText: this.formatDebug(result.debug)
     })
   },
 
@@ -54,6 +56,15 @@ Page({
     const text = String(value)
     const match = text.match(/[T\s](\d{2}:\d{2})/) || text.match(/^(\d{2}:\d{2})/)
     return match ? match[1] : value
+  },
+
+  formatDebug(debug) {
+    if (!api.ENABLE_DEBUG_VIEW || !debug) return ''
+    try {
+      return JSON.stringify(debug, null, 2)
+    } catch (error) {
+      return String(debug)
+    }
   },
 
   goPlan() {

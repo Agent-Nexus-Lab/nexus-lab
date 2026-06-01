@@ -86,3 +86,18 @@
   line-height: 1.45;
   word-break: break-all;
 }
+
+.debug-panel {
+  background: #f7f9fc;
+}
+
+.debug-text {
+  display: block;
+  margin-top: 14rpx;
+  color: #68758a;
+  font-family: monospace;
+  font-size: 20rpx;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

@@ -36,7 +36,7 @@ http://1.117.75.184:8000/api
 - `POST /api/agent/plan-day`
 - `GET /api/agent/runs/{run_id}`
 
-前端会一直轮询到 `completed` 后进入结果页；如果返回 `failed` 或轮询超时，会停在错误提示。
+前端会一直轮询到 `completed` 后进入结果页；如果返回 `failed` 或轮询超时，会停留在错误态页面展示原因。后端可选返回 `stage` 驱动 Agent 过程展示，返回 `debug` 时前端会在调试区域展示。
 
 字段契约见：
 

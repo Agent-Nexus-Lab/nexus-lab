@@ -52,5 +52,10 @@
     </view>
   </view>
 
+  <view wx:if="{{debugText}}" class="panel debug-panel">
+    <view class="panel-title">开发调试信息</view>
+    <text selectable class="debug-text">{{debugText}}</text>
+  </view>
+
   <button class="primary-button" bindtap="goPlan">重新生成</button>
 </view>

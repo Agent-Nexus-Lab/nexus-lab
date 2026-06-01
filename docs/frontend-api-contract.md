@@ -54,6 +54,23 @@ The frontend follows the MVP `plan_runs` state machine:
 
 The frontend no longer treats non-empty `items` as a completed run. Completion is based on `status === "completed"`.
 
+Optional runtime fields:
+
+| Field | Frontend behavior |
+|---|---|
+| `data.stage` | Proposed field: drives the reserved Agent progress steps when present |
+| `data.debug` | Shown in the loading failure state and result page when present and `ENABLE_DEBUG_VIEW` is enabled |
+| `data.error_message` | Shown when the run enters `failed` |
+
+Reserved progress steps:
+
+1. `正在理解需求`
+2. `正在检索活动`
+3. `正在编排日程`
+4. `正在整理结果`
+
+`data.stage` is reserved for backend alignment and is not part of the current runtime schema yet. Without it, the loading page shows a generic queued/running state and does not simulate stage progress.
+
 ## Completed Result Fields
 
 When `status === "completed"`, the frontend reads `data.items`. If `items` is `null` or not an array, it is rendered as an empty array.
