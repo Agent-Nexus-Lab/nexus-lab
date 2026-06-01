@@ -79,6 +79,7 @@ class PlanRun(Base):
     started_at = Column(DateTime(timezone=True),  server_default=func.now())
     ended_at = Column(DateTime(timezone=True))
     error_message = Column(Text)    #
+    debug = Column(Text) 
 
 class Plan(Base):
     __tablename__ = "plans"

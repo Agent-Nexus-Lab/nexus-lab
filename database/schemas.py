@@ -88,6 +88,7 @@ class RunStatusData(BaseModel):
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     error_message: Optional[str] = None
+    debug: Optional[str] = None
 
 
 # ============================================================

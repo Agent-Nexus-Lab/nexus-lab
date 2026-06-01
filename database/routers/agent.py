@@ -10,8 +10,17 @@ from typing import Any
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from event_extract.experiments.runtime.runtime import plan_day as plan_day_funct
-from event_extract.experiments.runtime.runtime import parse_now, DEFAULT_TIMEZONE
+from backend.plan_service import plan_day_service as plan_day_funct
+from experiments.agent_plan_runtime.runtime import parse_now, DEFAULT_TIMEZONE
+from dotenv import load_dotenv
+import os
+import json
+
+
+load_dotenv()
+LLM_BASE_URL = os.getenv("LLM_BASE_URL")
+LLM_MODEL = os.getenv("LLM_MODEL")
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", 30.0))
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -63,7 +72,8 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         status="running",
         request_text=req.request_text,
         ended_at = None,
-        error_message = None
+        error_message = None,
+        debug = None
     )
     db.add(run)
     db.flush()
@@ -75,9 +85,13 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             date_scope = req.date_scope,
             # 方便调试这改成固定时间，记得再改回来
             now = datetime.fromisoformat("2026-05-15T12:00:00+08:00"),
-            include_debug = True
+            include_debug = True,
+            enable_llm_rewrite = True,
+            llm_base_url = LLM_BASE_URL,
+            llm_model = LLM_MODEL,
+            llm_timeout=LLM_TIMEOUT
         )
-        data = result["data"]
+        data = result.model_dump()
         plan_id = data.get("plan_id") or str(uuid.uuid4())
         plan = Plan(
             id = plan_id,
@@ -104,6 +118,8 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             db.add(item)
         run.status = "completed"
         run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+        debug_data = data.get("error_message")
+        run.debug = json.dumps(debug_data, ensure_ascii=False) if debug_data else None
     except  Exception as e:
         run.status = "failed"
         run.error_message = str(e)
@@ -142,7 +158,8 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
                 "summary": None,
                 "items": None,
                 "started_at": run.started_at.isoformat() + "+08:00",
-                "error_message": None
+                "error_message": None,
+                "debug": None
             },
             "message": "ok"
         }
