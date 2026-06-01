@@ -569,6 +569,70 @@ Item 字段同 3.2 节中的 item 定义。
 }
 ```
 
+### 5.5 活动信息抽取中间结构 — Agent/Data 内部
+
+该结构用于“多条信息源原文 -> 活动候选事件集”的内部流转，可作为 LLM 抽取、人工复核和后续入库前的中间格式。它不是面向前端的公开 API 响应，也不同于 3.2 节的 `plan-day` 运行结果。
+
+MaaS 单条抽取阶段可以保留 `warnings` 供调试；正式测评/交接文件只输出一个 `events.json`，顶层只包含 `events`。
+
+示例：
+
+```json
+{
+  "events": [
+    {
+      "event_id": "550e8400-e29b-41d4-a716-446655440000",
+      "source_file": "1.txt",
+      "source_name": "复旦天协",
+      "source_url": null,
+      "title": "路边天文 | 春末夏初，群星交替",
+      "summary": "5月15日20:00在光草东北角举办路边天文观测活动，包含春季星空讲解和望远镜观测。",
+      "start_time": "2026-05-15T20:00:00+08:00",
+      "end_time": null,
+      "location": "光草东北角",
+      "campus": "邯郸",
+      "organizer": "复旦天协",
+      "tags": ["天文", "观星"],
+      "evidence_text": "时间：今晚（5.15）20:00开始\n地点：光草东北角"
+    }
+  ]
+}
+```
+
+顶层字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `events` | object[] | 从全部输入信息源中抽取出的活动候选 |
+
+`events[*]` 字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `event_id` | string | 活动候选唯一 ID，UUIDv4；由聚合脚本生成，可作为后续入库主键候选 |
+| `source_file` | string | 本地测评或批量导入时的来源文件名，用于回溯原文 |
+| `source_name` | string/null | 信息源名称，例如学院官网、社团账号、公众号名称；无法确定时为 null |
+| `source_url` | string/null | 信息源原文 URL；无法确定时为 null |
+| `title` | string | 活动标题 |
+| `summary` | string/null | 活动事实简介，不写推荐理由 |
+| `start_time` | string/null | 开始时间，ISO 8601 带时区；无法确定完整日期时间时为 null |
+| `end_time` | string/null | 结束时间，ISO 8601 带时区；无法确定时为 null |
+| `location` | string/null | 活动地点 |
+| `campus` | string | 所属校区，枚举见附录 A；原文未明确校区时默认 `邯郸`；同一活动明确涉及多个校区时拆为多条 event，每条只填一个校区 |
+| `organizer` | string/null | 主办/承办/组织/发布方，无法确定时为 null |
+| `tags` | string[] | 从原文主题或活动类型抽取的标签 |
+| `evidence_text` | string/null | 支持该活动抽取的原文片段，便于人工复核和回溯 |
+
+以下字段不由抽取模型或聚合脚本生成，应在入库、审核或推荐阶段产生：
+
+| 字段 | 产生阶段 |
+|---|---|
+| `quality_score` | 来源可信度、字段完整度、人工审核或规则评分阶段生成 |
+| `verification_status` | 审核流程生成 |
+| `is_user_visible` | 发布/审核逻辑生成 |
+| `created_at` / `updated_at` | 数据库写入时生成 |
+| `reason_text` / `display_order` | `plan-day` 推荐结果生成阶段产生 |
+
 ---
 
 ## 6. 错误码
