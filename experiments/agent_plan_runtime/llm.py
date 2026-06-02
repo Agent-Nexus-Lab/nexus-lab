@@ -6,9 +6,11 @@ import os
 import re
 import time
 from typing import Any
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
+load_dotenv()
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
 DEFAULT_MODEL = "deepseek-v4-pro"
 MAX_RETRIES = 2

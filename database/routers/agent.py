@@ -55,6 +55,8 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "tags": event.tags,
         "source_url": event.source_url,
         "quality_score": event.quality_score,
+        "source_name": event.source_name,
+        "evidence_text": event.evidence_text,
         }
         events.append(event_dict)
     profile = {
@@ -84,27 +86,40 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             request_text = req.request_text,
             date_scope = req.date_scope,
             # 方便调试这改成固定时间，记得再改回来
-            now = datetime.fromisoformat("2026-05-15T12:00:00+08:00"),
+            now = parse_now("2026-05-14T12:00:00+08:00"),
             include_debug = True,
             enable_llm_rewrite = True,
             llm_base_url = LLM_BASE_URL,
             llm_model = LLM_MODEL,
             llm_timeout=LLM_TIMEOUT
         )
+    except  Exception as e:
+        run.status = "failed"
+        run.error_message = str(e)
+        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+        run.debug = None
+        db.commit()
+        return{
+            "code": 500,
+            "data": None,
+            "message": f"生成失败：{str(e)}"
+        }
+    else:
         data = result.model_dump()
-        plan_id = data.get("plan_id") or str(uuid.uuid4())
+        inner = data.get("data") or {}
+        plan_id = inner.get("plan_id") or str(uuid.uuid4())
         plan = Plan(
             id = plan_id,
             run_id = runid,
             user_id = user.id,
-            title = data.get("title"),
-            date_scope = data.get("date_scope"),
-            summary = data.get("summary"),
+            title = inner.get("title"),
+            date_scope = inner.get("date_scope"),
+            summary = inner.get("summary"),
         )
         db.add(plan)
         db.flush()
 
-        items = data.get("items") or []
+        items = inner.get("items") or []
         for item_raw in items:
             item = PlanItem(
                 id = str(uuid.uuid4()),
@@ -118,18 +133,8 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             db.add(item)
         run.status = "completed"
         run.ended_at = datetime.now(DEFAULT_TIMEZONE)
-        debug_data = data.get("error_message")
+        debug_data = inner.get("debug")
         run.debug = json.dumps(debug_data, ensure_ascii=False) if debug_data else None
-    except  Exception as e:
-        run.status = "failed"
-        run.error_message = str(e)
-        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
-        db.commit()
-        return{
-            "code": 500,
-            "data": None,
-            "message": f"生成失败：{str(e)}"
-        }
     db.commit()
     db.refresh(run)
 
@@ -203,6 +208,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
             started_at=run.started_at,
             ended_at=run.ended_at,
             error_message=run.error_message,
+            debug = run.debug
         ).model_dump(mode="json"),
         "message": "ok",
     }
