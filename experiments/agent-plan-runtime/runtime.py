@@ -354,10 +354,11 @@ def score_candidates(
     return sorted(candidates, key=lambda item: (-item.score, item.start_time, item.event.get("title") or ""))
 
 
-def build_schedule(candidates: list[Candidate], *, debug: dict[str, Any]) -> list[Candidate]:
+def build_schedule(candidates: list[Candidate], *, debug: dict[str, Any], max_items: int | None = None) -> list[Candidate]:
+    limit = max_items if max_items is not None else MAX_PLAN_ITEMS
     schedule: list[Candidate] = []
     for candidate in candidates:
-        if len(schedule) >= MAX_PLAN_ITEMS:
+        if len(schedule) >= limit:
             break
         conflict = schedule_conflict(schedule, candidate)
         if conflict:
