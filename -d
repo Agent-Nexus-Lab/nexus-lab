@@ -1,0 +1,5 @@
+{"detail":[{"type":"missing","loc":["body"],"msg":"Field required","input":null}]}--_curl_--
+  "request_text": "这周想看天文或图书馆活动，最好轻松一点"
+--_curl_--
+  "date_scope": "this_week"
+

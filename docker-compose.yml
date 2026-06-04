@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: nexus_agent
+      POSTGRES_PASSWORD: nexus_agent
+      POSTGRES_DB: nexus_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: fastapi
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://nexus_agent:nexus_agent@db:5432/nexus_agent
+
+volumes:
+  pgdata:
