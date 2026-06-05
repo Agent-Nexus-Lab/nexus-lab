@@ -1,0 +1,104 @@
+[
+  {
+    "id": "eval_001",
+    "description": "明确的时间+兴趣+风格+校区",
+    "query": "今天下午在江湾有没有天文相关的轻松活动",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": ["江湾"],
+      "time_preference": {"morning": false, "afternoon": true, "evening": false, "weekend": false},
+      "interest_tag_includes": ["天文"],
+      "style_tag_includes": ["轻松"],
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_002",
+    "description": "今晚+AI兴趣+排除讲座",
+    "query": "今晚想看AI相关但不要讲座的活动",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "time_preference": {"morning": false, "afternoon": false, "evening": true, "weekend": false},
+      "interest_tag_includes": ["AI"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "讲座",
+      "min_soft_constraints": 1
+    }
+  },
+  {
+    "id": "eval_003",
+    "description": "周末+多兴趣+多校区",
+    "query": "周末想去看展览或者参加工作坊，最好在邯郸或者枫林",
+    "expected": {
+      "date_scope": "this_week",
+      "explicit_campuses": ["邯郸", "枫林"],
+      "time_preference": {"morning": false, "afternoon": false, "evening": false, "weekend": true},
+      "interest_tag_includes": ["展览", "工作坊"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 1
+    }
+  },
+  {
+    "id": "eval_004",
+    "description": "只要某校区 + 多兴趣 + 排除讲座",
+    "query": "这周邯郸的戏剧或者演出，不要讲座",
+    "expected": {
+      "date_scope": "this_week",
+      "explicit_campuses": ["邯郸"],
+      "time_preference": {"morning": false, "afternoon": false, "evening": false, "weekend": false},
+      "interest_tag_includes": ["戏剧", "演出"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "讲座",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_005",
+    "description": "明天晚上+兴趣+风格",
+    "query": "明天晚上特别喜欢天文，最好是互动类型的活动",
+    "expected": {
+      "date_scope": "tomorrow",
+      "explicit_campuses": [],
+      "time_preference": {"morning": false, "afternoon": false, "evening": true, "weekend": false},
+      "interest_tag_includes": ["天文"],
+      "style_tag_includes": ["互动"],
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 2,
+      "soft_weight_ge_1_5": true
+    }
+  },
+  {
+    "id": "eval_006",
+    "description": "模糊查询无明确时间",
+    "query": "最近有什么好玩的",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "time_preference": {"morning": false, "afternoon": false, "evening": false, "weekend": false},
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_007",
+    "description": "多兴趣+风格+数量+排除",
+    "query": "下午想看2个AI或者创业相关的分享会，轻松一点，别太累",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "time_preference": {"morning": false, "afternoon": true, "evening": false, "weekend": false},
+      "interest_tag_includes": ["AI", "创业"],
+      "style_tag_includes": ["轻松"],
+      "max_items": 2,
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 1
+    }
+  }
+]
