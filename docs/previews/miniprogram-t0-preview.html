@@ -6,41 +6,80 @@
   <title>校园日程 AI 助手 - 今日交互预览</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #dfe6ef;
+      --ink: #172033;
+      --muted: #647086;
+      --brand: #2f65e8;
+      --brand-strong: #13213a;
+      --accent: #c46a33;
+      --sidebar: #e8eef6;
+    }
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        linear-gradient(135deg, rgba(234, 238, 246, .9), rgba(247, 249, 252, .82) 42%, rgba(239, 243, 249, .95)),
-        #f4f6f9;
-      color: #172033;
+      background: var(--bg);
+      color: var(--ink);
       font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", sans-serif;
     }
-    .wrap { width: min(1220px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 44px; display: grid; grid-template-columns: 318px minmax(0, 1fr); gap: 22px; align-items: start; }
-    .top-brand { grid-column: 1 / -1; width: min(620px, 100%); margin: 0 auto 2px; text-align: center; border: 1px solid #dfe6ef; border-radius: 18px; background: #13213a; color: #fff; box-shadow: 0 16px 38px rgba(34,48,73,.08); padding: 20px 26px; }
-    .product-rail { position: sticky; top: 18px; display: grid; gap: 12px; }
-    .rail-card { border: 1px solid #dfe6ef; border-radius: 16px; background: rgba(255,255,255,.84); box-shadow: 0 16px 38px rgba(34,48,73,.08); backdrop-filter: blur(10px); }
-    .brand-kicker { color: #99c7ff; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
-    .brand-title { margin-top: 8px; font-size: 25px; line-height: 1.18; font-weight: 900; letter-spacing: 0; }
-    .brand-subtitle { margin-top: 10px; color: #cad7eb; font-size: 13px; line-height: 1.55; }
-    .rail-card { padding: 14px; }
-    .rail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .rail-title { font-size: 14px; font-weight: 900; color: #172033; }
-    .rail-pill { padding: 4px 8px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    body.theme-warm {
+      --bg: #f8f4ee;
+      --surface: #fffdf9;
+      --surface-soft: #f4eee4;
+      --line: #e5d8c9;
+      --brand: #b85f2d;
+      --brand-strong: #2b211a;
+      --accent: #2f65e8;
+      --sidebar: #eee4d7;
+    }
+    .wrap { min-height: 100vh; display: grid; grid-template-columns: 246px minmax(0, 1fr); transition: grid-template-columns .24s ease; }
+    body.sidebar-collapsed .wrap { grid-template-columns: 72px minmax(0, 1fr); }
+    .product-rail { min-height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 14px; background: var(--sidebar); border-right: 1px solid var(--line); }
+    .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+    .brand-mark svg { width: 24px; height: 24px; display: block; }
+    .brand-word { font-size: 16px; font-weight: 900; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .collapse-button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.68); color: #52627a; font-size: 16px; line-height: 1; cursor: pointer; }
+    .sidebar-action { width: 100%; min-height: 38px; border: 0; border-radius: 12px; background: transparent; color: #3e4c63; display: flex; align-items: center; gap: 11px; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+    .sidebar-action:hover, .sidebar-action.active { background: rgba(255,255,255,.76); color: var(--brand-strong); }
+    .side-icon { flex: 0 0 20px; width: 20px; text-align: center; color: #65758c; font-weight: 900; }
+    .sidebar-section { display: grid; gap: 7px; padding-top: 8px; border-top: 1px solid rgba(122,139,164,.22); }
+    .section-label { padding: 0 10px; color: #7b899c; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .rail-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; }
+    .rail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; padding: 0 10px; }
+    .rail-title { font-size: 12px; font-weight: 900; color: #617086; }
+    .rail-pill { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.7); color: #3158b4; font-size: 10px; font-weight: 900; white-space: nowrap; }
     .flow-list { display: grid; gap: 7px; }
-    .flow-item { width: 100%; min-height: 38px; border: 1px solid #e4e9f1; border-radius: 12px; background: #fff; color: #28384f; display: flex; align-items: center; gap: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
-    .flow-item.active { border-color: #2f65e8; background: #eef4ff; color: #204cad; }
-    .flow-index { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: #eef2f8; color: #69788e; font-size: 11px; }
-    .flow-item.active .flow-index { background: #2f65e8; color: #fff; }
-    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .metric { min-height: 64px; padding: 9px; border-radius: 13px; background: #f6f8fb; border: 1px solid #e6ebf2; }
-    .metric-label { color: #77869a; font-size: 11px; font-weight: 800; }
-    .metric-value { margin-top: 7px; color: #172033; font-size: 13px; line-height: 1.35; font-weight: 850; word-break: break-word; }
-    .contract-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-    .contract-list li { display: flex; align-items: flex-start; gap: 8px; color: #40516a; font-size: 12px; line-height: 1.45; }
-    .contract-list li::before { content: ""; flex: 0 0 7px; width: 7px; height: 7px; margin-top: 7px; border-radius: 50%; background: #2f65e8; }
-    .rail-debug { max-height: 122px; overflow: auto; padding: 10px; border-radius: 12px; background: #121827; color: #dce7ff; font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
-    .preview-stage { display: grid; gap: 14px; min-width: 0; }
-    .screen { width: min(760px, 100%); border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 12px 34px rgba(23,32,51,.08); }
+    .flow-item { width: 100%; min-height: 38px; border: 0; border-radius: 12px; background: transparent; color: #28384f; display: flex; align-items: center; gap: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
+    .flow-item.active { background: var(--surface); color: #204cad; box-shadow: 0 8px 20px rgba(34,48,73,.06); }
+    .flow-index { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: rgba(255,255,255,.8); color: #69788e; font-size: 11px; }
+    .flow-item.active .flow-index { background: var(--brand); color: #fff; }
+    .history-list { display: grid; gap: 5px; max-height: 148px; overflow: auto; padding-right: 2px; }
+    .history-item { width: 100%; border: 0; border-radius: 11px; background: transparent; display: flex; gap: 9px; align-items: center; padding: 8px 10px; color: #516075; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .history-item:hover { background: rgba(255,255,255,.74); color: var(--ink); }
+    .history-dot { width: 7px; height: 7px; border-radius: 50%; background: #43d49f; flex: 0 0 7px; }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; color: #506075; font-size: 12px; font-weight: 800; }
+    .theme-toggle { display: inline-flex; border: 1px solid rgba(122,139,164,.28); border-radius: 999px; padding: 3px; background: rgba(255,255,255,.66); }
+    .theme-option { border: 0; border-radius: 999px; padding: 4px 8px; background: transparent; color: #68758a; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
+    .theme-option.active { background: var(--brand-strong); color: #fff; }
+    .sidebar-spacer { flex: 1; min-height: 8px; }
+    .preview-stage { min-width: 0; display: grid; justify-items: center; align-content: start; gap: 18px; padding: 20px 28px 44px; }
+    .top-brand { width: min(640px, 100%); text-align: center; padding: 8px 0 2px; }
+    .workspace-toolbar { position: fixed; top: 18px; right: 24px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.76); box-shadow: 0 12px 28px rgba(34,48,73,.08); backdrop-filter: blur(10px); }
+    .toolbar-label { padding: 0 6px 0 8px; color: #647086; font-size: 12px; font-weight: 900; }
+    .brand-kicker { color: #5c6d84; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
+    .brand-title { margin-top: 6px; font-size: 25px; line-height: 1.18; font-weight: 900; letter-spacing: 0; }
+    .brand-subtitle { margin-top: 8px; color: #647086; font-size: 13px; line-height: 1.55; }
+    .screen { width: min(760px, 100%); border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 16px 36px rgba(23,32,51,.08); }
+    body.sidebar-collapsed .rail-title, body.sidebar-collapsed .rail-pill, body.sidebar-collapsed .flow-item span:not(.flow-index), body.sidebar-collapsed .sidebar-text, body.sidebar-collapsed .section-label, body.sidebar-collapsed .history-list, body.sidebar-collapsed .settings-row { display: none; }
+    body.sidebar-collapsed .product-rail { align-items: center; padding-inline: 10px; }
+    body.sidebar-collapsed .sidebar-top { justify-content: center; }
+    body.sidebar-collapsed .collapse-button { position: absolute; top: 54px; }
+    body.sidebar-collapsed .flow-item, body.sidebar-collapsed .sidebar-action { justify-content: center; padding-inline: 0; }
     .screen.hidden { display: none; }
     .nav { height: 48px; display: flex; align-items: center; justify-content: center; background: #f7f9fc; border-bottom: 1px solid #e5eaf2; font-size: 15px; font-weight: 700; }
     .page { padding: 18px 14px 24px; }
@@ -82,34 +121,58 @@
     .small-tag { padding: 3px 7px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 700; }
     .reason-box { margin-top: 10px; padding: 9px; border-radius: 14px; background: #f0f5ff; color: #294576; font-size: 12px; line-height: 1.55; }
     .source-text { margin-top: 7px; color: #7c8797; font-size: 11px; line-height: 1.45; word-break: break-all; }
+    .source-link { color: var(--brand); font-weight: 800; text-decoration: none; border-bottom: 1px solid rgba(47,101,232,.28); }
+    .source-link:hover { border-bottom-color: var(--brand); }
     .debug-panel { margin-top: 10px; padding: 12px; border-radius: 16px; background: #111827; color: #dce7ff; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
     .debug-panel.hidden { display: none; }
     @media (max-width: 980px) {
-      .wrap { width: min(760px, calc(100vw - 24px)); grid-template-columns: 1fr; padding-top: 14px; }
-      .top-brand { grid-column: auto; }
-      .product-rail { position: static; }
-      .metric-grid { grid-template-columns: repeat(4, 1fr); }
+      .wrap { grid-template-columns: 1fr; }
+      body.sidebar-collapsed .wrap { grid-template-columns: 1fr; }
+      .product-rail { min-height: auto; position: static; display: grid; grid-template-columns: 1fr; }
+      .preview-stage { padding: 14px 12px 36px; }
     }
     @media (max-width: 640px) {
       .wrap { width: calc(100vw - 18px); }
-      .metric-grid { grid-template-columns: 1fr 1fr; }
       .brand-title { font-size: 22px; }
+      .workspace-toolbar { position: static; justify-self: center; margin-bottom: 4px; }
     }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <section class="top-brand">
-      <div class="brand-kicker">AGENT RUNTIME DEMO</div>
-      <div class="brand-title">校园日程助手</div>
-      <div class="brand-subtitle">从偏好采集、自然语言输入，到真实接口轮询和结果兜底。</div>
-    </section>
-
     <aside class="product-rail">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+          <div class="brand-mark" aria-label="校园日程助手图标">
+            <svg viewBox="0 0 48 48" role="img" aria-hidden="true">
+              <defs>
+                <linearGradient id="markBlue" x1="8" y1="7" x2="38" y2="43" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#2F7BFF"/>
+                  <stop offset="1" stop-color="#06C7B4"/>
+                </linearGradient>
+              </defs>
+              <rect x="5" y="5" width="38" height="38" rx="12" fill="url(#markBlue)"/>
+              <path d="M15 16h16a4 4 0 0 1 4 4v12H13V18a2 2 0 0 1 2-2Z" fill="#fff"/>
+              <path d="M18 13v7M30 13v7" stroke="#DCEBFF" stroke-width="4" stroke-linecap="round"/>
+              <path d="M18 25h4M25 25h4M18 30h4M25 30h4" stroke="#B7D4FF" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="34" cy="33" r="8" fill="#fff"/>
+              <path d="m30.5 33.2 2.2 2.2 4.8-5.4" fill="none" stroke="#0A55D6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-word sidebar-text">校园日程助手</div>
+        </div>
+        <button class="collapse-button" id="collapseButton" title="收起侧栏">‹</button>
+      </div>
+
+      <button class="sidebar-action" id="newSessionButton">
+        <span class="side-icon">＋</span>
+        <span class="sidebar-text">新日程</span>
+      </button>
+
       <section class="rail-card">
         <div class="rail-head">
-          <div class="rail-title">流程分区</div>
+          <div class="rail-title">流程</div>
           <div class="rail-pill" id="railScreenLabel">偏好页</div>
         </div>
         <div class="flow-list">
@@ -119,21 +182,34 @@
           <button class="flow-item" data-jump="resultScreen"><span class="flow-index">4</span><span>结果/空状态</span></button>
         </div>
       </section>
-      <section class="rail-card">
-        <div class="rail-head">
-          <div class="rail-title">运行状态</div>
-          <div class="rail-pill">真实接口</div>
-        </div>
-        <div class="metric-grid">
-          <div class="metric"><div class="metric-label">status</div><div class="metric-value" id="railRunStatus">待输入</div></div>
-          <div class="metric"><div class="metric-label">stage</div><div class="metric-value" id="railStage">未开始</div></div>
-          <div class="metric"><div class="metric-label">run_id</div><div class="metric-value" id="railRunId">-</div></div>
-          <div class="metric"><div class="metric-label">items</div><div class="metric-value" id="railResult">-</div></div>
+
+      <section class="sidebar-section">
+        <div class="section-label">搜索历史</div>
+        <div class="history-list" id="historyList">
+          <button class="history-item" data-query="今晚想安排点 AI 相关但别太累的活动"><span class="history-dot"></span><span>AI 轻量活动</span></button>
+          <button class="history-item" data-query="明天想找江湾附近的讲座"><span class="history-dot"></span><span>江湾讲座</span></button>
+          <button class="history-item" data-query="本周有没有创业或职业相关活动"><span class="history-dot"></span><span>创业职业</span></button>
         </div>
       </section>
+
+      <div class="sidebar-spacer"></div>
     </aside>
 
     <section class="preview-stage">
+    <div class="workspace-toolbar">
+      <span class="toolbar-label">主题</span>
+      <span class="theme-toggle">
+        <button class="theme-option active" data-theme="cool">清爽</button>
+        <button class="theme-option" data-theme="warm">暖色</button>
+      </span>
+    </div>
+
+    <section class="top-brand">
+      <div class="brand-kicker">AGENT RUNTIME DEMO</div>
+      <div class="brand-title">校园日程助手</div>
+      <div class="brand-subtitle">从偏好采集、自然语言输入，到真实接口轮询和结果兜底。</div>
+    </section>
+
     <section class="screen" id="profileScreen">
       <div class="nav">偏好设置</div>
       <div class="page">
@@ -211,10 +287,14 @@
     }
     function updateRuntime(patch = {}) {
       Object.assign(runtimeState, patch)
-      document.getElementById('railRunStatus').textContent = runtimeState.status
-      document.getElementById('railStage').textContent = runtimeState.stage
-      document.getElementById('railRunId').textContent = runtimeState.runId
-      document.getElementById('railResult').textContent = runtimeState.items
+      const status = document.getElementById('railRunStatus')
+      const stage = document.getElementById('railStage')
+      const runId = document.getElementById('railRunId')
+      const items = document.getElementById('railResult')
+      if (status) status.textContent = runtimeState.status
+      if (stage) stage.textContent = runtimeState.stage
+      if (runId) runId.textContent = runtimeState.runId
+      if (items) items.textContent = runtimeState.items
     }
     function formatDebug(debug) {
       if (!debug) return ''
@@ -228,6 +308,17 @@
     function shortDebug(text) {
       if (!text) return '暂无更多信息。'
       return text.length > 520 ? text.slice(0, 520) + '\n...' : text
+    }
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+    }
+    function isHttpUrl(value) {
+      return /^https?:\/\//i.test(String(value || ''))
     }
     function getSelected(field) {
       const grid = document.querySelector(`[data-field="${field}"]`)
@@ -253,6 +344,31 @@
     })
     document.querySelectorAll('.flow-item').forEach((item) => {
       item.addEventListener('click', () => show(item.dataset.jump))
+    })
+    document.getElementById('collapseButton').addEventListener('click', () => {
+      document.body.classList.toggle('sidebar-collapsed')
+      const collapsed = document.body.classList.contains('sidebar-collapsed')
+      document.getElementById('collapseButton').textContent = collapsed ? '›' : '‹'
+      document.getElementById('collapseButton').title = collapsed ? '展开侧栏' : '收起侧栏'
+    })
+    document.getElementById('newSessionButton').addEventListener('click', () => {
+      document.getElementById('requestText').value = '今晚想安排点 AI 相关但别太累的活动'
+      updateRuntime({ status: profilePayload ? '偏好已就绪' : '待输入', stage: profilePayload ? '等待输入需求' : '未开始', runId: '-', items: '-', debug: '新建一次日程生成。' })
+      show(profilePayload ? 'planScreen' : 'profileScreen')
+    })
+    document.querySelectorAll('.history-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.getElementById('requestText').value = item.dataset.query
+        updateRuntime({ status: '历史已载入', stage: '等待生成', runId: '-', items: '-', debug: item.dataset.query })
+        show('planScreen')
+      })
+    })
+    document.querySelectorAll('.theme-option').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.theme-option').forEach((item) => item.classList.remove('active'))
+        button.classList.add('active')
+        document.body.classList.toggle('theme-warm', button.dataset.theme === 'warm')
+      })
     })
     document.getElementById('nextButton').addEventListener('click', () => {
       const campus = getSingle('campus')
@@ -452,16 +568,19 @@
         const campus = item.campus || item.campus_name || item.event_campus || '校区待确认'
         const organizer = item.organizer || item.host || item.sponsor || item.event_organizer || '主办方待确认'
         const reason = item.reason_text || '暂无推荐理由'
-        const source = item.source_url || '暂无来源链接'
+        const source = item.source_url || ''
+        const sourceHtml = isHttpUrl(source)
+          ? `<a class="source-link" href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">查看来源</a>`
+          : '暂无来源链接'
         return `
         <article class="event-card">
           <div class="event-topline"><span>#${order}</span><span>质量分 ${score}</span></div>
-          <div class="event-title">${title}</div>
-          <div class="event-summary">${summary}</div>
-          <div class="event-meta"><div>时间：${time}</div><div>地点：${location}</div><div>校区：${campus}</div><div>主办：${organizer}</div></div>
-          <div class="tag-row">${tags.map((tag) => `<span class="small-tag">${tag}</span>`).join('')}</div>
-          <div class="reason-box">${reason}</div>
-          <div class="source-text">来源：${source}</div>
+          <div class="event-title">${escapeHtml(title)}</div>
+          <div class="event-summary">${escapeHtml(summary)}</div>
+          <div class="event-meta"><div>时间：${escapeHtml(time)}</div><div>地点：${escapeHtml(location)}</div><div>校区：${escapeHtml(campus)}</div><div>主办：${escapeHtml(organizer)}</div></div>
+          <div class="tag-row">${tags.map((tag) => `<span class="small-tag">${escapeHtml(tag)}</span>`).join('')}</div>
+          <div class="reason-box">${escapeHtml(reason)}</div>
+          <div class="source-text">来源：${sourceHtml}</div>
         </article>
       `
       }).join('')

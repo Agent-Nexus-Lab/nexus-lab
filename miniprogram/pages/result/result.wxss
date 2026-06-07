@@ -109,6 +109,11 @@
   word-break: break-all;
 }
 
+.source-link {
+  color: #2f65e8;
+  font-weight: 800;
+}
+
 .debug-panel {
   background: #f7f9fc;
 }

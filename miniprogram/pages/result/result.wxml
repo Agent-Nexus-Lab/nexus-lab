@@ -54,7 +54,16 @@
       </view>
 
       <view class="reason-box">{{item.reason_text}}</view>
-      <view class="source-text">来源：{{item.source_url}}</view>
+      <view class="source-text">
+        来源：
+        <text
+          wx:if="{{item.has_source_url}}"
+          class="source-link"
+          data-url="{{item.source_url}}"
+          bindtap="copySourceUrl"
+        >查看来源</text>
+        <text wx:else>{{item.source_url}}</text>
+      </view>
     </view>
   </view>
 
