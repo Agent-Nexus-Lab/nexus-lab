@@ -3,17 +3,26 @@ const PLAN_RESULT_STORAGE_KEY = 'planRunResult'
 
 const api = require('../../utils/api')
 
-const POLL_INTERVAL_MS = 1200
+const POLL_INTERVAL_MS = 800
 const MAX_POLL_COUNT = 60
 const STAGE_INDEX = {
   intent_parsing: 0,
+  intent_parser: 0,
   understanding_request: 0,
+  parse_intent: 0,
+  load_profile: 0,
+  load_memory: 0,
   search_events: 1,
   searching_events: 1,
+  tool_service_boundary: 1,
   build_schedule: 2,
   arranging_schedule: 2,
+  runtime_orchestration: 2,
   rewrite_plan: 3,
-  saving_plan: 3
+  save_plan: 3,
+  saving_plan: 3,
+  memory_feedback_loop: 3,
+  feedback_loop: 3
 }
 
 Page({
@@ -145,7 +154,7 @@ Page({
       wx.redirectTo({
         url: '/pages/result/result'
       })
-    }, 350)
+    }, 180)
   },
 
   failRun(message, debug) {
@@ -177,7 +186,8 @@ Page({
   formatDebug(debug) {
     if (!api.ENABLE_DEBUG_VIEW || !debug) return ''
     try {
-      return JSON.stringify(debug, null, 2)
+      const normalized = typeof debug === 'string' ? JSON.parse(debug) : debug
+      return JSON.stringify(normalized, null, 2)
     } catch (error) {
       return String(debug)
     }

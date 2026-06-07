@@ -15,6 +15,28 @@
   background: #fbfcff;
 }
 
+.empty-state {
+  margin-top: 18rpx;
+  padding: 32rpx 24rpx;
+  border: 1rpx dashed #cfd8e6;
+  border-radius: 18rpx;
+  background: #fbfcff;
+  text-align: center;
+}
+
+.empty-title {
+  color: #26344a;
+  font-size: 28rpx;
+  font-weight: 850;
+}
+
+.empty-text {
+  margin-top: 10rpx;
+  color: #68758a;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
 .event-topline {
   display: flex;
   justify-content: space-between;

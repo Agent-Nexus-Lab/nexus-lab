@@ -22,10 +22,16 @@ Page({
       return
     }
 
+    const items = Array.isArray(result.items) ? result.items : []
+
     this.setData({
       result: {
         ...result,
-        items: (result.items || []).map((item) => ({
+        title: result.title || '暂无推荐结果',
+        summary: result.summary || '这次没有拿到可展示的活动卡片，可以返回后重新生成。',
+        date_scope: result.date_scope || '',
+        request_text: result.request_text || '暂无输入记录',
+        items: items.map((item) => ({
           ...item,
           tags: Array.isArray(item.tags) ? item.tags : [],
           title: item.title || '未命名活动',
@@ -40,6 +46,7 @@ Page({
           time_text: this.formatTimeRange(item.start_time, item.end_time)
         }))
       },
+      hasItems: items.length > 0,
       debugText: this.formatDebug(result.debug)
     })
   },
@@ -61,7 +68,8 @@ Page({
   formatDebug(debug) {
     if (!api.ENABLE_DEBUG_VIEW || !debug) return ''
     try {
-      return JSON.stringify(debug, null, 2)
+      const normalized = typeof debug === 'string' ? JSON.parse(debug) : debug
+      return JSON.stringify(normalized, null, 2)
     } catch (error) {
       return String(debug)
     }

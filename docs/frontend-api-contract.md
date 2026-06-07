@@ -69,7 +69,7 @@ Reserved progress steps:
 3. `正在编排日程`
 4. `正在整理结果`
 
-`data.stage` is reserved for backend alignment and is not part of the current runtime schema yet. Without it, the loading page shows a generic queued/running state and does not simulate stage progress.
+`data.stage` is reserved for backend alignment and is not part of the current runtime schema yet. Without it, the loading page shows a generic queued/running state and does not simulate stage progress. Recognized stage aliases include `intent_parsing`, `load_profile`, `load_memory`, `search_events`, `build_schedule`, `rewrite_plan`, and `save_plan`.
 
 ## Completed Result Fields
 

@@ -9,13 +9,38 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: #f6f7f9;
+      background:
+        linear-gradient(135deg, rgba(234, 238, 246, .9), rgba(247, 249, 252, .82) 42%, rgba(239, 243, 249, .95)),
+        #f4f6f9;
       color: #172033;
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", sans-serif;
     }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 14px 44px; display: grid; gap: 22px; }
-    .preview-title { color: #647086; font-size: 13px; line-height: 1.6; }
-    .screen { border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 12px 34px rgba(23,32,51,.08); }
+    .wrap { width: min(1220px, calc(100vw - 32px)); margin: 0 auto; padding: 24px 0 44px; display: grid; grid-template-columns: 318px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .top-brand { grid-column: 1 / -1; width: min(620px, 100%); margin: 0 auto 2px; text-align: center; border: 1px solid #dfe6ef; border-radius: 18px; background: #13213a; color: #fff; box-shadow: 0 16px 38px rgba(34,48,73,.08); padding: 20px 26px; }
+    .product-rail { position: sticky; top: 18px; display: grid; gap: 12px; }
+    .rail-card { border: 1px solid #dfe6ef; border-radius: 16px; background: rgba(255,255,255,.84); box-shadow: 0 16px 38px rgba(34,48,73,.08); backdrop-filter: blur(10px); }
+    .brand-kicker { color: #99c7ff; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+    .brand-title { margin-top: 8px; font-size: 25px; line-height: 1.18; font-weight: 900; letter-spacing: 0; }
+    .brand-subtitle { margin-top: 10px; color: #cad7eb; font-size: 13px; line-height: 1.55; }
+    .rail-card { padding: 14px; }
+    .rail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .rail-title { font-size: 14px; font-weight: 900; color: #172033; }
+    .rail-pill { padding: 4px 8px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .flow-list { display: grid; gap: 7px; }
+    .flow-item { width: 100%; min-height: 38px; border: 1px solid #e4e9f1; border-radius: 12px; background: #fff; color: #28384f; display: flex; align-items: center; gap: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
+    .flow-item.active { border-color: #2f65e8; background: #eef4ff; color: #204cad; }
+    .flow-index { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: #eef2f8; color: #69788e; font-size: 11px; }
+    .flow-item.active .flow-index { background: #2f65e8; color: #fff; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { min-height: 64px; padding: 9px; border-radius: 13px; background: #f6f8fb; border: 1px solid #e6ebf2; }
+    .metric-label { color: #77869a; font-size: 11px; font-weight: 800; }
+    .metric-value { margin-top: 7px; color: #172033; font-size: 13px; line-height: 1.35; font-weight: 850; word-break: break-word; }
+    .contract-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .contract-list li { display: flex; align-items: flex-start; gap: 8px; color: #40516a; font-size: 12px; line-height: 1.45; }
+    .contract-list li::before { content: ""; flex: 0 0 7px; width: 7px; height: 7px; margin-top: 7px; border-radius: 50%; background: #2f65e8; }
+    .rail-debug { max-height: 122px; overflow: auto; padding: 10px; border-radius: 12px; background: #121827; color: #dce7ff; font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+    .preview-stage { display: grid; gap: 14px; min-width: 0; }
+    .screen { width: min(760px, 100%); border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 12px 34px rgba(23,32,51,.08); }
     .screen.hidden { display: none; }
     .nav { height: 48px; display: flex; align-items: center; justify-content: center; background: #f7f9fc; border-bottom: 1px solid #e5eaf2; font-size: 15px; font-weight: 700; }
     .page { padding: 18px 14px 24px; }
@@ -57,13 +82,58 @@
     .small-tag { padding: 3px 7px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 700; }
     .reason-box { margin-top: 10px; padding: 9px; border-radius: 14px; background: #f0f5ff; color: #294576; font-size: 12px; line-height: 1.55; }
     .source-text { margin-top: 7px; color: #7c8797; font-size: 11px; line-height: 1.45; word-break: break-all; }
+    .debug-panel { margin-top: 10px; padding: 12px; border-radius: 16px; background: #111827; color: #dce7ff; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+    .debug-panel.hidden { display: none; }
+    @media (max-width: 980px) {
+      .wrap { width: min(760px, calc(100vw - 24px)); grid-template-columns: 1fr; padding-top: 14px; }
+      .top-brand { grid-column: auto; }
+      .product-rail { position: static; }
+      .metric-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .wrap { width: calc(100vw - 18px); }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .brand-title { font-size: 22px; }
+    }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="preview-title">今日预览：偏好页 -> 日程页 -> 生成中 loading -> 真实接口活动卡片。真实小程序页面同步在 pages/loading 和 pages/result。</div>
+    <section class="top-brand">
+      <div class="brand-kicker">AGENT RUNTIME DEMO</div>
+      <div class="brand-title">校园日程助手</div>
+      <div class="brand-subtitle">从偏好采集、自然语言输入，到真实接口轮询和结果兜底。</div>
+    </section>
 
+    <aside class="product-rail">
+      <section class="rail-card">
+        <div class="rail-head">
+          <div class="rail-title">流程分区</div>
+          <div class="rail-pill" id="railScreenLabel">偏好页</div>
+        </div>
+        <div class="flow-list">
+          <button class="flow-item active" data-jump="profileScreen"><span class="flow-index">1</span><span>偏好设置</span></button>
+          <button class="flow-item" data-jump="planScreen"><span class="flow-index">2</span><span>日程输入</span></button>
+          <button class="flow-item" data-jump="loadingScreen"><span class="flow-index">3</span><span>运行轮询</span></button>
+          <button class="flow-item" data-jump="resultScreen"><span class="flow-index">4</span><span>结果/空状态</span></button>
+        </div>
+      </section>
+      <section class="rail-card">
+        <div class="rail-head">
+          <div class="rail-title">运行状态</div>
+          <div class="rail-pill">真实接口</div>
+        </div>
+        <div class="metric-grid">
+          <div class="metric"><div class="metric-label">status</div><div class="metric-value" id="railRunStatus">待输入</div></div>
+          <div class="metric"><div class="metric-label">stage</div><div class="metric-value" id="railStage">未开始</div></div>
+          <div class="metric"><div class="metric-label">run_id</div><div class="metric-value" id="railRunId">-</div></div>
+          <div class="metric"><div class="metric-label">items</div><div class="metric-value" id="railResult">-</div></div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="preview-stage">
     <section class="screen" id="profileScreen">
       <div class="nav">偏好设置</div>
       <div class="page">
@@ -81,7 +151,7 @@
     <section class="screen hidden" id="planScreen">
       <div class="nav">生成日程</div>
       <div class="page">
-        <div class="hero"><div class="eyebrow">日程生成</div><div class="title">今天想怎么安排？</div><div class="subtitle">输入一句话，直接请求昕宇的公网 FastAPI 联调地址。</div></div>
+        <div class="hero"><div class="eyebrow">日程生成</div><div class="title">今天想怎么安排？</div></div>
         <section class="panel">
           <div class="panel-head"><div class="panel-title">当前偏好</div><div class="field-name">profile</div></div>
           <div class="summary-list">
@@ -121,6 +191,7 @@
         <button class="button" id="againButton">重新生成</button>
       </div>
     </section>
+    </section>
   </main>
 
   <script>
@@ -129,10 +200,34 @@
     const API_BASE_URL = 'http://1.117.75.184:8000/api'
     const steps = ['正在理解需求', '正在检索活动', '正在编排日程', '正在整理结果']
     const messages = ['正在理解你的需求...', '正在检索校园活动...', '正在编排你的日程...', '正在整理推荐结果...']
-    const stageIndex = { intent_parsing: 0, understanding_request: 0, search_events: 1, searching_events: 1, build_schedule: 2, arranging_schedule: 2, rewrite_plan: 3, saving_plan: 3 }
+    const stageIndex = { intent_parsing: 0, intent_parser: 0, understanding_request: 0, parse_intent: 0, load_profile: 0, load_memory: 0, search_events: 1, searching_events: 1, tool_service_boundary: 1, build_schedule: 2, arranging_schedule: 2, runtime_orchestration: 2, rewrite_plan: 3, save_plan: 3, saving_plan: 3, memory_feedback_loop: 3, feedback_loop: 3 }
+    const screenLabels = { profileScreen: '偏好页', planScreen: '日程页', loadingScreen: '轮询页', resultScreen: '结果页' }
+    const runtimeState = { status: '待输入', stage: '未开始', runId: '-', items: '-', debug: '等待发起请求。' }
     function show(id) {
       document.querySelectorAll('.screen').forEach((screen) => screen.classList.add('hidden'))
       document.getElementById(id).classList.remove('hidden')
+      document.getElementById('railScreenLabel').textContent = screenLabels[id] || '预览'
+      document.querySelectorAll('.flow-item').forEach((item) => item.classList.toggle('active', item.dataset.jump === id))
+    }
+    function updateRuntime(patch = {}) {
+      Object.assign(runtimeState, patch)
+      document.getElementById('railRunStatus').textContent = runtimeState.status
+      document.getElementById('railStage').textContent = runtimeState.stage
+      document.getElementById('railRunId').textContent = runtimeState.runId
+      document.getElementById('railResult').textContent = runtimeState.items
+    }
+    function formatDebug(debug) {
+      if (!debug) return ''
+      try {
+        const normalized = typeof debug === 'string' ? JSON.parse(debug) : debug
+        return JSON.stringify(normalized, null, 2)
+      } catch (error) {
+        return String(debug)
+      }
+    }
+    function shortDebug(text) {
+      if (!text) return '暂无更多信息。'
+      return text.length > 520 ? text.slice(0, 520) + '\n...' : text
     }
     function getSelected(field) {
       const grid = document.querySelector(`[data-field="${field}"]`)
@@ -156,6 +251,9 @@
         }
       })
     })
+    document.querySelectorAll('.flow-item').forEach((item) => {
+      item.addEventListener('click', () => show(item.dataset.jump))
+    })
     document.getElementById('nextButton').addEventListener('click', () => {
       const campus = getSingle('campus')
       profilePayload = {
@@ -174,10 +272,14 @@
       document.getElementById('summaryInterests').textContent = profilePayload.interest_tags.join('、') || '未选择'
       document.getElementById('summaryTime').textContent = profilePayload.available_time || '未选择'
       document.getElementById('summaryStyles').textContent = profilePayload.activity_style_tags.join('、') || '未选择'
+      updateRuntime({ status: '偏好已就绪', stage: '等待输入需求', debug: JSON.stringify(profilePayload, null, 2) })
       show('planScreen')
     })
     document.getElementById('backButton').addEventListener('click', () => show('profileScreen'))
-    document.getElementById('againButton').addEventListener('click', () => show('planScreen'))
+    document.getElementById('againButton').addEventListener('click', () => {
+      updateRuntime({ status: '准备重新生成', stage: '等待输入需求', runId: '-', items: '-', debug: '可重新调整 query 后再次请求后端。' })
+      show('planScreen')
+    })
     document.getElementById('generateButton').addEventListener('click', () => {
       const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope(), include_debug: true }
       console.log('profilePayload for POST /api/profile:', profilePayload)
@@ -191,6 +293,7 @@
         alert('请输入日程需求')
         return
       }
+      updateRuntime({ status: '准备请求', stage: 'plan_day', runId: '-', items: '-', debug: JSON.stringify(planDayPayload, null, 2) })
       startApiFlow(planDayPayload)
     })
 
@@ -223,6 +326,7 @@
       document.getElementById('progressBar').style.width = '18%'
       document.getElementById('loadingMessage').textContent = '正在连接昕宇的 FastAPI...'
       document.getElementById('loadingSubtitle').textContent = API_BASE_URL
+      updateRuntime({ status: '请求中', stage: 'save_profile', runId: '-', items: '-', debug: `POST ${API_BASE_URL}/profile` })
       clearTimeout(timer)
 
       try {
@@ -235,6 +339,7 @@
         document.getElementById('loadingMessage').textContent = '画像已提交，正在创建生成任务...'
         document.getElementById('progressBar').style.width = '35%'
         renderSteps(1)
+        updateRuntime({ status: 'profile 已保存', stage: 'plan_day', debug: `POST ${API_BASE_URL}/agent/plan-day` })
 
         const planRes = await apiRequest('/agent/plan-day', {
           method: 'POST',
@@ -250,6 +355,7 @@
         document.getElementById('loadingMessage').textContent = '生成任务已创建，正在轮询结果...'
         document.getElementById('progressBar').style.width = '50%'
         renderSteps(2)
+        updateRuntime({ status: planRes.data.status || 'queued', stage: planRes.data.stage || '等待后端 stage', runId, debug: shortDebug(formatDebug(planRes.data.debug) || JSON.stringify(planRes.data, null, 2)) })
 
         async function pollRunStatus() {
           tick += 1
@@ -264,6 +370,7 @@
               document.getElementById('progressBar').style.width = '100%'
               document.getElementById('loadingMessage').textContent = '日程已生成'
               renderSteps(messages.length - 1)
+              updateRuntime({ status: 'completed', stage: runRes.data.stage || '结果已返回', items: Array.isArray(runRes.data.items) ? `${runRes.data.items.length} 个` : '0 个', debug: shortDebug(formatDebug(runRes.data.debug) || JSON.stringify(runRes.data, null, 2)) })
               timer = setTimeout(() => {
                 renderResult({
                   ...runRes.data,
@@ -272,20 +379,22 @@
                   items: Array.isArray(runRes.data.items) ? runRes.data.items : []
                 })
                 show('resultScreen')
-              }, 350)
+              }, 180)
               return
             }
             if (runRes.data && runRes.data.status === 'failed') {
+              updateRuntime({ status: 'failed', stage: runRes.data.stage || '失败', debug: shortDebug(runRes.data.error_message || formatDebug(runRes.data.debug)) })
               throw new Error(runRes.data.error_message || '后端生成失败')
             }
             const index = stageIndex[runRes.data && runRes.data.stage]
             document.getElementById('loadingMessage').textContent = index == null ? 'Agent 正在运行...' : messages[index]
             document.getElementById('progressBar').style.width = (index == null ? 55 : 55 + index * 12) + '%'
             renderSteps(index == null ? -1 : index)
+            updateRuntime({ status: (runRes.data && runRes.data.status) || 'running', stage: (runRes.data && runRes.data.stage) || '泛化 loading', debug: shortDebug(formatDebug(runRes.data && runRes.data.debug) || JSON.stringify(runRes.data || {}, null, 2)) })
             if (tick >= 10) {
               throw new Error('轮询超时：后端一直没有从 queued/running 进入 completed 或 failed')
             }
-            timer = setTimeout(pollRunStatus, 1200)
+            timer = setTimeout(pollRunStatus, 800)
           } catch (error) {
             clearTimeout(timer)
             showApiError(error)
@@ -304,6 +413,7 @@
       document.getElementById('loadingMessage').textContent = '联调失败'
       document.getElementById('loadingSubtitle').textContent = error.message || '请检查公网 IP、FastAPI 或接口返回状态。'
       document.getElementById('progressBar').style.width = '100%'
+      updateRuntime({ status: 'failed', stage: 'error', debug: error.message || '联调失败' })
         document.getElementById('stepList').innerHTML = `
           <div class="step-item active"><span class="step-dot"></span><span>如果提示 Failed to fetch，多半是浏览器 CORS、HTTP/HTTPS 混合内容或公网 IP 不可达。</span></div>
           <div class="step-item active"><span class="step-dot"></span><span>如果提示轮询超时，说明已经拿到 run_id，但 /api/agent/runs/{run_id} 没有进入 completed/failed。</span></div>
@@ -314,12 +424,23 @@
       document.getElementById('stepList').innerHTML = steps.map((step, index) => `<div class="step-item ${index <= active ? 'active' : ''}"><span class="step-dot"></span><span>${step}</span></div>`).join('')
     }
     function renderResult(result) {
-      document.getElementById('resultTitle').textContent = result.title
-      document.getElementById('resultSummary').textContent = result.summary
-      document.getElementById('resultScope').textContent = result.date_scope
-      document.getElementById('resultRequest').textContent = result.request_text
+      document.getElementById('resultTitle').textContent = result.title || '暂无推荐结果'
+      document.getElementById('resultSummary').textContent = result.summary || '这次没有拿到可展示的活动卡片，可以返回后重新生成。'
+      document.getElementById('resultScope').textContent = result.date_scope || ''
+      document.getElementById('resultRequest').textContent = result.request_text || '暂无输入记录'
       const items = Array.isArray(result.items) ? result.items : []
       document.getElementById('resultCount').textContent = items.length + ' 个结果'
+      const debugText = formatDebug(result.debug)
+      updateRuntime({ status: result.status || 'completed', stage: result.stage || '结果页', items: items.length + ' 个', debug: shortDebug(debugText || result.error_message || '本次没有 debug。') })
+      if (!items.length) {
+        document.getElementById('eventList').innerHTML = `
+          <article class="event-card">
+            <div class="event-title">暂无可展示活动</div>
+            <div class="event-summary">后端已返回结果，但本次没有活动卡片。可以调整时间范围或偏好后重新生成。</div>
+          </article>
+        `
+        return
+      }
       document.getElementById('eventList').innerHTML = items.map((item, index) => {
         const tags = Array.isArray(item.tags) ? item.tags : []
         const order = item.display_order || index + 1
@@ -359,6 +480,7 @@
       return match ? match[1] : value
     }
 
+    updateRuntime()
   </script>
 </body>
 </html>
