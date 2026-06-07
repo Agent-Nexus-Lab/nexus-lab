@@ -1,216 +1,386 @@
 {
   "events": [
     {
-      "event_id": "4e3ef7ef-37bb-4fd6-ae72-f2a04a4bacd1",
-      "source_file": "天文定向_星途再望.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649645283&idx=1&sn=8ca7ec2ca65c16a136e687c1be37d9b0&chksm=8876a18bbf01289d927ecbd965cd6da69c5c219aedd1d3d575e0cb4a9e0de266287c029fa512#rd",
-      "title": "第十一届天文主题定向「星途再望」",
-      "summary": "复旦大学天文协会举办第十一届天文主题定向活动「星途再望」，面向在校同学，优先考虑25级学生，共36个名额。",
-      "start_time": "2026-04-11T13:30:00+08:00",
-      "end_time": null,
-      "location": "邯郸校区",
+      "event_id": "demo_001",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/1",
+      "title": "AI 大模型前沿讲座",
+      "summary": "计算机学院主办，邀请业界专家分享大模型技术最新进展",
+      "start_time": "2026-06-08T14:00:00+08:00",
+      "end_time": "2026-06-08T16:00:00+08:00",
+      "location": "邯郸校区 H3108",
       "campus": "邯郸",
-      "organizer": "复旦大学天文协会",
+      "organizer": "计算机科学技术学院",
       "tags": [
-        "社团",
-        "定向",
-        "天文"
-      ],
-      "evidence_text": "活动时间：4月11日下午13:30 / 活动地点：邯郸校区 / 复旦大学天文协会精心打造 第十一届天文主题定向 星途再望"
-    },
-    {
-      "event_id": "8468fe4c-5917-4f73-9142-5d76f6eb0d21",
-      "source_file": "天文营招募丨星海横流_与梦同舟.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649646078&idx=1&sn=822a3444e5dc6cc0c850643af602cac2&chksm=8876a296bf012b8045f87825d23a0af759d2c5642c9a917b480c1613559b071034cc20cb6546#rd",
-      "title": "第七期“天问计划”暑期夏令营——宁夏石嘴山线",
-      "summary": "复旦大学天文协会第七期“天问计划”暑期夏令营宁夏石嘴山线，面向当地9~15岁小朋友开展天文公益科普活动，由复旦天协成员担任志愿者老师。",
-      "start_time": null,
-      "end_time": null,
-      "location": "宁夏石嘴山市",
-      "campus": "邯郸",
-      "organizer": "复旦大学天文协会",
-      "tags": [
-        "天文",
-        "支教",
-        "夏令营",
-        "科普"
-      ],
-      "evidence_text": "“天问”夏令营将在今年暑期7月-8月线下开展，具体时间将在招募面试工作完成后确定。"
-    },
-    {
-      "event_id": "d7005f5e-a04a-4ac0-9bb1-9cb75c570e35",
-      "source_file": "天文营招募丨星海横流_与梦同舟.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649646078&idx=1&sn=822a3444e5dc6cc0c850643af602cac2&chksm=8876a296bf012b8045f87825d23a0af759d2c5642c9a917b480c1613559b071034cc20cb6546#rd",
-      "title": "第七期“天问计划”暑期夏令营——新疆阿克苏线",
-      "summary": "复旦大学天文协会第七期“天问计划”暑期夏令营新疆阿克苏线（拜城县第二中学），面向当地9~15岁小朋友开展天文公益科普活动，由复旦天协成员担任志愿者老师。",
-      "start_time": null,
-      "end_time": null,
-      "location": "新疆阿克苏地区拜城县第二中学",
-      "campus": "邯郸",
-      "organizer": "复旦大学天文协会",
-      "tags": [
-        "天文",
-        "支教",
-        "夏令营",
-        "科普"
-      ],
-      "evidence_text": "“天问”夏令营将在今年暑期7月-8月线下开展，具体时间将在招募面试工作完成后确定。"
-    },
-    {
-      "event_id": "61c6f39c-2836-4335-a2de-19a1b1d4ff92",
-      "source_file": "天文营招募丨星海横流_与梦同舟.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649646078&idx=1&sn=822a3444e5dc6cc0c850643af602cac2&chksm=8876a296bf012b8045f87825d23a0af759d2c5642c9a917b480c1613559b071034cc20cb6546#rd",
-      "title": "第七期“天问计划”暑期夏令营——湖南平江线",
-      "summary": "复旦大学天文协会第七期“天问计划”暑期夏令营湖南平江线（梅仙镇），面向当地9~15岁小朋友开展天文公益科普活动，由复旦天协成员担任志愿者老师。",
-      "start_time": null,
-      "end_time": null,
-      "location": "湖南省平江县梅仙镇",
-      "campus": "邯郸",
-      "organizer": "复旦大学天文协会",
-      "tags": [
-        "天文",
-        "支教",
-        "夏令营",
-        "科普"
-      ],
-      "evidence_text": "“天问”夏令营将在今年暑期7月-8月线下开展，具体时间将在招募面试工作完成后确定。"
-    },
-    {
-      "event_id": "ee2802e6-a619-4506-807d-a4b93a3ebfc5",
-      "source_file": "天文营招募丨星海横流_与梦同舟.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649646078&idx=1&sn=822a3444e5dc6cc0c850643af602cac2&chksm=8876a296bf012b8045f87825d23a0af759d2c5642c9a917b480c1613559b071034cc20cb6546#rd",
-      "title": "“天问计划”夏令营志愿者招募面试",
-      "summary": "第七期“天问计划”暑期夏令营志愿者招募线下集中面试。",
-      "start_time": null,
-      "end_time": null,
-      "location": null,
-      "campus": "邯郸",
-      "organizer": "复旦大学天文协会",
-      "tags": [
-        "招新",
-        "面试"
-      ],
-      "evidence_text": "线下集中面试将统一安排在4月25日-4月26日进行"
-    },
-    {
-      "event_id": "a9d182cc-e5ce-49c3-8494-5653c0c99720",
-      "source_file": "讲座预告_沈思齐_用艺术诠释科学_天文摄影分享.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649647783&idx=1&sn=a0ba25f58a83be20bcbbf334e7cc0f0e&chksm=8876afcfbf0122d9dfc67170e0b4c9e6135f096a6ae0e17327637be1b15f177a6ec5367a6d86#rd",
-      "title": "用艺术诠释科学——天文摄影分享",
-      "summary": "知名天文摄影师沈思齐分享天文摄影心得与思考，涵盖日月、行星、深空、星野摄影及人造天体追踪，交流前期拍摄与后期处理技法。",
-      "start_time": "2026-05-16T13:30:00+08:00",
-      "end_time": "2026-05-16T15:30:00+08:00",
-      "location": "H3101",
-      "campus": "邯郸",
-      "organizer": "复旦天协",
-      "tags": [
+        "AI",
         "讲座",
-        "天文",
-        "摄影"
+        "大模型"
       ],
-      "evidence_text": "用艺术诠释科学——天文摄影分享 5.16（周六） 13：30-15：30 H3101"
+      "evidence_text": "复旦大学计算机学院学术活动通知：AI大模型前沿讲座，2026年6月3日14:00"
     },
     {
-      "event_id": "a0a396ed-2f3b-4ff6-b2ee-26babce7de21",
-      "source_file": "讲座预告_漫长的曝光_我与星空独处的一千个小时.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649635553&idx=1&sn=8c6f23c9732c53cd315a07c64009d202&chksm=8876fb89bf01729f7805b20d58fc4f41248aadaca84b2b861a3bf6c418acea38ae2ac3d686a6#rd",
-      "title": "漫长的曝光：我与星空独处的一千个小时",
-      "summary": "复旦天协邀请知名星空摄影师纪昊分享他与星空独处的一千个小时的摄影经历与故事，涵盖入坑天文、历年拍摄经历、天文摄影意义及拍摄后期技巧等内容。",
-      "start_time": "2025-11-16T15:30:00+08:00",
-      "end_time": "2025-11-16T17:00:00+08:00",
-      "location": "H3101",
+      "event_id": "demo_002",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/2",
+      "title": "天文摄影分享会",
+      "summary": "复旦天协主办，知名天文摄影师分享深空摄影技巧",
+      "start_time": "2026-06-09T13:30:00+08:00",
+      "end_time": "2026-06-09T15:30:00+08:00",
+      "location": "邯郸校区 H3206",
       "campus": "邯郸",
-      "organizer": "复旦天协",
+      "organizer": "复旦大学天文协会",
       "tags": [
-        "讲座",
-        "天文",
-        "摄影"
-      ],
-      "evidence_text": "11月16日（周日）15：30~17：00，于H3101，我们邀请你推开一扇通往暗夜宇宙的窗——与知名星空摄影师纪昊（微博@Hower的移动城堡）一同走进他"
-    },
-    {
-      "event_id": "99692123-2bc3-40d6-a077-886c4f165f45",
-      "source_file": "讲座预告_薛飞_AI时代_我们还要拍星空吗.txt",
-      "source_name": "复旦天协",
-      "source_url": "http://mp.weixin.qq.com/s?__biz=MzA5MjQ4NTYzOQ==&mid=2649647233&idx=1&sn=b57746895c3f1107f05a9130d694701f&chksm=8876a9e9bf0120ffd39c95e0deae6c76bcb15b2ee57c695a5c9e7df54aa57df82e17b5574dad#rd",
-      "title": "薛飞：AI时代，我们还要拍星空吗？",
-      "summary": "ZWO签约天文摄影师薛飞（@薛定饿了猫）带来关于AI时代天文摄影的讲座，内容涵盖星空作品鉴赏、拍摄技巧分享、暗夜保护倡议等。参加讲座可免费领取天文摄影大赛系列周边及ZWO精美周边文创。",
-      "start_time": "2026-05-08T19:00:00+08:00",
-      "end_time": "2026-05-08T21:00:00+08:00",
-      "location": "H3108",
-      "campus": "邯郸",
-      "organizer": "复旦天协",
-      "tags": [
-        "讲座",
         "天文",
         "摄影",
-        "AI"
+        "分享会"
       ],
-      "evidence_text": "5月8日（周五）19：00--21：00 邯郸校区 H3108"
+      "evidence_text": "复旦天协活动通知：天文摄影分享会，5月16日13:30，H3101"
     },
     {
-      "event_id": "faf897d1-14e2-4009-be45-58cff80ddb43",
-      "source_file": "毕业季活动邀你来_未来信息创新学院2026届学生毕业季系列活动预告.txt",
-      "source_name": "复旦信院学生",
-      "source_url": "https://mp.weixin.qq.com/s/4BQ4zSNn04BSFkX-rEJkjA",
-      "title": "复旦大学未来信息创新学院2026届学生集体毕业照",
-      "summary": "未来信息创新学院2026届学生集体毕业照拍摄。",
-      "start_time": "2026-06-08T12:00:00+08:00",
-      "end_time": "2026-06-08T12:40:00+08:00",
-      "location": "子彬院前草坪",
+      "event_id": "demo_003",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/3",
+      "title": "创新创业工作坊：从0到1的产品设计",
+      "summary": "实战导向的产品设计工作坊，适合对创业感兴趣的同学",
+      "start_time": "2026-06-10T15:00:00+08:00",
+      "end_time": "2026-06-10T17:00:00+08:00",
+      "location": "邯郸校区 光华楼东辅楼103",
       "campus": "邯郸",
-      "organizer": "未来信息创新学院",
+      "organizer": "创新创业学院",
       "tags": [
-        "毕业季",
-        "毕业照",
-        "毕业生活动"
+        "创业",
+        "工作坊",
+        "产品",
+        "互动"
       ],
-      "evidence_text": "复旦大学未来信息创新学院 2026届学生集体毕业照 活动时间 2026年6月8日 12:00–12:40 活动地点 邯郸校区子彬院前草坪"
+      "evidence_text": "创新创业学院工作坊通知"
     },
     {
-      "event_id": "57b20f9e-86d4-47b1-9046-b095330a7852",
-      "source_file": "毕业季活动邀你来_未来信息创新学院2026届学生毕业季系列活动预告.txt",
-      "source_name": "复旦信院学生",
-      "source_url": "https://mp.weixin.qq.com/s/4BQ4zSNn04BSFkX-rEJkjA",
-      "title": "复旦大学未来信息创新学院2026届学生毕业典礼",
-      "summary": "未来信息创新学院2026届学生毕业典礼，请于14:10前入场。",
-      "start_time": "2026-06-08T14:30:00+08:00",
-      "end_time": "2026-06-08T16:30:00+08:00",
-      "location": "相辉堂北堂郑裕彤剧场",
+      "event_id": "demo_004",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/4",
+      "title": "文图读书会：《人类简史》精读",
+      "summary": "每两周一次的读书分享活动，本期聚焦《人类简史》",
+      "start_time": "2026-06-11T19:00:00+08:00",
+      "end_time": "2026-06-11T21:00:00+08:00",
+      "location": "文科图书馆二楼研讨室",
       "campus": "邯郸",
-      "organizer": "未来信息创新学院",
+      "organizer": "图书馆读者协会",
       "tags": [
-        "毕业季",
-        "毕业典礼",
-        "毕业生活动"
+        "图书馆",
+        "社交",
+        "轻松"
       ],
-      "evidence_text": "复旦大学未来信息创新学院 2026届学生毕业典礼 活动时间 2026年6月8日 14:30–16:30 请同学们14:10前完成入场 活动地点 复旦大学邯郸校区 相辉堂北堂郑裕彤剧场"
+      "evidence_text": "文图读书会第42期通知"
     },
     {
-      "event_id": "f4ab2292-7a54-4a73-b716-0f878266bf02",
-      "source_file": "毕业季活动邀你来_未来信息创新学院2026届学生毕业季系列活动预告.txt",
-      "source_name": "复旦信院学生",
-      "source_url": "https://mp.weixin.qq.com/s/4BQ4zSNn04BSFkX-rEJkjA",
-      "title": "复旦大学未来信息创新学院2026届学生毕业晚会",
-      "summary": "未来信息创新学院2026届学生毕业晚会。",
+      "event_id": "demo_005",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/5",
+      "title": "职业规划讲座：科技行业求职攻略",
+      "summary": "邀请BAT资深HR分享科技行业求职技巧和职业规划",
       "start_time": "2026-06-12T18:30:00+08:00",
       "end_time": "2026-06-12T20:30:00+08:00",
-      "location": "光华楼十三楼多功能厅",
+      "location": "邯郸校区 叶耀珍楼202",
       "campus": "邯郸",
-      "organizer": "未来信息创新学院",
+      "organizer": "学生职业发展中心",
       "tags": [
-        "毕业季",
-        "毕业晚会",
-        "毕业生活动"
+        "职业",
+        "就业",
+        "讲座"
       ],
-      "evidence_text": "复旦大学未来信息创新学院 2026届学生毕业晚会 活动时间 2026年6月12日 18:30–20:30 活动地点 复旦大学邯郸校区光华楼十三楼多功能厅"
+      "evidence_text": "学生职业发展中心讲座通知"
+    },
+    {
+      "event_id": "demo_006",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/6",
+      "title": "戏剧社年度大戏《雷雨》公演",
+      "summary": "复旦剧社年度制作，经典话剧《雷雨》校园公演",
+      "start_time": "2026-06-13T19:00:00+08:00",
+      "end_time": "2026-06-13T21:00:00+08:00",
+      "location": "邯郸校区 相辉堂",
+      "campus": "邯郸",
+      "organizer": "复旦剧社",
+      "tags": [
+        "戏剧",
+        "演出",
+        "社交"
+      ],
+      "evidence_text": "复旦剧社2026年度公演通知"
+    },
+    {
+      "event_id": "demo_007",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/7",
+      "title": "人工智能与医疗健康交叉论坛",
+      "summary": "探讨AI在医疗诊断、药物研发中的应用与挑战",
+      "start_time": "2026-06-14T09:00:00+08:00",
+      "end_time": "2026-06-14T11:00:00+08:00",
+      "location": "邯郸校区 逸夫科技楼报告厅",
+      "campus": "邯郸",
+      "organizer": "类脑智能科学与技术研究院",
+      "tags": [
+        "AI",
+        "学术",
+        "讲座"
+      ],
+      "evidence_text": "类脑智能研究院学术论坛通知"
+    },
+    {
+      "event_id": "demo_008",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/8",
+      "title": "星空观测夜：夏季大三角",
+      "summary": "天文协会组织夏季星空观测活动，提供望远镜",
+      "start_time": "2026-06-15T20:00:00+08:00",
+      "end_time": "2026-06-15T22:00:00+08:00",
+      "location": "邯郸校区 光华楼顶层",
+      "campus": "邯郸",
+      "organizer": "复旦大学天文协会",
+      "tags": [
+        "天文",
+        "观星",
+        "实践"
+      ],
+      "evidence_text": "复旦天协观星活动通知，夏季大三角观测"
+    },
+    {
+      "event_id": "demo_009",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/9",
+      "title": "江湾校区生涯规划工作坊",
+      "summary": "面向法学院和先进材料实验室学生的职业规划",
+      "start_time": "2026-06-09T14:00:00+08:00",
+      "end_time": "2026-06-09T16:00:00+08:00",
+      "location": "江湾校区 法学楼301",
+      "campus": "江湾",
+      "organizer": "法学院学生工作办公室",
+      "tags": [
+        "职业",
+        "工作坊",
+        "互动"
+      ],
+      "evidence_text": "江湾校区生涯规划工作坊活动通知"
+    },
+    {
+      "event_id": "demo_010",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/10",
+      "title": "材料科学前沿讲座：二维材料的未来",
+      "summary": "先进材料实验室学术讲座系列",
+      "start_time": "2026-06-11T10:00:00+08:00",
+      "end_time": "2026-06-11T12:00:00+08:00",
+      "location": "江湾校区 先进材料楼报告厅",
+      "campus": "江湾",
+      "organizer": "先进材料实验室",
+      "tags": [
+        "学术",
+        "讲座",
+        "理论"
+      ],
+      "evidence_text": "先进材料实验室学术讲座通知"
+    },
+    {
+      "event_id": "demo_011",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/11",
+      "title": "江湾图书馆学术写作指导",
+      "summary": "图书馆主办的学术论文写作与文献管理培训",
+      "start_time": "2026-06-13T15:00:00+08:00",
+      "end_time": "2026-06-13T17:00:00+08:00",
+      "location": "江湾校区 李兆基图书馆培训室",
+      "campus": "江湾",
+      "organizer": "复旦大学图书馆",
+      "tags": [
+        "图书馆",
+        "课程",
+        "学术"
+      ],
+      "evidence_text": "复旦大学图书馆培训通知"
+    },
+    {
+      "event_id": "demo_012",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/12",
+      "title": "江湾游泳馆开放日活动",
+      "summary": "游泳馆免费体验日，含教练指导和水上趣味活动",
+      "start_time": "2026-06-16T13:00:00+08:00",
+      "end_time": "2026-06-16T15:00:00+08:00",
+      "location": "江湾校区 游泳馆",
+      "campus": "江湾",
+      "organizer": "体育教学部",
+      "tags": [
+        "体育",
+        "游泳",
+        "轻松"
+      ],
+      "evidence_text": "江湾游泳馆开放日活动通知"
+    },
+    {
+      "event_id": "demo_013",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/13",
+      "title": "公共卫生与预防医学前沿论坛",
+      "summary": "聚焦传染病防控和公共卫生政策",
+      "start_time": "2026-06-10T14:00:00+08:00",
+      "end_time": "2026-06-10T16:00:00+08:00",
+      "location": "枫林校区 明道楼二楼报告厅",
+      "campus": "枫林",
+      "organizer": "公共卫生学院",
+      "tags": [
+        "学术",
+        "讲座",
+        "论坛"
+      ],
+      "evidence_text": "公共卫生学院学术论坛通知"
+    },
+    {
+      "event_id": "demo_014",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/14",
+      "title": "枫林校区健康跑活动",
+      "summary": "校园健康跑，全程5公里，适合各水平跑者",
+      "start_time": "2026-06-12T07:30:00+08:00",
+      "end_time": "2026-06-12T09:30:00+08:00",
+      "location": "枫林校区 田径场集合",
+      "campus": "枫林",
+      "organizer": "体育教学部",
+      "tags": [
+        "体育",
+        "社交",
+        "轻松"
+      ],
+      "evidence_text": "枫林校区健康跑活动通知"
+    },
+    {
+      "event_id": "demo_015",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/15",
+      "title": "医学生科研经验分享会",
+      "summary": "高年级医学生分享科研选题、实验设计和论文发表经验",
+      "start_time": "2026-06-14T18:30:00+08:00",
+      "end_time": "2026-06-14T20:30:00+08:00",
+      "location": "枫林校区 第二教学楼210",
+      "campus": "枫林",
+      "organizer": "基础医学院学生会",
+      "tags": [
+        "分享会",
+        "学术",
+        "实践"
+      ],
+      "evidence_text": "基础医学院科研分享会通知"
+    },
+    {
+      "event_id": "demo_016",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/16",
+      "title": "枫林医学人文读书会",
+      "summary": "共读《当呼吸化为空气》，探讨医学人文关怀",
+      "start_time": "2026-06-17T19:00:00+08:00",
+      "end_time": "2026-06-17T21:00:00+08:00",
+      "location": "枫林校区 图书馆研讨室A",
+      "campus": "枫林",
+      "organizer": "医学人文研究中心",
+      "tags": [
+        "图书馆",
+        "社交",
+        "轻松"
+      ],
+      "evidence_text": "医学人文读书会第8期通知"
+    },
+    {
+      "event_id": "demo_017",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/17",
+      "title": "张江校区技术沙龙：分布式系统设计",
+      "summary": "讨论分布式系统的一致性、容错和性能优化",
+      "start_time": "2026-06-10T19:00:00+08:00",
+      "end_time": "2026-06-10T21:00:00+08:00",
+      "location": "张江校区 软件楼102",
+      "campus": "张江",
+      "organizer": "软件学院",
+      "tags": [
+        "AI",
+        "技术",
+        "沙龙",
+        "互动"
+      ],
+      "evidence_text": "软件学院技术沙龙通知"
+    },
+    {
+      "event_id": "demo_018",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/18",
+      "title": "张江校区企业参访：走进商汤科技",
+      "summary": "组织学生参观商汤科技，了解AI产业应用",
+      "start_time": "2026-06-15T13:00:00+08:00",
+      "end_time": "2026-06-15T15:00:00+08:00",
+      "location": "张江校区集合，统一乘车",
+      "campus": "张江",
+      "organizer": "计算机科学技术学院",
+      "tags": [
+        "参观",
+        "AI",
+        "职业"
+      ],
+      "evidence_text": "企业参访活动通知：走进商汤科技"
+    },
+    {
+      "event_id": "demo_019",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/19",
+      "title": "线上腾讯会议：开源项目贡献指南",
+      "summary": "介绍如何参与开源项目，从PR到成为maintainer",
+      "start_time": "2026-06-08T20:00:00+08:00",
+      "end_time": "2026-06-08T22:00:00+08:00",
+      "location": "腾讯会议 123-456-789",
+      "campus": "其他",
+      "organizer": "开源社区",
+      "tags": [
+        "AI",
+        "课程",
+        "互动"
+      ],
+      "evidence_text": "线上技术分享通知：开源项目贡献指南"
+    },
+    {
+      "event_id": "demo_020",
+      "source_file": "demo_data.py",
+      "source_name": "演示数据",
+      "source_url": "https://example.com/demo/20",
+      "title": "线上直播：科研论文写作与投稿技巧",
+      "summary": "学术写作专家在线分享SCI论文写作技巧",
+      "start_time": "2026-06-12T19:00:00+08:00",
+      "end_time": "2026-06-12T21:00:00+08:00",
+      "location": "Zoom 987-654-321",
+      "campus": "其他",
+      "organizer": "研究生会学术部",
+      "tags": [
+        "学术",
+        "讲座",
+        "课程"
+      ],
+      "evidence_text": "研究生会学术部线上讲座通知"
     }
   ]
 }
