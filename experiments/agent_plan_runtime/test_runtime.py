@@ -62,7 +62,7 @@ class RuntimeTest(unittest.TestCase):
             profile=load_profile(PROFILE_PATH),
             request_text="想看天文活动",
             date_scope="this_week",
-            now=parse_now("2026-05-25T00:00:00+08:00"),
+            now=parse_now("2026-06-25T00:00:00+08:00"),
             include_debug=True,
         )
         self.assertEqual(result["data"]["status"], "failed")
@@ -74,7 +74,7 @@ class RuntimeTest(unittest.TestCase):
             profile=load_profile(PROFILE_PATH),
             request_text="这周想看天文活动，最好轻松一点",
             date_scope="this_week",
-            now=parse_now("2026-05-09T12:00:00+08:00"),
+            now=parse_now("2026-06-15T12:00:00+08:00"),
         )
         self.assertEqual(result["data"]["status"], "completed")
         items = result["data"]["items"]

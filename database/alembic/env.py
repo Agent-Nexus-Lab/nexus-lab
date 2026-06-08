@@ -1,9 +1,17 @@
 from logging.config import fileConfig
+from pathlib import Path
+import os
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from dotenv import load_dotenv
 
 from alembic import context
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required. Set it in .env or environment variables.")
 
 from database import Base
 from models import User, UserProfile, Source, RawDocument, Event, PlanRun, Plan, PlanItem
@@ -11,6 +19,7 @@ from models import User, UserProfile, Source, RawDocument, Event, PlanRun, Plan,
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
