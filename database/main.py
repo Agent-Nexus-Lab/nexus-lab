@@ -20,3 +20,5 @@ app.include_router(admin.router)
 @app.get("/")
 def health_check():
     return {"code": 0, "message": "service is running"}
+from database import Base, engine
+Base.metadata.create_all(bind=engine)

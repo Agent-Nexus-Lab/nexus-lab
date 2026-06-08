@@ -22,6 +22,8 @@ def import_events_from_json():
             organizer=item.get("organizer"),
             source_id = None,
             source_url=item.get("source_url"),
+            source_name = item.get("source_name"),
+            evidence_text = item.get("evidence_text"),
             tags=item.get("tags"),
         )
         db.add(event)

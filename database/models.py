@@ -61,6 +61,8 @@ class Event(Base):
     organizer = Column(String(100))
     source_id = Column(String(36), ForeignKey("sources.id"))
     source_url = Column(String(500))
+    source_name = Column(String(100))
+    evidence_text = Column(Text)
     tags = Column(JSON)
     quality_score = Column(Float, default=0.5)
     verification_status = Column(String(20), default="unverified")  #verified / unverified / rejected
@@ -79,6 +81,7 @@ class PlanRun(Base):
     started_at = Column(DateTime(timezone=True),  server_default=func.now())
     ended_at = Column(DateTime(timezone=True))
     error_message = Column(Text)    #
+    debug = Column(Text) 
 
 class Plan(Base):
     __tablename__ = "plans"

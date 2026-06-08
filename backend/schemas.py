@@ -1,214 +1,137 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
 from typing import Optional
-from datetime import datetime
 
-class BaseData(BaseModel):
-    pass
+from pydantic import BaseModel, Field
 
 
-# ============================================================
-# 用户画像 — POST/GET/PUT /api/profile
-# ============================================================
-
-class ProfileRequest(BaseModel):
-    """POST/PUT /api/profile"""
-    nickname: str = Field(..., max_length=32, description="用户昵称")
-    campus: str = Field(..., description="主校区：江湾/邯郸/枫林/张江/其他")
-    identity: Optional[str] = Field(None, description="本科/硕士/博士/教职工/其他")
-    raw_preference_text: Optional[str] = None
-    interest_tags: Optional[list[str]] = None
-    preferred_campuses: Optional[list[str]] = None
-    available_time: Optional[str] = None
-    activity_style_tags: Optional[list[str]] = None
-    profile_summary: Optional[str] = None
-
-
-class ProfileData(BaseModel):
-    """GET /api/profile"""
-    user_id: str
-    nickname: str
-    campus: str
+class Profile(BaseModel):
+    nickname: str = ""
+    campus: Optional[str] = None
     identity: Optional[str] = None
     raw_preference_text: Optional[str] = None
-    interest_tags: Optional[list[str]] = None
-    preferred_campuses: Optional[list[str]] = None
+    interest_tags: list[str] = Field(default_factory=list)
+    preferred_campuses: list[str] = Field(default_factory=list)
     available_time: Optional[str] = None
-    activity_style_tags: Optional[list[str]] = None
+    activity_style_tags: list[str] = Field(default_factory=list)
+    excluded_tags: list[str] = Field(default_factory=list)
+    excluded_keywords: list[str] = Field(default_factory=list)
     profile_summary: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
 
 
-# ============================================================
-# 日程生成 — POST /api/agent/plan-day
-# ============================================================
-
-class PlanDayRequest(BaseModel):
-    """POST /api/agent/plan-day 请求体"""
-    request_text: str = Field(..., max_length=500, description="用户自然语言需求描述")
-    date_scope: str = Field(..., description="today / tomorrow / this_week")
-
-
-class PlanDayResponseData(BaseModel):
-    """POST /api/agent/plan-day 响应 data（202 Accepted）"""
-    run_id: str
-    status: str  # "queued"
-
-
-# ============================================================
-# 运行状态 — GET /api/agent/runs/{run_id}
-# ============================================================
-
-class RunItem(BaseModel):
-    """日程中的单个活动条目"""
-    event_id: str
+class EventInput(BaseModel):
+    event_id: Optional[str] = None
+    source_file: Optional[str] = None
+    source_name: Optional[str] = None
+    source_url: Optional[str] = None
     title: str
     summary: Optional[str] = None
-    start_time: datetime
-    end_time: Optional[datetime] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
     location: Optional[str] = None
     campus: Optional[str] = None
     organizer: Optional[str] = None
-    tags: Optional[list[str]] = None
+    tags: list[str] = Field(default_factory=list)
+    evidence_text: Optional[str] = None
+
+
+class PlanDayRequest(BaseModel):
+    events: list[EventInput]
+    profile: Profile
+    request_text: str
+    date_scope: str = "today"
+    now: Optional[str] = None
+    include_debug: bool = False
+    enable_llm_rewrite: bool = False
+
+
+class PlanItem(BaseModel):
+    event_id: Optional[str] = None
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    location: Optional[str] = None
+    campus: Optional[str] = None
+    organizer: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
     source_url: Optional[str] = None
     reason_text: Optional[str] = None
-    display_order: int
-    quality_score: Optional[float] = None
+    display_order: int = 0
+    quality_score: float = 0.0
 
 
-class RunStatusData(BaseModel):
-    """GET /api/agent/runs/{run_id} 响应 data"""
-    run_id: str
-    status: str  # queued / running / completed / failed
+class CandidateDetail(BaseModel):
+    event_id: Optional[str] = None
+    title: Optional[str] = None
+    score: float = 0.0
+    components: dict[str, float] = Field(default_factory=dict)
+    matched_terms: list[str] = Field(default_factory=list)
+    source_file: Optional[str] = None
+    evidence_text: Optional[str] = None
+    effective_end_time: Optional[str] = None
+    end_time_estimated: bool = False
+
+
+class RejectionRecord(BaseModel):
+    event_id: str = ""
+    title: str = ""
+    reason: str = ""
+
+
+class ScheduleConflictRecord(BaseModel):
+    event_id: Optional[str] = None
+    title: Optional[str] = None
+    reason: str = ""
+
+
+class CommuteMatrix(BaseModel):
+    same_campus: int = 15
+    handan_to_jiangwan: int = 30
+    jiangwan_to_handan: int = 30
+    handan_to_fenglin: int = 60
+    fenglin_to_handan: int = 60
+    unknown: int = 60
+
+
+class DebugInfo(BaseModel):
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    rejections: list[RejectionRecord] = Field(default_factory=list)
+    rejection_counts: dict[str, int] = Field(default_factory=dict)
+    score_details: list[CandidateDetail] = Field(default_factory=list)
+    schedule_skips: list[ScheduleConflictRecord] = Field(default_factory=list)
+    selected_event_ids: list[Optional[str]] = Field(default_factory=list)
+    commute_matrix: CommuteMatrix = Field(default_factory=CommuteMatrix)
+    llm_error: Optional[str] = None
+    llm_invalid_event_ids: list[str] = Field(default_factory=list)
+
+
+class PlanDayData(BaseModel):
+    run_id: Optional[str] = None
+    status: str = "completed"
     plan_id: Optional[str] = None
     title: Optional[str] = None
     summary: Optional[str] = None
     date_scope: Optional[str] = None
-    items: Optional[list[RunItem]] = None
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
+    items: Optional[list[PlanItem]] = None
+    started_at: Optional[str] = None
+    ended_at: Optional[str] = None
     error_message: Optional[str] = None
+    debug: Optional[DebugInfo] = None
 
 
-# ============================================================
-# 历史日程 — GET /api/plans, GET /api/plans/{plan_id}
-# ============================================================
-
-class PlanListItem(BaseModel):
-    """GET /api/plans 列表中每条日程"""
-    plan_id: str
-    title: str
-    date_scope: str
-    summary: Optional[str] = None
-    item_count: int
-    created_at: datetime
+class PlanDayResponse(BaseModel):
+    code: int = 0
+    data: PlanDayData = Field(default_factory=PlanDayData)
+    message: str = "ok"
 
 
-class PlanListData(BaseModel):
-    """GET /api/plans 响应 data（分页）"""
-    items: list[PlanListItem]
-    total: int
-    page: int
-    page_size: int
-
-
-class PlanDetailData(BaseModel):
-    """GET /api/plans/{plan_id} 响应 data"""
-    plan_id: str
-    title: str
-    date_scope: str
-    summary: Optional[str] = None
-    items: list[RunItem]
-    created_at: datetime
-
-
-# ============================================================
-# 后台管理 — sources
-# ============================================================
-
-class SourceCreateRequest(BaseModel):
-    """POST /api/admin/sources 请求体"""
-    name: str = Field(..., description="来源名称")
-    source_type: str = Field(..., description="web / rss / manual")
-    base_url: Optional[str] = None
-    feed_url: Optional[str] = None
-    is_active: bool = True
-
-
-class SourceItem(BaseModel):
-    """GET /api/admin/sources 列表中每条来源"""
-    source_id: str
-    name: str
-    source_type: str
-    base_url: Optional[str] = None
-    feed_url: Optional[str] = None
-    is_active: bool
-    last_crawled_at: Optional[datetime] = None
-    event_count: int
-
-
-class SourceListData(BaseModel):
-    """GET /api/admin/sources 响应 data"""
-    items: list[SourceItem]
-    total: int
-    page: int
-    page_size: int
-
-
-class SourceCreateData(BaseModel):
-    """POST /api/admin/sources 响应 data"""
-    source_id: str
-    name: str
-    source_type: str
-    base_url: Optional[str] = None
-    feed_url: Optional[str] = None
-    is_active: bool
-    created_at: datetime
-
-
-# ============================================================
-# 后台管理 — import-url
-# ============================================================
-
-class ImportUrlRequest(BaseModel):
-    """POST /api/admin/import-url 请求体"""
-    url: str = Field(..., description="要抓取的活动页面 URL")
-    source_id: Optional[str] = None
-
-
-class ImportUrlData(BaseModel):
-    """POST /api/admin/import-url 响应 data"""
-    document_id: str
-    url: str
-    status: str  # "queued"
-
-
-# ============================================================
-# 后台管理 — events
-# ============================================================
-
-class AdminEventItem(BaseModel):
-    """GET /api/admin/events 列表中每条活动"""
+class RewriteReason(BaseModel):
     event_id: str
-    title: str
-    summary: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    location: Optional[str] = None
-    campus: Optional[str] = None
-    organizer: Optional[str] = None
-    source_name: Optional[str] = None
-    source_url: Optional[str] = None
-    tags: Optional[list[str]] = None
-    quality_score: float
-    verification_status: str
-    is_user_visible: bool
-    created_at: datetime
+    reason_text: str
 
 
-class EventListData(BaseModel):
-    """GET /api/admin/events 响应 data"""
-    items: list[AdminEventItem]
-    total: int
-    page: int
-    page_size: int
+class RewriteOutput(BaseModel):
+    summary: str
+    reasons: list[RewriteReason] = Field(default_factory=list)
