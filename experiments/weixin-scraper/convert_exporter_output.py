@@ -29,7 +29,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT_DIR = SCRIPT_DIR.parent / "agent-maas-cli" / "texts"
+DEFAULT_OUTPUT_DIR = SCRIPT_DIR.parent / "agent_maas_cli" / "texts"
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT_DIR = SCRIPT_DIR.parent / "agent-maas-cli" / "texts"
+DEFAULT_OUTPUT_DIR = SCRIPT_DIR.parent / "agent_maas_cli" / "texts"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,7 +39,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
-        help="Output directory (default: ../agent-maas-cli/texts)",
+        help="Output directory (default: ../agent_maas_cli/texts)",
     )
     parser.add_argument(
         "--timeout",

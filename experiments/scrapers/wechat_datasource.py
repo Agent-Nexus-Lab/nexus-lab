@@ -31,9 +31,9 @@ from scrapers.account_list import AccountConfig
 from scrapers.exporter_client import ExporterClient, ExporterError
 
 _EXPERIMENTS_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent-maas-cli" / "texts"
-DEFAULT_OUTPUTS_DIR = _EXPERIMENTS_ROOT / "agent-maas-cli" / "outputs"
-MAAS_CLI_PATH = _EXPERIMENTS_ROOT / "agent-maas-cli" / "cli.py"
+DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent_maas_cli" / "texts"
+DEFAULT_OUTPUTS_DIR = _EXPERIMENTS_ROOT / "agent_maas_cli" / "outputs"
+MAAS_CLI_PATH = _EXPERIMENTS_ROOT / "agent_maas_cli" / "cli.py"
 
 
 class WeChatDataSource(DataSource):

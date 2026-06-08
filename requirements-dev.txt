@@ -1,3 +1,5 @@
 # Install all Python dependencies used by local development and prototypes.
--r backend/requirements.txt
--r experiments/agent-maas-cli/requirements.txt
+-r database/requirements.txt
+-r experiments/agent_maas_cli/requirements.txt
+-r experiments/scrapers/requirements.txt
+-r experiments/weixin-scraper/requirements.txt

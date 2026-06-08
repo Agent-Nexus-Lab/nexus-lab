@@ -22,8 +22,8 @@ from typing import Any
 from agent_core._runtime_compat import DEFAULT_TIMEZONE, parse_datetime
 
 _EXPERIMENTS_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_EVENTS_PATH = _EXPERIMENTS_ROOT / "agent-maas-cli" / "outputs" / "events.json"
-DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent-maas-cli" / "texts"
+DEFAULT_EVENTS_PATH = _EXPERIMENTS_ROOT / "agent_maas_cli" / "outputs" / "events.json"
+DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent_maas_cli" / "texts"
 DEFAULT_TTL_DAYS = 3
 
 

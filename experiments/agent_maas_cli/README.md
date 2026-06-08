@@ -43,7 +43,7 @@ TIMEZONE=Asia/Shanghai
 安装依赖：
 
 ```powershell
-python -m pip install -r experiments\agent-maas-cli\requirements.txt
+python -m pip install -r experiments\agent_maas_cli\requirements.txt
 ```
 
 PowerShell 中文输出如有乱码，先设置 UTF-8：
@@ -55,58 +55,58 @@ $OutputEncoding = [Console]::OutputEncoding
 
 ## 3. 输入输出目录
 
-- 输入目录：`experiments/agent-maas-cli/texts/`
-- 输出文件：`experiments/agent-maas-cli/outputs/events.json`
+- 输入目录：`experiments/agent_maas_cli/texts/`
+- 输出文件：`experiments/agent_maas_cli/outputs/events.json`
 - `texts/` 支持 `.txt`、`.md`、`.html`。
 - `outputs/events.json` 和测试文本作为测评材料可以提交，但不得包含密钥、账号信息、完整请求日志或未授权敏感数据。
 
 默认批量处理全部文本：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py
+python experiments\agent_maas_cli\run_eval.py
 ```
 
 只跑指定序号：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --range 1-3
-python experiments\agent-maas-cli\run_eval.py --range 1,3,5-7
+python experiments\agent_maas_cli\run_eval.py --range 1-3
+python experiments\agent_maas_cli\run_eval.py --range 1,3,5-7
 ```
 
 如果账号侧出现 MaaS 限流，可以临时增加调用间隔：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --delay-seconds 22
+python experiments\agent_maas_cli\run_eval.py --delay-seconds 22
 ```
 
 如果模型偶发空结果或截断输出，可以临时增加重试或输出上限：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --retries 1 --max-tokens 16000
+python experiments\agent_maas_cli\run_eval.py --retries 1 --max-tokens 16000
 ```
 
 指定聚合输出文件：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --output-file experiments\agent-maas-cli\outputs\events.json
+python experiments\agent_maas_cli\run_eval.py --output-file experiments\agent_maas_cli\outputs\events.json
 ```
 
 只生成请求体，不调用 MaaS：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --range 1-2 --dry-run
+python experiments\agent_maas_cli\run_eval.py --range 1-2 --dry-run
 ```
 
 底层 CLI 可用于单条调试：
 
 ```powershell
-python experiments\agent-maas-cli\cli.py --input-file experiments\agent-maas-cli\texts\1.txt --reference-date 2026-05-20
+python experiments\agent_maas_cli\cli.py --input-file experiments\agent_maas_cli\texts\1.txt --reference-date 2026-05-20
 ```
 
 底层 CLI 也支持目录模式，并写入同一个 `events.json`：
 
 ```powershell
-python experiments\agent-maas-cli\cli.py --input-dir experiments\agent-maas-cli\texts --output-dir experiments\agent-maas-cli\outputs --reference-date 2026-05-20
+python experiments\agent_maas_cli\cli.py --input-dir experiments\agent_maas_cli\texts --output-dir experiments\agent_maas_cli\outputs --reference-date 2026-05-20
 ```
 
 ## 4. 输出结构
@@ -154,6 +154,6 @@ python experiments\agent-maas-cli\cli.py --input-dir experiments\agent-maas-cli\
 常用自检：
 
 ```powershell
-python -m py_compile experiments\agent-maas-cli\cli.py experiments\agent-maas-cli\schema.py experiments\agent-maas-cli\run_eval.py
-python experiments\agent-maas-cli\run_eval.py --range 1-2 --dry-run
+python -m py_compile experiments\agent_maas_cli\cli.py experiments\agent_maas_cli\schema.py experiments\agent_maas_cli\run_eval.py
+python experiments\agent_maas_cli\run_eval.py --range 1-2 --dry-run
 ```

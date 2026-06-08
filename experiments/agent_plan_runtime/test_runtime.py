@@ -10,8 +10,8 @@ from runtime import commute_minutes, load_events, load_profile, normalize_campus
 
 
 ROOT = Path(__file__).resolve().parents[2]
-EVENTS_PATH = ROOT / "experiments" / "agent-maas-cli" / "outputs" / "events.json"
-PROFILE_PATH = ROOT / "experiments" / "agent-plan-runtime" / "profile.sample.json"
+EVENTS_PATH = ROOT / "experiments" / "agent_maas_cli" / "outputs" / "events.json"
+PROFILE_PATH = ROOT / "experiments" / "agent_plan_runtime" / "profile.sample.json"
 
 
 def sample_event(

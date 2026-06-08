@@ -21,7 +21,7 @@ from agent_core.time_provider import resolve_now
 DEFAULT_TIMEZONE = timezone(timedelta(hours=8))
 
 # Default paths relative to experiments/
-DEFAULT_EVENTS_PATH = _EXPERIMENTS_ROOT / "agent-maas-cli" / "outputs" / "events.json"
+DEFAULT_EVENTS_PATH = _EXPERIMENTS_ROOT / "agent_maas_cli" / "outputs" / "events.json"
 
 
 def filter_future_events(

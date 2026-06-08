@@ -28,8 +28,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-TEXTS_DIR = SCRIPT_DIR.parent / "agent-maas-cli" / "texts"
-OUTPUT_DIR = SCRIPT_DIR.parent / "agent-maas-cli" / "outputs"
+TEXTS_DIR = SCRIPT_DIR.parent / "agent_maas_cli" / "texts"
+OUTPUT_DIR = SCRIPT_DIR.parent / "agent_maas_cli" / "outputs"
 EXPORTER_BASE = "http://localhost:3000"
 DEBUG_KEY = "nexus-lab-debug"
 
@@ -232,7 +232,7 @@ def slugify(text: str) -> str:
 
 def run_maas_extraction() -> None:
     """Run the MaaS CLI batch extraction."""
-    cli_path = SCRIPT_DIR.parent / "agent-maas-cli" / "cli.py"
+    cli_path = SCRIPT_DIR.parent / "agent_maas_cli" / "cli.py"
     result = subprocess.run(
         [sys.executable, str(cli_path), "--input-dir", str(TEXTS_DIR),
          "--write-output", "--incremental"],

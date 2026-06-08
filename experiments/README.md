@@ -26,7 +26,7 @@ experiments/
     cleanup.py              #   过期事件（>3天）及源文本文件清理
     demo_data.py            #   20 条未来活动演示数据生成
 
-  agent-maas-cli/          # MaaS LLM 结构化抽取
+  agent_maas_cli/          # MaaS LLM 结构化抽取
     cli.py                  #   CLI + 批量抽取（调用华为云 DeepSeek-v4-Pro）
     schema.py               #   事件 Schema 验证、校区展开
     prompt.md               #   抽取 System Prompt
@@ -34,7 +34,7 @@ experiments/
     texts/                  #   抓取产出的原始文本文件
     outputs/events.json     #   聚合的结构化事件
 
-  agent-plan-runtime/      # 旧 plan-day runtime（fallback）
+  agent_plan_runtime/      # 旧 plan-day runtime（fallback）
     runtime.py              #   plan_day() 完整流水线
     cli.py                  #   CLI 入口
     llm.py                  #   可选 MaaS LLM 改写 summary/reason_text
@@ -63,7 +63,7 @@ experiments/
               .txt 文件 (texts/ 目录)
                        │
                        ▼
-              agent-maas-cli/cli.py
+              agent_maas_cli/cli.py
               (MaaS DeepSeek-v4-Pro 结构化抽取)
                        │
                        ▼
@@ -75,7 +75,7 @@ experiments/
                        │
           ┌────────────┴────────────┐
           ▼                         ▼
-   agent_core/search_events.py   agent-plan-runtime/runtime.py
+   agent_core/search_events.py   agent_plan_runtime/runtime.py
    (V2 检索：硬约束过滤          (旧 plan_day：过滤+评分+排程)
     + 软偏好评分 + 分页)
                        │
@@ -139,7 +139,7 @@ result = pipeline.run_plan_day(profile=..., request_text=..., date_scope=...)
 
 4. 生成演示数据：
    ```bash
-   PYTHONPATH=. python scrapers/demo_data.py --output agent-maas-cli/outputs/events.json
+   PYTHONPATH=. python scrapers/demo_data.py --output agent_maas_cli/outputs/events.json
    ```
 
 5. 运行检索：
@@ -183,7 +183,7 @@ PUPPETEER_SKIP_DOWNLOAD=true yarn dev
 
 ```bash
 pip install -r experiments/scrapers/requirements.txt
-pip install -r experiments/agent-maas-cli/requirements.txt
+pip install -r experiments/agent_maas_cli/requirements.txt
 ```
 
 ### 环境变量

@@ -2,7 +2,7 @@
 
 Usage:
     python scrapers/demo_data.py --output demo_events.json
-    python scrapers/demo_data.py --output ../agent-maas-cli/outputs/events.json
+    python scrapers/demo_data.py --output ../agent_maas_cli/outputs/events.json
 
 Events span all 5 campuses across 8 interest categories, with dates
 automatically offset from `now` to fall within the next 14 days.
@@ -20,7 +20,7 @@ from typing import Any
 from agent_core._runtime_compat import DEFAULT_TIMEZONE
 
 _EXPERIMENTS_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = _EXPERIMENTS_ROOT / "agent-maas-cli" / "outputs" / "demo_events.json"
+DEFAULT_OUTPUT = _EXPERIMENTS_ROOT / "agent_maas_cli" / "outputs" / "demo_events.json"
 
 # 20 demo events covering all campuses and 8 interest categories
 # Dates are expressed as (day_offset, hour, minute) relative to `now`

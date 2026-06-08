@@ -1,6 +1,6 @@
 # Intent Parser — 意图解析器
 
-> 李颖哲 | agent 的 query 理解和 LLM 输出层  
+> 李颖哲 | agent 的 query 理解和 LLM 输出层
 > 最后更新：2026-05-26
 
 ---

@@ -1,4 +1,4 @@
-"""Shared utility functions extracted from agent-plan-runtime/runtime.py.
+"""Shared utility functions extracted from agent_plan_runtime/runtime.py.
 
 These functions were previously imported via sys.path.insert() hacks from
 agent_core modules.  Extracting them here makes agent_core self-contained

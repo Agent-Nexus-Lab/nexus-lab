@@ -1,6 +1,6 @@
 account: 复旦信院学生
 title: 毕业季活动邀你来｜未来信息创新学院2026届学生毕业季系列活动预告
-author: 
+author:
 date: 2026年6月3日 08:41
 source_url: https://mp.weixin.qq.com/s/4BQ4zSNn04BSFkX-rEJkjA
 
