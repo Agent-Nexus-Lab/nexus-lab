@@ -120,6 +120,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--dry-run", action="store_true", help="只打印 MaaS 请求体，不发起网络请求")
     parser.add_argument("--strict", action="store_true", help="调用或校验失败时直接抛错")
+    parser.add_argument("--incremental", action="store_true", help="增量模式：只处理新文件，保留已有 events.json 中的事件")
     return parser.parse_args()
 
 
@@ -133,9 +134,36 @@ def run_batch(args: argparse.Namespace) -> int:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = args.output_file or output_dir / "events.json"
+
+    # Incremental: load existing events and skip already-processed sources
     events: list[dict[str, Any]] = []
+    processed_sources: set[str] = set()
+    if args.incremental and output_file.exists():
+        try:
+            existing = json.loads(output_file.read_text(encoding="utf-8"))
+            for ev in existing.get("events", []):
+                if isinstance(ev, dict) and ev.get("source_file"):
+                    processed_sources.add(ev["source_file"])
+                    events.append(ev)
+            if processed_sources:
+                print(
+                    f"  incremental: loaded {len(events)} existing events, "
+                    f"skipping {len(processed_sources)} source(s)",
+                    file=sys.stderr,
+                )
+        except Exception:
+            pass
+
     results: list[dict[str, Any]] = []
     for input_file in files:
+        if args.incremental and input_file.name in processed_sources:
+            results.append({
+                "input_file": str(input_file),
+                "output_file": str(output_file),
+                "status": "skipped",
+                "events": 0,
+            })
+            continue
         source_text = input_file.read_text(encoding="utf-8")
 
         if args.dry_run:
@@ -205,9 +233,11 @@ def process_source_text(
     source_text: str,
     input_file: Path | None = None,
 ) -> dict[str, Any]:
+    # Parse fetch_weixin.py header for fallback values
+    header = _parse_text_header(source_text)
     fallback = {
-        "source_name": args.source_name,
-        "source_url": args.source_url,
+        "source_name": args.source_name or header.get("account"),
+        "source_url": args.source_url or header.get("source_url"),
     }
 
     try:
@@ -218,6 +248,21 @@ def process_source_text(
         if args.strict:
             raise
         return build_error_response(f"结构化抽取失败：{exc}", fallback)
+
+
+def _parse_text_header(text: str) -> dict[str, str]:
+    """Parse account/source_url from fetch_weixin.py header lines."""
+    import re
+    result: dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            break
+        for key in ("account", "source_url"):
+            m = re.match(rf"{key}:\s*(.+)", line)
+            if m:
+                result[key] = m.group(1).strip()
+    return result
 
 
 def default_single_output_path(args: argparse.Namespace, payload: dict[str, Any]) -> Path:

@@ -149,6 +149,11 @@ def parse_now(value: str | None) -> datetime:
         if parsed is None:
             raise ValueError("--now must be ISO 8601 with timezone, for example 2026-05-09T12:00:00+08:00")
         return parsed
+    # Dev/test: AGENT_FIXED_NOW env var pins time; production: real clock
+    import os
+    fixed = os.getenv("AGENT_FIXED_NOW", "").strip()
+    if fixed:
+        return datetime.fromisoformat(fixed)
     return datetime.now(DEFAULT_TIMEZONE)
 
 
@@ -194,6 +199,7 @@ def plan_day(
     now: datetime,
     include_debug: bool = False,
     rewriter: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    use_search_events: bool = False,
 ) -> dict[str, Any]:
     run_id = f"run_{uuid.uuid4().hex[:8]}"
     window_start, window_end = date_window(date_scope, now)
@@ -212,16 +218,29 @@ def plan_day(
         },
     }
 
-    filtered = filter_candidates(
-        events=events,
-        profile=profile,
-        request_text=request_text,
-        now=now,
-        window_start=window_start,
-        window_end=window_end,
-        rejections=debug["rejections"],
-    )
-    candidates = score_candidates(filtered, profile=profile, request_text=request_text, now=now)
+    if use_search_events:
+        # Use the new agent-core retrieval layer (search_events)
+        candidates = _search_and_score(
+            events=events,
+            profile=profile,
+            request_text=request_text,
+            date_scope=date_scope,
+            now=now,
+            window_start=window_start,
+            window_end=window_end,
+            rejections=debug["rejections"],
+        )
+    else:
+        filtered = filter_candidates(
+            events=events,
+            profile=profile,
+            request_text=request_text,
+            now=now,
+            window_start=window_start,
+            window_end=window_end,
+            rejections=debug["rejections"],
+        )
+        candidates = score_candidates(filtered, profile=profile, request_text=request_text, now=now)
     schedule = build_schedule(candidates, debug=debug)
 
     if not schedule:
@@ -352,6 +371,74 @@ def score_candidates(
             )
         )
     return sorted(candidates, key=lambda item: (-item.score, item.start_time, item.event.get("title") or ""))
+
+
+def _search_and_score(
+    *,
+    events: list[dict[str, Any]],
+    profile: dict[str, Any],
+    request_text: str,
+    date_scope: str,
+    now: datetime,
+    window_start: datetime,
+    window_end: datetime,
+    rejections: list[dict[str, str]],
+) -> list[Candidate]:
+    """Bridge: use agent-core search_events to filter and score, return Candidates.
+
+    This is the integration point between the new retrieval layer and the existing
+    plan_day pipeline. search_events handles filtering + scoring; we convert its
+    MatchedEvent results back to Candidate objects for build_schedule and render_item.
+    """
+    import sys
+    from pathlib import Path
+
+    _experiments_root = str(Path(__file__).resolve().parents[1])
+    if _experiments_root not in sys.path:
+        sys.path.insert(0, _experiments_root)
+
+    from agent_core.search_events import search_events
+    from agent_core.query import Intent, Profile
+
+    intent = Intent(
+        request_text=request_text,
+        date_scope=date_scope,
+    )
+    prof = Profile.from_dict(profile)
+    result = search_events(events, intent=intent, profile=prof, now=now)
+
+    # Copy agent-core rejections into the runtime debug rejections list
+    for r in result.rejections:
+        rejections.append(r)
+
+    # Convert MatchedEvent → Candidate
+    candidates: list[Candidate] = []
+    for item in result.items:
+        ev = item.event
+        start_time = parse_datetime(ev.get("start_time"))
+        if start_time is None:
+            start_time = now  # should not happen — require_start_time=True rejects these
+        end_time = parse_datetime(ev.get("end_time"))
+        end_time_estimated = end_time is None or end_time <= start_time
+        effective_end_time = (
+            end_time if end_time and end_time > start_time else start_time + DEFAULT_EVENT_DURATION
+        )
+        candidates.append(
+            Candidate(
+                event=ev,
+                start_time=start_time,
+                effective_end_time=effective_end_time,
+                end_time_estimated=end_time_estimated,
+                score=item.score,
+                score_components=item.score_components,
+                matched_terms=item.matched_terms,
+            )
+        )
+
+    return sorted(
+        candidates,
+        key=lambda c: (-c.score, c.start_time, c.event.get("title") or ""),
+    )
 
 
 def build_schedule(candidates: list[Candidate], *, debug: dict[str, Any], max_items: int | None = None) -> list[Candidate]:
