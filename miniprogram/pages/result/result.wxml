@@ -19,7 +19,13 @@
       <view class="field-name">{{result.items.length}} 个结果</view>
     </view>
 
+    <view wx:if="{{!hasItems}}" class="empty-state">
+      <view class="empty-title">暂无可展示活动</view>
+      <view class="empty-text">后端已返回结果，但本次没有活动卡片。可以调整时间范围或偏好后重新生成。</view>
+    </view>
+
     <view
+      wx:else
       wx:for="{{result.items}}"
       wx:key="event_id"
       class="event-card"
@@ -48,8 +54,22 @@
       </view>
 
       <view class="reason-box">{{item.reason_text}}</view>
-      <view class="source-text">来源：{{item.source_url}}</view>
+      <view class="source-text">
+        来源：
+        <text
+          wx:if="{{item.has_source_url}}"
+          class="source-link"
+          data-url="{{item.source_url}}"
+          bindtap="copySourceUrl"
+        >查看来源</text>
+        <text wx:else>{{item.source_url}}</text>
+      </view>
     </view>
+  </view>
+
+  <view wx:if="{{debugText}}" class="panel debug-panel">
+    <view class="panel-title">开发调试信息</view>
+    <text selectable class="debug-text">{{debugText}}</text>
   </view>
 
   <button class="primary-button" bindtap="goPlan">重新生成</button>

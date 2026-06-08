@@ -1,8 +1,12 @@
 <view class="page loading-page">
   <view class="loading-card">
-    <view class="spinner"></view>
+    <view wx:if="{{viewState === 'running'}}" class="spinner"></view>
+    <view wx:elif="{{viewState === 'completed'}}" class="state-icon state-success">✓</view>
+    <view wx:else class="state-icon state-failed">!</view>
+    <view class="status-badge status-{{viewState}}">{{statusLabel}}</view>
     <view class="loading-title">{{currentMessage}}</view>
-    <view class="loading-subtitle">正在根据你的偏好、时间范围和活动库模拟生成结果。</view>
+    <view wx:if="{{viewState !== 'failed'}}" class="loading-subtitle">正在根据你的偏好、时间范围和活动库生成结果。</view>
+    <view wx:else class="error-message">{{errorMessage}}</view>
 
     <view class="progress-track">
       <view class="progress-bar" style="width: {{progress}}%;"></view>
@@ -17,6 +21,16 @@
         <view class="step-dot"></view>
         <view class="step-text">{{item.text}}</view>
       </view>
+    </view>
+
+    <view wx:if="{{viewState === 'failed'}}" class="action-row">
+      <button class="secondary-button" bindtap="goPlan">返回修改</button>
+      <button class="primary-button retry-button" bindtap="goPlan">重新生成</button>
+    </view>
+
+    <view wx:if="{{debugText}}" class="debug-panel">
+      <view class="debug-title">开发调试信息</view>
+      <text selectable class="debug-text">{{debugText}}</text>
     </view>
   </view>
 </view>

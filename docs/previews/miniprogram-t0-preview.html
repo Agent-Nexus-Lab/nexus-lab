@@ -6,16 +6,80 @@
   <title>校园日程 AI 助手 - 今日交互预览</title>
   <style>
     * { box-sizing: border-box; }
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #dfe6ef;
+      --ink: #172033;
+      --muted: #647086;
+      --brand: #2f65e8;
+      --brand-strong: #13213a;
+      --accent: #c46a33;
+      --sidebar: #e8eef6;
+    }
     body {
       margin: 0;
       min-height: 100vh;
-      background: #f6f7f9;
-      color: #172033;
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", sans-serif;
     }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 14px 44px; display: grid; gap: 22px; }
-    .preview-title { color: #647086; font-size: 13px; line-height: 1.6; }
-    .screen { border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 12px 34px rgba(23,32,51,.08); }
+    body.theme-warm {
+      --bg: #f8f4ee;
+      --surface: #fffdf9;
+      --surface-soft: #f4eee4;
+      --line: #e5d8c9;
+      --brand: #b85f2d;
+      --brand-strong: #2b211a;
+      --accent: #2f65e8;
+      --sidebar: #eee4d7;
+    }
+    .wrap { min-height: 100vh; display: grid; grid-template-columns: 246px minmax(0, 1fr); transition: grid-template-columns .24s ease; }
+    body.sidebar-collapsed .wrap { grid-template-columns: 72px minmax(0, 1fr); }
+    .product-rail { min-height: 100vh; position: sticky; top: 0; display: flex; flex-direction: column; gap: 14px; padding: 18px 14px; background: var(--sidebar); border-right: 1px solid var(--line); }
+    .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; }
+    .sidebar-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+    .brand-mark svg { width: 24px; height: 24px; display: block; }
+    .brand-word { font-size: 16px; font-weight: 900; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .collapse-button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.68); color: #52627a; font-size: 16px; line-height: 1; cursor: pointer; }
+    .sidebar-action { width: 100%; min-height: 38px; border: 0; border-radius: 12px; background: transparent; color: #3e4c63; display: flex; align-items: center; gap: 11px; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+    .sidebar-action:hover, .sidebar-action.active { background: rgba(255,255,255,.76); color: var(--brand-strong); }
+    .side-icon { flex: 0 0 20px; width: 20px; text-align: center; color: #65758c; font-weight: 900; }
+    .sidebar-section { display: grid; gap: 7px; padding-top: 8px; border-top: 1px solid rgba(122,139,164,.22); }
+    .section-label { padding: 0 10px; color: #7b899c; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .rail-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; }
+    .rail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; padding: 0 10px; }
+    .rail-title { font-size: 12px; font-weight: 900; color: #617086; }
+    .rail-pill { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.7); color: #3158b4; font-size: 10px; font-weight: 900; white-space: nowrap; }
+    .flow-list { display: grid; gap: 7px; }
+    .flow-item { width: 100%; min-height: 38px; border: 0; border-radius: 12px; background: transparent; color: #28384f; display: flex; align-items: center; gap: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 800; text-align: left; cursor: pointer; }
+    .flow-item.active { background: var(--surface); color: #204cad; box-shadow: 0 8px 20px rgba(34,48,73,.06); }
+    .flow-index { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: rgba(255,255,255,.8); color: #69788e; font-size: 11px; }
+    .flow-item.active .flow-index { background: var(--brand); color: #fff; }
+    .history-list { display: grid; gap: 5px; max-height: 148px; overflow: auto; padding-right: 2px; }
+    .history-item { width: 100%; border: 0; border-radius: 11px; background: transparent; display: flex; gap: 9px; align-items: center; padding: 8px 10px; color: #516075; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .history-item:hover { background: rgba(255,255,255,.74); color: var(--ink); }
+    .history-dot { width: 7px; height: 7px; border-radius: 50%; background: #43d49f; flex: 0 0 7px; }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; color: #506075; font-size: 12px; font-weight: 800; }
+    .theme-toggle { display: inline-flex; border: 1px solid rgba(122,139,164,.28); border-radius: 999px; padding: 3px; background: rgba(255,255,255,.66); }
+    .theme-option { border: 0; border-radius: 999px; padding: 4px 8px; background: transparent; color: #68758a; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
+    .theme-option.active { background: var(--brand-strong); color: #fff; }
+    .sidebar-spacer { flex: 1; min-height: 8px; }
+    .preview-stage { min-width: 0; display: grid; justify-items: center; align-content: start; gap: 18px; padding: 20px 28px 44px; }
+    .top-brand { width: min(640px, 100%); text-align: center; padding: 8px 0 2px; }
+    .workspace-toolbar { position: fixed; top: 18px; right: 24px; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.76); box-shadow: 0 12px 28px rgba(34,48,73,.08); backdrop-filter: blur(10px); }
+    .toolbar-label { padding: 0 6px 0 8px; color: #647086; font-size: 12px; font-weight: 900; }
+    .brand-kicker { color: #5c6d84; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
+    .brand-title { margin-top: 6px; font-size: 25px; line-height: 1.18; font-weight: 900; letter-spacing: 0; }
+    .brand-subtitle { margin-top: 8px; color: #647086; font-size: 13px; line-height: 1.55; }
+    .screen { width: min(760px, 100%); border: 1px solid #e2e7ef; border-radius: 18px; background: #f6f7f9; overflow: hidden; box-shadow: 0 16px 36px rgba(23,32,51,.08); }
+    body.sidebar-collapsed .rail-title, body.sidebar-collapsed .rail-pill, body.sidebar-collapsed .flow-item span:not(.flow-index), body.sidebar-collapsed .sidebar-text, body.sidebar-collapsed .section-label, body.sidebar-collapsed .history-list, body.sidebar-collapsed .settings-row { display: none; }
+    body.sidebar-collapsed .product-rail { align-items: center; padding-inline: 10px; }
+    body.sidebar-collapsed .sidebar-top { justify-content: center; }
+    body.sidebar-collapsed .collapse-button { position: absolute; top: 54px; }
+    body.sidebar-collapsed .flow-item, body.sidebar-collapsed .sidebar-action { justify-content: center; padding-inline: 0; }
     .screen.hidden { display: none; }
     .nav { height: 48px; display: flex; align-items: center; justify-content: center; background: #f7f9fc; border-bottom: 1px solid #e5eaf2; font-size: 15px; font-weight: 700; }
     .page { padding: 18px 14px 24px; }
@@ -57,12 +121,94 @@
     .small-tag { padding: 3px 7px; border-radius: 999px; background: #edf3ff; color: #3158b4; font-size: 11px; font-weight: 700; }
     .reason-box { margin-top: 10px; padding: 9px; border-radius: 14px; background: #f0f5ff; color: #294576; font-size: 12px; line-height: 1.55; }
     .source-text { margin-top: 7px; color: #7c8797; font-size: 11px; line-height: 1.45; word-break: break-all; }
+    .source-link { color: var(--brand); font-weight: 800; text-decoration: none; border-bottom: 1px solid rgba(47,101,232,.28); }
+    .source-link:hover { border-bottom-color: var(--brand); }
+    .debug-panel { margin-top: 10px; padding: 12px; border-radius: 16px; background: #111827; color: #dce7ff; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+    .debug-panel.hidden { display: none; }
+    @media (max-width: 980px) {
+      .wrap { grid-template-columns: 1fr; }
+      body.sidebar-collapsed .wrap { grid-template-columns: 1fr; }
+      .product-rail { min-height: auto; position: static; display: grid; grid-template-columns: 1fr; }
+      .preview-stage { padding: 14px 12px 36px; }
+    }
+    @media (max-width: 640px) {
+      .wrap { width: calc(100vw - 18px); }
+      .brand-title { font-size: 22px; }
+      .workspace-toolbar { position: static; justify-self: center; margin-bottom: 4px; }
+    }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <div class="preview-title">今日预览：偏好页 -> 日程页 -> 生成中 loading -> 假 JSON 活动卡片。真实小程序页面同步在 pages/loading 和 pages/result。</div>
+    <aside class="product-rail">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+          <div class="brand-mark" aria-label="校园日程助手图标">
+            <svg viewBox="0 0 48 48" role="img" aria-hidden="true">
+              <defs>
+                <linearGradient id="markBlue" x1="8" y1="7" x2="38" y2="43" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#2F7BFF"/>
+                  <stop offset="1" stop-color="#06C7B4"/>
+                </linearGradient>
+              </defs>
+              <rect x="5" y="5" width="38" height="38" rx="12" fill="url(#markBlue)"/>
+              <path d="M15 16h16a4 4 0 0 1 4 4v12H13V18a2 2 0 0 1 2-2Z" fill="#fff"/>
+              <path d="M18 13v7M30 13v7" stroke="#DCEBFF" stroke-width="4" stroke-linecap="round"/>
+              <path d="M18 25h4M25 25h4M18 30h4M25 30h4" stroke="#B7D4FF" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="34" cy="33" r="8" fill="#fff"/>
+              <path d="m30.5 33.2 2.2 2.2 4.8-5.4" fill="none" stroke="#0A55D6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="brand-word sidebar-text">校园日程助手</div>
+        </div>
+        <button class="collapse-button" id="collapseButton" title="收起侧栏">‹</button>
+      </div>
+
+      <button class="sidebar-action" id="newSessionButton">
+        <span class="side-icon">＋</span>
+        <span class="sidebar-text">新日程</span>
+      </button>
+
+      <section class="rail-card">
+        <div class="rail-head">
+          <div class="rail-title">流程</div>
+          <div class="rail-pill" id="railScreenLabel">偏好页</div>
+        </div>
+        <div class="flow-list">
+          <button class="flow-item active" data-jump="profileScreen"><span class="flow-index">1</span><span>偏好设置</span></button>
+          <button class="flow-item" data-jump="planScreen"><span class="flow-index">2</span><span>日程输入</span></button>
+          <button class="flow-item" data-jump="loadingScreen"><span class="flow-index">3</span><span>运行轮询</span></button>
+          <button class="flow-item" data-jump="resultScreen"><span class="flow-index">4</span><span>结果/空状态</span></button>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="section-label">搜索历史</div>
+        <div class="history-list" id="historyList">
+          <button class="history-item" data-query="今晚想安排点 AI 相关但别太累的活动"><span class="history-dot"></span><span>AI 轻量活动</span></button>
+          <button class="history-item" data-query="明天想找江湾附近的讲座"><span class="history-dot"></span><span>江湾讲座</span></button>
+          <button class="history-item" data-query="本周有没有创业或职业相关活动"><span class="history-dot"></span><span>创业职业</span></button>
+        </div>
+      </section>
+
+      <div class="sidebar-spacer"></div>
+    </aside>
+
+    <section class="preview-stage">
+    <div class="workspace-toolbar">
+      <span class="toolbar-label">主题</span>
+      <span class="theme-toggle">
+        <button class="theme-option active" data-theme="cool">清爽</button>
+        <button class="theme-option" data-theme="warm">暖色</button>
+      </span>
+    </div>
+
+    <section class="top-brand">
+      <div class="brand-kicker">AGENT RUNTIME DEMO</div>
+      <div class="brand-title">校园日程助手</div>
+      <div class="brand-subtitle">从偏好采集、自然语言输入，到真实接口轮询和结果兜底。</div>
+    </section>
 
     <section class="screen" id="profileScreen">
       <div class="nav">偏好设置</div>
@@ -81,7 +227,7 @@
     <section class="screen hidden" id="planScreen">
       <div class="nav">生成日程</div>
       <div class="page">
-        <div class="hero"><div class="eyebrow">日程生成</div><div class="title">今天想怎么安排？</div><div class="subtitle">输入一句话，模拟几秒钟生成，再展示活动卡片。</div></div>
+        <div class="hero"><div class="eyebrow">日程生成</div><div class="title">今天想怎么安排？</div></div>
         <section class="panel">
           <div class="panel-head"><div class="panel-title">当前偏好</div><div class="field-name">profile</div></div>
           <div class="summary-list">
@@ -104,8 +250,8 @@
       <div class="page">
         <div class="loading-card">
           <div class="spinner"></div>
-          <div class="title" id="loadingMessage">正在拼命检索校园活动...</div>
-          <div class="subtitle">正在根据你的偏好、时间范围和活动库模拟生成结果。</div>
+          <div class="title" id="loadingMessage">正在理解你的需求...</div>
+          <div class="subtitle" id="loadingSubtitle">正在请求 FastAPI，并轮询生成结果。</div>
           <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
           <div class="step-list" id="stepList"></div>
         </div>
@@ -121,17 +267,58 @@
         <button class="button" id="againButton">重新生成</button>
       </div>
     </section>
+    </section>
   </main>
 
   <script>
     let profilePayload = null
     let timer = null
-    const steps = ['读取你的偏好设置', '模拟检索活动库', '筛选时间、校区和兴趣标签', '生成活动卡片列表']
-    const messages = ['正在拼命检索校园活动...', '正在筛选时间和校区...', '正在匹配你的兴趣标签...', '正在整理活动卡片...']
-
+    const API_BASE_URL = 'http://1.117.75.184:8000/api'
+    const steps = ['正在理解需求', '正在检索活动', '正在编排日程', '正在整理结果']
+    const messages = ['正在理解你的需求...', '正在检索校园活动...', '正在编排你的日程...', '正在整理推荐结果...']
+    const stageIndex = { intent_parsing: 0, intent_parser: 0, understanding_request: 0, parse_intent: 0, load_profile: 0, load_memory: 0, search_events: 1, searching_events: 1, tool_service_boundary: 1, build_schedule: 2, arranging_schedule: 2, runtime_orchestration: 2, rewrite_plan: 3, save_plan: 3, saving_plan: 3, memory_feedback_loop: 3, feedback_loop: 3 }
+    const screenLabels = { profileScreen: '偏好页', planScreen: '日程页', loadingScreen: '轮询页', resultScreen: '结果页' }
+    const runtimeState = { status: '待输入', stage: '未开始', runId: '-', items: '-', debug: '等待发起请求。' }
     function show(id) {
       document.querySelectorAll('.screen').forEach((screen) => screen.classList.add('hidden'))
       document.getElementById(id).classList.remove('hidden')
+      document.getElementById('railScreenLabel').textContent = screenLabels[id] || '预览'
+      document.querySelectorAll('.flow-item').forEach((item) => item.classList.toggle('active', item.dataset.jump === id))
+    }
+    function updateRuntime(patch = {}) {
+      Object.assign(runtimeState, patch)
+      const status = document.getElementById('railRunStatus')
+      const stage = document.getElementById('railStage')
+      const runId = document.getElementById('railRunId')
+      const items = document.getElementById('railResult')
+      if (status) status.textContent = runtimeState.status
+      if (stage) stage.textContent = runtimeState.stage
+      if (runId) runId.textContent = runtimeState.runId
+      if (items) items.textContent = runtimeState.items
+    }
+    function formatDebug(debug) {
+      if (!debug) return ''
+      try {
+        const normalized = typeof debug === 'string' ? JSON.parse(debug) : debug
+        return JSON.stringify(normalized, null, 2)
+      } catch (error) {
+        return String(debug)
+      }
+    }
+    function shortDebug(text) {
+      if (!text) return '暂无更多信息。'
+      return text.length > 520 ? text.slice(0, 520) + '\n...' : text
+    }
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+    }
+    function isHttpUrl(value) {
+      return /^https?:\/\//i.test(String(value || ''))
     }
     function getSelected(field) {
       const grid = document.querySelector(`[data-field="${field}"]`)
@@ -155,6 +342,34 @@
         }
       })
     })
+    document.querySelectorAll('.flow-item').forEach((item) => {
+      item.addEventListener('click', () => show(item.dataset.jump))
+    })
+    document.getElementById('collapseButton').addEventListener('click', () => {
+      document.body.classList.toggle('sidebar-collapsed')
+      const collapsed = document.body.classList.contains('sidebar-collapsed')
+      document.getElementById('collapseButton').textContent = collapsed ? '›' : '‹'
+      document.getElementById('collapseButton').title = collapsed ? '展开侧栏' : '收起侧栏'
+    })
+    document.getElementById('newSessionButton').addEventListener('click', () => {
+      document.getElementById('requestText').value = '今晚想安排点 AI 相关但别太累的活动'
+      updateRuntime({ status: profilePayload ? '偏好已就绪' : '待输入', stage: profilePayload ? '等待输入需求' : '未开始', runId: '-', items: '-', debug: '新建一次日程生成。' })
+      show(profilePayload ? 'planScreen' : 'profileScreen')
+    })
+    document.querySelectorAll('.history-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.getElementById('requestText').value = item.dataset.query
+        updateRuntime({ status: '历史已载入', stage: '等待生成', runId: '-', items: '-', debug: item.dataset.query })
+        show('planScreen')
+      })
+    })
+    document.querySelectorAll('.theme-option').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.theme-option').forEach((item) => item.classList.remove('active'))
+        button.classList.add('active')
+        document.body.classList.toggle('theme-warm', button.dataset.theme === 'warm')
+      })
+    })
     document.getElementById('nextButton').addEventListener('click', () => {
       const campus = getSingle('campus')
       profilePayload = {
@@ -173,70 +388,218 @@
       document.getElementById('summaryInterests').textContent = profilePayload.interest_tags.join('、') || '未选择'
       document.getElementById('summaryTime').textContent = profilePayload.available_time || '未选择'
       document.getElementById('summaryStyles').textContent = profilePayload.activity_style_tags.join('、') || '未选择'
+      updateRuntime({ status: '偏好已就绪', stage: '等待输入需求', debug: JSON.stringify(profilePayload, null, 2) })
       show('planScreen')
     })
     document.getElementById('backButton').addEventListener('click', () => show('profileScreen'))
-    document.getElementById('againButton').addEventListener('click', () => show('planScreen'))
+    document.getElementById('againButton').addEventListener('click', () => {
+      updateRuntime({ status: '准备重新生成', stage: '等待输入需求', runId: '-', items: '-', debug: '可重新调整 query 后再次请求后端。' })
+      show('planScreen')
+    })
     document.getElementById('generateButton').addEventListener('click', () => {
-      const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope() }
+      const planDayPayload = { request_text: document.getElementById('requestText').value.trim(), date_scope: getDateScope(), include_debug: true }
       console.log('profilePayload for POST /api/profile:', profilePayload)
       console.log('planDayPayload for POST /api/agent/plan-day:', planDayPayload)
-      startLoading(planDayPayload)
+      if (!profilePayload) {
+        alert('请先保存偏好')
+        show('profileScreen')
+        return
+      }
+      if (!planDayPayload.request_text) {
+        alert('请输入日程需求')
+        return
+      }
+      updateRuntime({ status: '准备请求', stage: 'plan_day', runId: '-', items: '-', debug: JSON.stringify(planDayPayload, null, 2) })
+      startApiFlow(planDayPayload)
     })
-    function startLoading(planDayPayload) {
+
+    async function apiRequest(path, options = {}) {
+      const response = await fetch(API_BASE_URL + path, {
+        ...options,
+        headers: {
+          'Authorization': 'Bearer dev-openid',
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        }
+      })
+      const text = await response.text()
+      let data
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch (error) {
+        throw new Error(`接口没有返回 JSON，HTTP ${response.status}：${text.slice(0, 120)}`)
+      }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}：${data && data.message ? data.message : response.statusText}`)
+      }
+      return data
+    }
+
+    async function startApiFlow(planDayPayload) {
       show('loadingScreen')
       let tick = 0
       renderSteps(0)
       document.getElementById('progressBar').style.width = '18%'
-      document.getElementById('loadingMessage').textContent = messages[0]
-      clearInterval(timer)
-      timer = setInterval(() => {
-        tick += 1
-        const index = Math.min(tick, messages.length - 1)
-        document.getElementById('loadingMessage').textContent = messages[index]
-        document.getElementById('progressBar').style.width = Math.min(18 + tick * 26, 100) + '%'
-        renderSteps(index)
-        if (tick >= messages.length) {
-          clearInterval(timer)
-          renderResult(buildMockResult(planDayPayload))
-          show('resultScreen')
+      document.getElementById('loadingMessage').textContent = '正在连接昕宇的 FastAPI...'
+      document.getElementById('loadingSubtitle').textContent = API_BASE_URL
+      updateRuntime({ status: '请求中', stage: 'save_profile', runId: '-', items: '-', debug: `POST ${API_BASE_URL}/profile` })
+      clearTimeout(timer)
+
+      try {
+        const profileRes = await apiRequest('/profile', {
+          method: 'POST',
+          body: JSON.stringify(profilePayload)
+        })
+        console.log('POST /api/profile response:', profileRes)
+
+        document.getElementById('loadingMessage').textContent = '画像已提交，正在创建生成任务...'
+        document.getElementById('progressBar').style.width = '35%'
+        renderSteps(1)
+        updateRuntime({ status: 'profile 已保存', stage: 'plan_day', debug: `POST ${API_BASE_URL}/agent/plan-day` })
+
+        const planRes = await apiRequest('/agent/plan-day', {
+          method: 'POST',
+          body: JSON.stringify(planDayPayload)
+        })
+        console.log('POST /api/agent/plan-day response:', planRes)
+
+        if (!planRes || planRes.code !== 0 || !planRes.data || !planRes.data.run_id) {
+          throw new Error(planRes && planRes.message ? planRes.message : '后端没有返回 run_id')
         }
-      }, 900)
+
+        const runId = planRes.data.run_id
+        document.getElementById('loadingMessage').textContent = '生成任务已创建，正在轮询结果...'
+        document.getElementById('progressBar').style.width = '50%'
+        renderSteps(2)
+        updateRuntime({ status: planRes.data.status || 'queued', stage: planRes.data.stage || '等待后端 stage', runId, debug: shortDebug(formatDebug(planRes.data.debug) || JSON.stringify(planRes.data, null, 2)) })
+
+        async function pollRunStatus() {
+          tick += 1
+          try {
+            const runRes = await apiRequest(`/agent/runs/${runId}`)
+            console.log('GET /api/agent/runs response:', runRes)
+            if (!runRes || runRes.code !== 0) {
+              throw new Error(runRes && runRes.message ? runRes.message : '查询任务失败')
+            }
+            if (runRes.data && runRes.data.status === 'completed') {
+              clearTimeout(timer)
+              document.getElementById('progressBar').style.width = '100%'
+              document.getElementById('loadingMessage').textContent = '日程已生成'
+              renderSteps(messages.length - 1)
+              updateRuntime({ status: 'completed', stage: runRes.data.stage || '结果已返回', items: Array.isArray(runRes.data.items) ? `${runRes.data.items.length} 个` : '0 个', debug: shortDebug(formatDebug(runRes.data.debug) || JSON.stringify(runRes.data, null, 2)) })
+              timer = setTimeout(() => {
+                renderResult({
+                  ...runRes.data,
+                  date_scope: runRes.data.date_scope || planDayPayload.date_scope,
+                  request_text: planDayPayload.request_text,
+                  items: Array.isArray(runRes.data.items) ? runRes.data.items : []
+                })
+                show('resultScreen')
+              }, 180)
+              return
+            }
+            if (runRes.data && runRes.data.status === 'failed') {
+              updateRuntime({ status: 'failed', stage: runRes.data.stage || '失败', debug: shortDebug(runRes.data.error_message || formatDebug(runRes.data.debug)) })
+              throw new Error(runRes.data.error_message || '后端生成失败')
+            }
+            const index = stageIndex[runRes.data && runRes.data.stage]
+            document.getElementById('loadingMessage').textContent = index == null ? 'Agent 正在运行...' : messages[index]
+            document.getElementById('progressBar').style.width = (index == null ? 55 : 55 + index * 12) + '%'
+            renderSteps(index == null ? -1 : index)
+            updateRuntime({ status: (runRes.data && runRes.data.status) || 'running', stage: (runRes.data && runRes.data.stage) || '泛化 loading', debug: shortDebug(formatDebug(runRes.data && runRes.data.debug) || JSON.stringify(runRes.data || {}, null, 2)) })
+            if (tick >= 10) {
+              throw new Error('轮询超时：后端一直没有从 queued/running 进入 completed 或 failed')
+            }
+            timer = setTimeout(pollRunStatus, 800)
+          } catch (error) {
+            clearTimeout(timer)
+            showApiError(error)
+          }
+        }
+
+        pollRunStatus()
+      } catch (error) {
+        showApiError(error)
+      }
     }
+
+    function showApiError(error) {
+      console.error('联调失败:', error)
+      show('loadingScreen')
+      document.getElementById('loadingMessage').textContent = '联调失败'
+      document.getElementById('loadingSubtitle').textContent = error.message || '请检查公网 IP、FastAPI 或接口返回状态。'
+      document.getElementById('progressBar').style.width = '100%'
+      updateRuntime({ status: 'failed', stage: 'error', debug: error.message || '联调失败' })
+        document.getElementById('stepList').innerHTML = `
+          <div class="step-item active"><span class="step-dot"></span><span>如果提示 Failed to fetch，多半是浏览器 CORS、HTTP/HTTPS 混合内容或公网 IP 不可达。</span></div>
+          <div class="step-item active"><span class="step-dot"></span><span>如果提示轮询超时，说明已经拿到 run_id，但 /api/agent/runs/{run_id} 没有进入 completed/failed。</span></div>
+        `
+      }
+
     function renderSteps(active) {
       document.getElementById('stepList').innerHTML = steps.map((step, index) => `<div class="step-item ${index <= active ? 'active' : ''}"><span class="step-dot"></span><span>${step}</span></div>`).join('')
     }
-    function buildMockResult(planDayPayload) {
-      return {
-        title: '今晚 AI 轻量活动安排',
-        summary: '今晚为你找到 3 个偏轻松的 AI 相关活动，优先考虑江湾校区与晚间时间。',
-        date_scope: planDayPayload.date_scope,
-        request_text: planDayPayload.request_text,
-        items: [
-          { display_order: 1, quality_score: 0.86, title: 'AI 讲座：大模型在产业中的应用', summary: '邀请业界专家分享大模型落地案例，适合对 AI 应用感兴趣的同学。', time_text: '19:00 - 20:30', location: '江湾校区教学楼 A205', campus: '江湾', organizer: '计算机学院', tags: ['AI', '讲座', '产业'], source_url: 'https://www.example.edu.cn/events/123', reason_text: '主题匹配你的 AI 兴趣，时间在晚间，地点也符合你的校区偏好。' },
-          { display_order: 2, quality_score: 0.82, title: 'AI 创业沙龙：从实验室到产品', summary: '小型圆桌讨论，聊聊如何把 AI 研究变成可用的产品。', time_text: '20:40 - 21:30', location: '江湾校区创新创业空间 1 楼', campus: '江湾', organizer: '创新创业中心', tags: ['AI', '创业', '沙龙'], source_url: 'https://www.example.edu.cn/events/456', reason_text: '同时匹配 AI 和创业两个标签，活动形式更轻松，适合作为讲座后的延伸选择。' },
-          { display_order: 3, quality_score: 0.78, title: '技术读书会：AI Agent 产品案例讨论', summary: '围绕 AI Agent 产品案例做轻量分享和自由讨论。', time_text: '18:30 - 20:00', location: '邯郸校区学生创新中心 204', campus: '邯郸', organizer: '产品与技术社', tags: ['AI', '产品', '社交'], source_url: 'https://www.example.edu.cn/events/789', reason_text: '如果你愿意扩大到明天或邯郸校区，这是一个更偏交流和产品视角的备选。' }
-        ]
-      }
-    }
     function renderResult(result) {
-      document.getElementById('resultTitle').textContent = result.title
-      document.getElementById('resultSummary').textContent = result.summary
-      document.getElementById('resultScope').textContent = result.date_scope
-      document.getElementById('resultRequest').textContent = result.request_text
-      document.getElementById('resultCount').textContent = result.items.length + ' 个结果'
-      document.getElementById('eventList').innerHTML = result.items.map((item) => `
+      document.getElementById('resultTitle').textContent = result.title || '暂无推荐结果'
+      document.getElementById('resultSummary').textContent = result.summary || '这次没有拿到可展示的活动卡片，可以返回后重新生成。'
+      document.getElementById('resultScope').textContent = result.date_scope || ''
+      document.getElementById('resultRequest').textContent = result.request_text || '暂无输入记录'
+      const items = Array.isArray(result.items) ? result.items : []
+      document.getElementById('resultCount').textContent = items.length + ' 个结果'
+      const debugText = formatDebug(result.debug)
+      updateRuntime({ status: result.status || 'completed', stage: result.stage || '结果页', items: items.length + ' 个', debug: shortDebug(debugText || result.error_message || '本次没有 debug。') })
+      if (!items.length) {
+        document.getElementById('eventList').innerHTML = `
+          <article class="event-card">
+            <div class="event-title">暂无可展示活动</div>
+            <div class="event-summary">后端已返回结果，但本次没有活动卡片。可以调整时间范围或偏好后重新生成。</div>
+          </article>
+        `
+        return
+      }
+      document.getElementById('eventList').innerHTML = items.map((item, index) => {
+        const tags = Array.isArray(item.tags) ? item.tags : []
+        const order = item.display_order || index + 1
+        const score = item.quality_score == null ? '待评估' : item.quality_score
+        const title = item.title || item.event_title || item.name || item.event_name || '未命名活动'
+        const summary = item.summary || item.description || item.event_summary || '暂无简介'
+        const time = item.time_text || formatTimeRange(item.start_time, item.end_time)
+        const location = item.location || item.place || item.venue || item.event_location || '地点待确认'
+        const campus = item.campus || item.campus_name || item.event_campus || '校区待确认'
+        const organizer = item.organizer || item.host || item.sponsor || item.event_organizer || '主办方待确认'
+        const reason = item.reason_text || '暂无推荐理由'
+        const source = item.source_url || ''
+        const sourceHtml = isHttpUrl(source)
+          ? `<a class="source-link" href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">查看来源</a>`
+          : '暂无来源链接'
+        return `
         <article class="event-card">
-          <div class="event-topline"><span>#${item.display_order}</span><span>质量分 ${item.quality_score}</span></div>
-          <div class="event-title">${item.title}</div>
-          <div class="event-summary">${item.summary}</div>
-          <div class="event-meta"><div>时间：${item.time_text}</div><div>地点：${item.location}</div><div>校区：${item.campus}</div><div>主办：${item.organizer}</div></div>
-          <div class="tag-row">${item.tags.map((tag) => `<span class="small-tag">${tag}</span>`).join('')}</div>
-          <div class="reason-box">${item.reason_text}</div>
-          <div class="source-text">来源：${item.source_url}</div>
+          <div class="event-topline"><span>#${order}</span><span>质量分 ${score}</span></div>
+          <div class="event-title">${escapeHtml(title)}</div>
+          <div class="event-summary">${escapeHtml(summary)}</div>
+          <div class="event-meta"><div>时间：${escapeHtml(time)}</div><div>地点：${escapeHtml(location)}</div><div>校区：${escapeHtml(campus)}</div><div>主办：${escapeHtml(organizer)}</div></div>
+          <div class="tag-row">${tags.map((tag) => `<span class="small-tag">${escapeHtml(tag)}</span>`).join('')}</div>
+          <div class="reason-box">${escapeHtml(reason)}</div>
+          <div class="source-text">来源：${sourceHtml}</div>
         </article>
-      `).join('')
+      `
+      }).join('')
     }
+
+    function formatTimeRange(start, end) {
+      const startText = formatClock(start)
+      const endText = formatClock(end)
+      if (startText === '时间待确认' && endText === '时间待确认') return '时间待确认'
+      return `${startText} - ${endText}`
+    }
+
+    function formatClock(value) {
+      if (!value) return '时间待确认'
+      const match = String(value).match(/T(\d{2}:\d{2})/)
+      return match ? match[1] : value
+    }
+
+    updateRuntime()
   </script>
 </body>
 </html>

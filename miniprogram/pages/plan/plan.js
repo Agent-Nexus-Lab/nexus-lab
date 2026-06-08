@@ -62,7 +62,8 @@ Page({
     const profilePayload = wx.getStorageSync(PROFILE_STORAGE_KEY) || null
     const planDayPayload = {
       request_text: this.data.request_text.trim(),
-      date_scope: this.data.date_scope
+      date_scope: this.data.date_scope,
+      include_debug: api.ENABLE_DEBUG_VIEW
     }
 
     console.log('profilePayload for POST /api/profile:', profilePayload)
@@ -118,7 +119,7 @@ Page({
       wx.hideLoading()
       wx.showModal({
         title: '连接后端失败',
-        content: `${error.message || '请检查 cpolar 链接、后端服务和小程序网络设置'}`,
+        content: `${error.message || '请检查公网 IP、后端服务和小程序网络设置'}`,
         showCancel: false
       })
     }
