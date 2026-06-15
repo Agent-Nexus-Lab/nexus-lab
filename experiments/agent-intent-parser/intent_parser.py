@@ -35,7 +35,7 @@ TIME_KEYWORDS: dict[str, list[str]] = {
 }
 
 STYLE_TERMS: dict[str, list[str]] = {
-    "轻松": ["轻松", "休闲", "随意", "不累", "别太累", "放松", "轻松一点"],
+    "轻松": ["轻松", "休闲", "随意", "不累", "别太累", "不想太累", "放松", "轻松一点"],
     "互动": ["互动", "交流", "讨论", "参与", "动手"],
     "正式": ["正式", "学术", "专业", "严肃"],
     "实践": ["实践", "实操", "动手", "实验", "训练"],
@@ -61,10 +61,11 @@ EXCLUSION_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"(?:不要|别|不想|排除|除了|去掉|避免)\s*去?\s*([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), "contains"),
     (re.compile(r"(?:不想要|不需要|不想去)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), "contains"),
     (re.compile(r"(?:只要|必须在|只去)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), "eq"),
+    (re.compile(r"(?:换一个|换点|换个|换点别的|换一个别的)([^\s，。！？,!?;；的了吧呢吗啊]{0,8})"), "contains"),
 ]
 
 PREFERENCE_PATTERNS: list[tuple[re.Pattern, float]] = [
-    (re.compile(r"(?:特别喜欢|非常喜欢|超爱|最爱|尤其喜欢|特别想|非常想)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), 1.5),
+    (re.compile(r"(?:特别喜欢|非常喜欢|超爱|最爱|尤其喜欢|特别想|非常想|更偏|更想要|更想|更偏向|更倾向于)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), 1.5),
     (re.compile(r"(?:喜欢|想|最好|尽量)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), 1.2),
     (re.compile(r"(?:不太喜欢|不太想|一般)([^\s，。！？,!?;；的了吧呢吗啊]{1,8})"), 0.5),
 ]
@@ -98,6 +99,9 @@ def parse_intent(
 
     hard = _extract_hard_constraints(query)
     soft = _extract_soft_constraints(query, result.interest_tags, result.style_tags)
+    # 过滤掉与硬约束冲突的软约束（如"不想太累"中的"太累"不应被当作偏好）
+    hard_values = {c.value for c in hard}
+    soft = [c for c in soft if c.value not in hard_values]
     result.hard_constraints = hard
     result.soft_constraints = soft
 
@@ -264,6 +268,11 @@ def _extract_hard_constraints(query: str) -> list[HardConstraint]:
     for pattern, operator in EXCLUSION_PATTERNS:
         for match in pattern.finditer(query):
             value = match.group(1).strip()
+            # 处理"换一个/换点"等切换语义：捕获值为空时用默认标记
+            if not value:
+                matched_text = match.group(0).strip()
+                if matched_text and any(kw in matched_text for kw in ["换一个", "换点", "换个", "换点别的"]):
+                    value = "_switch_request"
             if not value or len(value) > 15:
                 continue
             if operator == "eq":
