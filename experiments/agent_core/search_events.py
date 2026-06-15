@@ -158,6 +158,11 @@ def _build_query(
         preferred_campuses=profile.preferred_campuses,
         preferred_time_of_day=time_pref,
         text_search=intent.request_text,
+        # Memory-derived soft adjustments
+        penalty_event_ids=memory.recent_plan_event_ids,
+        penalty_disliked_tags=memory.disliked_tags,
+        penalty_negative_keywords=memory.negative_keywords,
+        boost_liked_tags=memory.liked_tags,
     )
 
     return SearchQuery(

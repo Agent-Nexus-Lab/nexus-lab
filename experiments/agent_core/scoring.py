@@ -179,10 +179,63 @@ def score_and_sort(
 
         total_score = sum(WEIGHTS[k] * components[k] for k in WEIGHTS)
 
+        # --- Memory-based additive adjustments (soft, do NOT reject) ---
+        adjust: dict[str, float] = {}
+
+        # Repeat penalty: -0.15 if this event was recently recommended
+        if preferences.penalty_event_ids:
+            event_id = str(event.get("event_id", ""))
+            if event_id and event_id in preferences.penalty_event_ids:
+                adjust["repeat_penalty"] = -0.15
+
+        # Disliked / liked / keyword adjustments — compute haystack once
+        haystack: str | None = None
+
+        def _ensure_haystack() -> str:
+            nonlocal haystack
+            if haystack is None:
+                haystack = event_text(event)
+            return haystack
+
+        # Disliked tag penalty: -0.10 per matched tag, cap -0.20
+        if preferences.penalty_disliked_tags:
+            disliked_matches = sum(
+                1 for tag in preferences.penalty_disliked_tags
+                if term_matches(tag, _ensure_haystack())
+            )
+            if disliked_matches:
+                adjust["disliked_penalty"] = round(-0.10 * min(disliked_matches, 2), 4)
+
+        # Negative keyword penalty: -0.10 per matched keyword, cap -0.20
+        if preferences.penalty_negative_keywords:
+            txt = _ensure_haystack().casefold()
+            kw_matches = sum(
+                1 for kw in preferences.penalty_negative_keywords
+                if kw.casefold() in txt
+            )
+            if kw_matches:
+                adjust["keyword_penalty"] = round(-0.10 * min(kw_matches, 2), 4)
+
+        # Liked tag boost: +0.10 per matched tag, cap +0.20
+        if preferences.boost_liked_tags:
+            liked_matches = sum(
+                1 for tag in preferences.boost_liked_tags
+                if term_matches(tag, _ensure_haystack())
+            )
+            if liked_matches:
+                adjust["liked_boost"] = round(0.10 * min(liked_matches, 2), 4)
+
+        # Apply adjustments and clamp to [0, 1]
+        final_score = total_score + sum(adjust.values())
+        final_score = max(0.0, min(1.0, final_score))
+
+        # Merge base components + memory adjustments into score_components
+        full_components = {**components, **adjust}
+
         candidates.append(MatchedEvent(
             event=event,
-            score=round(total_score, 4),
-            score_components={k: round(v, 4) for k, v in components.items()},
+            score=round(final_score, 4),
+            score_components={k: round(v, 4) for k, v in full_components.items()},
             matched_terms=matched_terms,
         ))
 

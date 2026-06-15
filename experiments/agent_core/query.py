@@ -61,11 +61,14 @@ class Profile:
 
 @dataclass(frozen=True)
 class Memory:
-    """Conversation context — V1 stub, reserved for future use."""
+    """Conversation context — carries session-level signals into scoring."""
 
     session_id: str = ""
     recent_query_texts: tuple[str, ...] = ()        # recent requests (for dedup/refinement)
-    recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids
+    liked_tags: tuple[str, ...] = ()                # tags the user has liked → soft boost
+    disliked_tags: tuple[str, ...] = ()             # tags the user dislikes → soft penalty
+    negative_keywords: tuple[str, ...] = ()         # keywords to penalize → soft penalty
+    recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids → repeat penalty
 
 
 # ===========================================================================
@@ -96,6 +99,11 @@ class SoftPreferences:
     preferred_time_of_day: str = ""
     text_search: str = ""
     boost_tags: tuple[str, ...] = ()
+    # Memory-derived soft adjustments (penalties / boosts from conversation context)
+    penalty_event_ids: tuple[str, ...] = ()
+    penalty_disliked_tags: tuple[str, ...] = ()
+    penalty_negative_keywords: tuple[str, ...] = ()
+    boost_liked_tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
