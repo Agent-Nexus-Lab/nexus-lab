@@ -50,10 +50,19 @@ function getRunStatus(runId) {
   })
 }
 
+function feedbackEvent(feedbackPayload) {
+  return request({
+    url: '/feedback/event',
+    method: 'POST',
+    data: feedbackPayload
+  })
+}
+
 module.exports = {
   API_BASE_URL,
   ENABLE_DEBUG_VIEW,
   saveProfile,
   planDay,
-  getRunStatus
+  getRunStatus,
+  feedbackEvent
 }

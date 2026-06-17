@@ -7,6 +7,18 @@
   line-height: 1.55;
 }
 
+.history-button {
+  width: 100%;
+  height: 72rpx;
+  margin: 0 0 18rpx;
+  border: 1rpx solid #dde5f0;
+  border-radius: 16rpx;
+  background: #fff;
+  color: #2f65e8;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
 .event-card {
   margin-top: 18rpx;
   padding: 24rpx;
@@ -112,6 +124,44 @@
 .source-link {
   color: #2f65e8;
   font-weight: 800;
+}
+
+.feedback-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.feedback-button {
+  min-width: 144rpx;
+  height: 58rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border: 1rpx solid #dde5f0;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #344258;
+  font-size: 23rpx;
+  font-weight: 800;
+  line-height: 58rpx;
+}
+
+.feedback-button.active {
+  border-color: #2f65e8;
+  background: #edf3ff;
+  color: #2f65e8;
+}
+
+.feedback-button.danger.active {
+  border-color: #d56b5f;
+  background: #fff1ef;
+  color: #b94c40;
+}
+
+.feedback-button.source {
+  border-color: #c8d7f2;
+  color: #2f65e8;
 }
 
 .debug-panel {

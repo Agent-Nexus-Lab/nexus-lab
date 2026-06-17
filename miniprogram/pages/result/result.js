@@ -9,8 +9,12 @@ Page({
       date_scope: '',
       request_text: '',
       items: []
-    }
+    },
+    hasItems: false,
+    debugText: ''
   },
+
+  resultContext: null,
 
   onLoad() {
     const result = wx.getStorageSync(PLAN_RESULT_STORAGE_KEY)
@@ -23,18 +27,33 @@ Page({
     }
 
     const items = Array.isArray(result.items) ? result.items : []
+    const planId = result.plan_id || result.id || ''
+    const runId = result.run_id || ''
+    this.resultContext = { plan_id: planId, run_id: runId }
 
     this.setData({
       result: {
         ...result,
+        plan_id: planId,
+        run_id: runId,
         title: result.title || '暂无推荐结果',
         summary: result.summary || '这次没有拿到可展示的活动卡片，可以返回后重新生成。',
         date_scope: result.date_scope || '',
         request_text: result.request_text || '暂无输入记录',
         items: items.map((item) => {
           const sourceUrl = item.source_url || ''
+          const eventId = item.event_id || item.id || ''
+          const planItemId = item.plan_item_id || ''
           return {
             ...item,
+            event_id: eventId,
+            plan_id: item.plan_id || planId,
+            plan_item_id: planItemId,
+            run_id: item.run_id || runId,
+            feedback_key: planItemId || eventId || `${item.display_order || 0}-${item.title || ''}`,
+            feedback_type: '',
+            feedback_pending: false,
+            source_clicked: false,
             tags: Array.isArray(item.tags) ? item.tags : [],
             title: item.title || '未命名活动',
             summary: item.summary || '暂无简介',
@@ -83,17 +102,97 @@ Page({
     return /^https?:\/\//i.test(String(value || ''))
   },
 
-  copySourceUrl(event) {
-    const url = event.currentTarget.dataset.url
-    if (!url) return
-    wx.setClipboardData({
-      data: url,
-      success: () => {
-        wx.showToast({
-          title: '来源链接已复制',
-          icon: 'none'
-        })
+  buildFeedbackPayload(item, feedbackType) {
+    return {
+      event_id: item.event_id || '',
+      plan_id: item.plan_id || (this.resultContext && this.resultContext.plan_id) || '',
+      plan_item_id: item.plan_item_id || '',
+      run_id: item.run_id || (this.resultContext && this.resultContext.run_id) || '',
+      feedback_type: feedbackType,
+      feedback_source: 'result_card',
+      weight: feedbackType === 'like' ? 1 : (feedbackType === 'dislike' ? -1 : 0.2),
+      metadata: {
+        title: item.title,
+        tags: item.tags || [],
+        source_url: item.source_url,
+        display_order: item.display_order
       }
+    }
+  },
+
+  async postFeedback(item, feedbackType) {
+    const payload = this.buildFeedbackPayload(item, feedbackType)
+    console.log('POST /api/feedback/event payload:', payload)
+    const res = await api.feedbackEvent(payload)
+    if (res && res.code != null && res.code !== 0) {
+      throw new Error(res.message || '反馈提交失败')
+    }
+    return res
+  },
+
+  async submitFeedback(event) {
+    const index = event.currentTarget.dataset.index
+    const feedbackType = event.currentTarget.dataset.type
+    const path = `result.items[${index}]`
+    const item = this.data.result.items[index]
+    if (!item || item.feedback_pending) return
+
+    const previousType = item.feedback_type || ''
+    if (previousType === feedbackType) return
+    const nextType = feedbackType
+
+    this.setData({
+      [`${path}.feedback_type`]: nextType,
+      [`${path}.feedback_pending`]: true
+    })
+
+    try {
+      await this.postFeedback(item, feedbackType)
+      this.setData({
+        [`${path}.feedback_pending`]: false
+      })
+      wx.showToast({
+        title: feedbackType === 'like' ? '已记录喜欢' : '已减少推荐',
+        icon: 'none'
+      })
+    } catch (error) {
+      console.error('反馈提交失败:', error)
+      this.setData({
+        [`${path}.feedback_type`]: previousType,
+        [`${path}.feedback_pending`]: false
+      })
+      wx.showToast({
+        title: '反馈提交失败，请稍后再试',
+        icon: 'none'
+      })
+    }
+  },
+
+  openSource(event) {
+    const index = event.currentTarget.dataset.index
+    const item = this.data.result.items[index]
+    if (!item || !this.isHttpUrl(item.source_url)) {
+      wx.showToast({
+        title: '暂无可打开来源',
+        icon: 'none'
+      })
+      return
+    }
+
+    const path = `result.items[${index}]`
+    this.setData({ [`${path}.source_clicked`]: true })
+    this.postFeedback(item, 'clicked_source').catch((error) => {
+      console.warn('clicked_source 反馈提交失败:', error)
+    })
+
+    wx.navigateTo({
+      url: `/pages/source/source?url=${encodeURIComponent(item.source_url)}`
+    })
+  },
+
+  goHistory() {
+    wx.navigateTo({
+      url: '/pages/history/history'
     })
   },
 

@@ -13,6 +13,8 @@
     <view class="request-card">{{result.request_text}}</view>
   </view>
 
+  <button class="history-button" bindtap="goHistory">查看历史规划</button>
+
   <view class="panel">
     <view class="panel-head">
       <view class="panel-title">活动卡片</view>
@@ -27,7 +29,7 @@
     <view
       wx:else
       wx:for="{{result.items}}"
-      wx:key="event_id"
+      wx:key="feedback_key"
       class="event-card"
     >
       <view class="event-topline">
@@ -54,15 +56,32 @@
       </view>
 
       <view class="reason-box">{{item.reason_text}}</view>
-      <view class="source-text">
-        来源：
-        <text
+
+      <view class="feedback-row">
+        <button
+          class="feedback-button {{item.feedback_type === 'like' ? 'active' : ''}}"
+          loading="{{item.feedback_pending && item.feedback_type === 'like'}}"
+          data-index="{{index}}"
+          data-type="like"
+          bindtap="submitFeedback"
+        >{{item.feedback_type === 'like' ? '已喜欢' : '喜欢'}}</button>
+        <button
+          class="feedback-button {{item.feedback_type === 'dislike' ? 'danger active' : ''}}"
+          loading="{{item.feedback_pending && item.feedback_type === 'dislike'}}"
+          data-index="{{index}}"
+          data-type="dislike"
+          bindtap="submitFeedback"
+        >{{item.feedback_type === 'dislike' ? '已减少推荐' : '不感兴趣'}}</button>
+        <button
           wx:if="{{item.has_source_url}}"
-          class="source-link"
-          data-url="{{item.source_url}}"
-          bindtap="copySourceUrl"
-        >查看来源</text>
-        <text wx:else>{{item.source_url}}</text>
+          class="feedback-button source"
+          data-index="{{index}}"
+          bindtap="openSource"
+        >{{item.source_clicked ? '已查看来源' : '查看来源'}}</button>
+      </view>
+
+      <view class="source-text" wx:if="{{!item.has_source_url}}">
+        来源：{{item.source_url}}
       </view>
     </view>
   </view>
