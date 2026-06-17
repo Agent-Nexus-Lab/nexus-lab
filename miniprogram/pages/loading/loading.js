@@ -1,5 +1,6 @@
 const PLAN_REQUEST_STORAGE_KEY = 'planDayRequest'
 const PLAN_RESULT_STORAGE_KEY = 'planRunResult'
+const PLAN_HISTORY_STORAGE_KEY = 'planHistoryDraft'
 
 const api = require('../../utils/api')
 
@@ -143,18 +144,45 @@ Page({
       progress: 100
     })
 
-    wx.setStorageSync(PLAN_RESULT_STORAGE_KEY, {
+    const result = {
       ...runData,
       date_scope: runData.date_scope || this.request.planDayPayload.date_scope,
       request_text: this.request.planDayPayload.request_text,
       items: Array.isArray(runData.items) ? runData.items : []
-    })
+    }
+
+    wx.setStorageSync(PLAN_RESULT_STORAGE_KEY, result)
+    this.saveHistoryDraft(result)
 
     this.timer = setTimeout(() => {
       wx.redirectTo({
         url: '/pages/result/result'
       })
     }, 180)
+  },
+
+  saveHistoryDraft(result) {
+    const history = wx.getStorageSync(PLAN_HISTORY_STORAGE_KEY) || []
+    const items = Array.isArray(result.items) ? result.items : []
+    const planId = result.plan_id || result.id || ''
+    const runId = result.run_id || this.request.run_id || ''
+    const nextItem = {
+      plan_id: planId,
+      run_id: runId,
+      title: result.title || '暂无标题',
+      summary: result.summary || '',
+      date_scope: result.date_scope || '',
+      request_text: result.request_text || '',
+      item_count: items.length,
+      status: result.status || 'completed',
+      created_at: new Date().toISOString()
+    }
+    const filtered = history.filter((item) => {
+      if (planId && item.plan_id === planId) return false
+      if (runId && item.run_id === runId) return false
+      return true
+    })
+    wx.setStorageSync(PLAN_HISTORY_STORAGE_KEY, [nextItem, ...filtered].slice(0, 20))
   },
 
   failRun(message, debug) {

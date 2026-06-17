@@ -123,6 +123,11 @@
     .source-text { margin-top: 7px; color: #7c8797; font-size: 11px; line-height: 1.45; word-break: break-all; }
     .source-link { color: var(--brand); font-weight: 800; text-decoration: none; border-bottom: 1px solid rgba(47,101,232,.28); }
     .source-link:hover { border-bottom-color: var(--brand); }
+    .feedback-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .feedback-button { min-height: 30px; padding: 0 11px; border: 1px solid #dde5f0; border-radius: 999px; background: #fff; color: #344258; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .feedback-button.active { border-color: var(--brand); background: #edf3ff; color: var(--brand); }
+    .feedback-button.danger.active { border-color: #d56b5f; background: #fff1ef; color: #b94c40; }
+    .feedback-button.source { border-color: #c8d7f2; color: var(--brand); text-decoration: none; display: inline-flex; align-items: center; }
     .debug-panel { margin-top: 10px; padding: 12px; border-radius: 16px; background: #111827; color: #dce7ff; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
     .debug-panel.hidden { display: none; }
     @media (max-width: 980px) {
@@ -319,6 +324,70 @@
     }
     function isHttpUrl(value) {
       return /^https?:\/\//i.test(String(value || ''))
+    }
+    function getFeedbackPayload(index, type) {
+      const item = window.__lastResultItems && window.__lastResultItems[index]
+      const result = window.__lastResult || {}
+      if (!item) return null
+      return {
+        event_id: item.event_id || item.id || '',
+        plan_id: item.plan_id || result.plan_id || result.id || '',
+        plan_item_id: item.plan_item_id || '',
+        run_id: item.run_id || result.run_id || '',
+        feedback_type: type,
+        feedback_source: 'result_card',
+        weight: type === 'like' ? 1 : (type === 'dislike' ? -1 : 0.2),
+        metadata: {
+          title: item.title || item.event_title || item.name || '',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          source_url: item.source_url || '',
+          display_order: item.display_order || index + 1
+        }
+      }
+    }
+    async function postFeedback(index, type) {
+      const payload = getFeedbackPayload(index, type)
+      if (!payload) return
+      console.log('POST /api/feedback/event payload:', payload)
+      const res = await apiRequest('/feedback/event', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      if (res && res.code != null && res.code !== 0) {
+        throw new Error(res.message || '反馈提交失败')
+      }
+    }
+    function updatePreviewFeedback(index, type) {
+      const card = document.querySelector(`[data-event-index="${index}"]`)
+      if (!card) return
+      card.querySelectorAll('.feedback-button[data-type]').forEach((button) => {
+        const active = button.dataset.type === type
+        button.classList.toggle('active', active)
+        if (button.dataset.type === 'like') button.textContent = active ? '已喜欢' : '喜欢'
+        if (button.dataset.type === 'dislike') button.textContent = active ? '已减少推荐' : '不感兴趣'
+      })
+    }
+    window.handlePreviewFeedback = async function(index, type) {
+      const card = document.querySelector(`[data-event-index="${index}"]`)
+      const previous = card ? card.dataset.feedbackType || '' : ''
+      if (previous === type) return
+      if (card) card.dataset.feedbackType = type
+      updatePreviewFeedback(index, type)
+      try {
+        await postFeedback(index, type)
+      } catch (error) {
+        console.error('反馈提交失败:', error)
+        if (card) card.dataset.feedbackType = previous
+        updatePreviewFeedback(index, previous)
+        alert('反馈提交失败，请稍后再试')
+      }
+    }
+    window.handlePreviewSource = function(index, encodedSourceUrl) {
+      const sourceUrl = decodeURIComponent(encodedSourceUrl)
+      postFeedback(index, 'clicked_source').catch((error) => {
+        console.warn('clicked_source 反馈提交失败:', error)
+      })
+      window.open(sourceUrl, '_blank', 'noopener,noreferrer')
     }
     function getSelected(field) {
       const grid = document.querySelector(`[data-field="${field}"]`)
@@ -540,11 +609,13 @@
       document.getElementById('stepList').innerHTML = steps.map((step, index) => `<div class="step-item ${index <= active ? 'active' : ''}"><span class="step-dot"></span><span>${step}</span></div>`).join('')
     }
     function renderResult(result) {
+      window.__lastResult = result || {}
       document.getElementById('resultTitle').textContent = result.title || '暂无推荐结果'
       document.getElementById('resultSummary').textContent = result.summary || '这次没有拿到可展示的活动卡片，可以返回后重新生成。'
       document.getElementById('resultScope').textContent = result.date_scope || ''
       document.getElementById('resultRequest').textContent = result.request_text || '暂无输入记录'
       const items = Array.isArray(result.items) ? result.items : []
+      window.__lastResultItems = items
       document.getElementById('resultCount').textContent = items.length + ' 个结果'
       const debugText = formatDebug(result.debug)
       updateRuntime({ status: result.status || 'completed', stage: result.stage || '结果页', items: items.length + ' 个', debug: shortDebug(debugText || result.error_message || '本次没有 debug。') })
@@ -570,17 +641,22 @@
         const reason = item.reason_text || '暂无推荐理由'
         const source = item.source_url || ''
         const sourceHtml = isHttpUrl(source)
-          ? `<a class="source-link" href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">查看来源</a>`
+          ? `<button class="feedback-button source" onclick="handlePreviewSource(${index}, '${encodeURIComponent(source)}')">查看来源</button>`
           : '暂无来源链接'
         return `
-        <article class="event-card">
+        <article class="event-card" data-event-index="${index}" data-feedback-type="">
           <div class="event-topline"><span>#${order}</span><span>质量分 ${score}</span></div>
           <div class="event-title">${escapeHtml(title)}</div>
           <div class="event-summary">${escapeHtml(summary)}</div>
           <div class="event-meta"><div>时间：${escapeHtml(time)}</div><div>地点：${escapeHtml(location)}</div><div>校区：${escapeHtml(campus)}</div><div>主办：${escapeHtml(organizer)}</div></div>
           <div class="tag-row">${tags.map((tag) => `<span class="small-tag">${escapeHtml(tag)}</span>`).join('')}</div>
           <div class="reason-box">${escapeHtml(reason)}</div>
-          <div class="source-text">来源：${sourceHtml}</div>
+          <div class="feedback-row">
+            <button class="feedback-button" data-type="like" onclick="handlePreviewFeedback(${index}, 'like')">喜欢</button>
+            <button class="feedback-button" data-type="dislike" onclick="handlePreviewFeedback(${index}, 'dislike')">不感兴趣</button>
+            ${sourceHtml}
+          </div>
+          ${isHttpUrl(source) ? '' : `<div class="source-text">来源：${sourceHtml}</div>`}
         </article>
       `
       }).join('')

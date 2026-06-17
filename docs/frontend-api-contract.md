@@ -61,6 +61,8 @@ Optional runtime fields:
 | `data.stage` | Proposed field: drives the reserved Agent progress steps when present |
 | `data.debug` | Shown in the loading failure state and result page when present and `ENABLE_DEBUG_VIEW` is enabled |
 | `data.error_message` | Shown when the run enters `failed` |
+| `data.plan_id` | Preserved for result feedback and history |
+| `data.run_id` | Preserved for result feedback and history |
 
 Reserved progress steps:
 
@@ -88,5 +90,36 @@ When `status === "completed"`, the frontend reads `data.items`. If `items` is `n
 | `reason_text` | Recommendation reason | `暂无推荐理由` |
 | `display_order` | Order number | `0` |
 | `quality_score` | Quality score | `待评估` |
+| `event_id` | Feedback association | Empty string |
+| `plan_item_id` | Feedback association | Empty string until backend provides it |
+| `plan_id` | Feedback association | Falls back to top-level `plan_id` |
+| `run_id` | Feedback association | Falls back to top-level `run_id` |
 
 Time parsing supports ISO datetime strings, datetime strings with a space separator, and plain `HH:mm`.
+
+## POST /api/feedback/event
+
+The result page sends activity-level feedback from three entry points:
+
+| UI action | `feedback_type` | Behavior |
+|---|---|---|
+| `喜欢` | `like` | Optimistically marks the card as liked; rolls back on failure |
+| `不感兴趣` | `dislike` | Optimistically marks the card as reduced; rolls back on failure |
+| `查看来源` | `clicked_source` | Sends feedback in the background, then opens the source page |
+
+Frontend request fields:
+
+| Field | Type | Note |
+|---|---|---|
+| `event_id` | string | From item `event_id`; may fall back to item `id` during transition |
+| `plan_id` | string | From item or top-level result |
+| `plan_item_id` | string | From item `plan_item_id`; empty if backend has not added it |
+| `run_id` | string | From item or top-level result |
+| `feedback_type` | string | `like` / `dislike` / `clicked_source` |
+| `feedback_source` | string | Fixed to `result_card` |
+| `weight` | number | `1`, `-1`, or `0.2` |
+| `metadata` | object | Includes title, tags, source URL, display order |
+
+## History Placeholder
+
+The miniprogram now has a placeholder `pages/history/history` entry. Until `GET /api/plans` is stable, the page reads a local `planHistoryDraft` list written after a successful completed run. The fields mirror the planned history list shape: `plan_id`, `run_id`, `title`, `date_scope`, `request_text`, `item_count`, `status`, and `created_at`.
