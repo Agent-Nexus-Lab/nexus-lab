@@ -61,6 +61,7 @@ class PlanDayResponseData(BaseModel):
 
 class RunItem(BaseModel):
     """日程中的单个活动条目"""
+    plan_item_id: str
     event_id: str
     title: str
     summary: Optional[str] = None
@@ -71,6 +72,7 @@ class RunItem(BaseModel):
     organizer: Optional[str] = None
     tags: Optional[list[str]] = None
     source_url: Optional[str] = None
+    source_name: Optional[str] = None
     reason_text: Optional[str] = None
     display_order: int
     quality_score: Optional[float] = None
@@ -89,6 +91,52 @@ class RunStatusData(BaseModel):
     ended_at: Optional[datetime] = None
     error_message: Optional[str] = None
     debug: Optional[str] = None
+
+class FeedbackEventRequest(BaseModel):
+    """POST /api/feedback/event 请求体"""
+    event_id: str
+    plan_id: Optional[str] = None
+    plan_item_id: Optional[str] = None
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / clicked_source")
+    feedback_source: str = Field(..., description="result_card / source_page / history_page / system")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackEventData(BaseModel):
+    """POST /api/feedback/event 响应 data"""
+    feedback_id: str
+    message: str = "feedback saved"
+
+
+# ============================================================
+# 记忆查询 — GET /api/memory
+# ============================================================
+
+class MemoryItemData(BaseModel):
+    """GET /api/memory 单条记忆"""
+    memory_id: str
+    memory_type: str
+    memory_scope: str
+    content: str
+    structured_content: Optional[dict] = None
+    source_type: str
+    source_ref: Optional[str] = None
+    confidence: float
+    priority: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: Optional[datetime] = None
+
+
+class MemoryListData(BaseModel):
+    """GET /api/memory 响应 data（分页）"""
+    items: list[MemoryItemData]
+    total: int
+    page: int
+    page_size: int
 
 
 # ============================================================
@@ -182,6 +230,61 @@ class ImportUrlData(BaseModel):
     document_id: str
     url: str
     status: str  # "queued"
+
+
+# ============================================================
+# 后台管理 — events
+# ============================================================
+
+# ============================================================
+# 活动反馈 — POST /api/feedback/event
+# ============================================================
+
+class FeedbackEventRequest(BaseModel):
+    """POST /api/feedback/event 请求体"""
+    event_id: str
+    plan_id: Optional[str] = None
+    plan_item_id: Optional[str] = None
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / clicked_source")
+    feedback_source: str = Field(..., description="result_card / source_page / history_page / system")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackEventData(BaseModel):
+    """POST /api/feedback/event 响应 data"""
+    feedback_id: str
+    message: str = "feedback saved"
+
+
+# ============================================================
+# 记忆查询 — GET /api/memory
+# ============================================================
+
+class MemoryItemData(BaseModel):
+    """GET /api/memory 单条记忆"""
+    memory_id: str
+    memory_type: str
+    memory_scope: str
+    content: str
+    structured_content: Optional[dict] = None
+    source_type: str
+    source_ref: Optional[str] = None
+    confidence: float
+    priority: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: Optional[datetime] = None
+
+
+class MemoryListData(BaseModel):
+    """GET /api/memory 响应 data（分页）"""
+    items: list[MemoryItemData]
+    total: int
+    page: int
+    page_size: int
 
 
 # ============================================================

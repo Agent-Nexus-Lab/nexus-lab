@@ -104,3 +104,56 @@ class PlanItem(Base):
     end_time = Column(DateTime(timezone=True))
     reason_text = Column(Text)
     display_order = Column(Integer)
+
+
+class UserEventFeedback(Base):
+    __tablename__ = "user_event_feedback"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    event_id = Column(String(36), ForeignKey("events.id"), nullable=True)
+    plan_id = Column(String(36), ForeignKey("plans.id"), nullable=True)
+    plan_item_id = Column(String(36), ForeignKey("plan_items.id"), nullable=True)
+    run_id = Column(String(36), ForeignKey("plan_runs.id"), nullable=True)
+    feedback_type = Column(Text, nullable=False)
+    feedback_source = Column(Text, nullable=False)
+    comment = Column(Text, nullable=True)
+    weight = Column(Float, default=1.0)
+    metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MemoryItem(Base):
+    __tablename__ = "memory_items"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    memory_type = Column(Text, nullable=False)
+    memory_scope = Column(Text, nullable=False, default="short_term")
+    content = Column(Text, nullable=False)
+    structured_content = Column(JSON, nullable=True)
+    source_type = Column(Text, nullable=False)
+    source_ref = Column(Text, nullable=True)
+    confidence = Column(Float, nullable=False, default=0.5)
+    priority = Column(Integer, nullable=False, default=50)
+    status = Column(Text, nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    last_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class MemoryAuditLog(Base):
+    __tablename__ = "memory_audit_log"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    memory_item_id = Column(String(36), ForeignKey("memory_items.id"), nullable=True)
+    action = Column(Text, nullable=False)
+    before_state = Column(JSON, nullable=True)
+    after_state = Column(JSON, nullable=True)
+    actor = Column(Text, nullable=False, default="system")
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

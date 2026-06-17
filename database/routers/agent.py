@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import uuid
 from schemas import PlanDayRequest, PlanDayResponseData, RunItem, RunStatusData
-from models import User, PlanRun, Plan, PlanItem, Event, UserProfile
+from models import User, PlanRun, Plan, PlanItem, Event, UserProfile, MemoryItem
 from datetime import datetime
 import time
 from typing import Any
@@ -67,6 +67,51 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "campus": user.campus or "",
         "profile_summary": profile_raw.profile_summary or "",
     }
+
+    memory_context: dict[str, Any] = {}
+    try:
+        active_memories = (
+            db.query(MemoryItem)
+            .filter_by(user_id=user.id, status="active")
+            .order_by(MemoryItem.priority.desc())
+            .limit(20)
+            .all()
+        )
+        if active_memories:
+            liked_tags: list[str] = []
+            disliked_tags: list[str] = []
+            recent_event_ids: list[str] = []
+            for m in active_memories:
+                sc = m.structured_content or {}
+                if isinstance(sc, dict):
+                    if m.memory_type == "negative_preference":
+                        disliked_tags.extend(sc.get("negative_tags", []))
+                        disliked_tags.extend(sc.get("tags", []))
+                    else:
+                        liked_tags.extend(sc.get("tags", []))
+                    event_ids = sc.get("event_ids") or []
+                    recent_event_ids.extend(event_ids)
+
+            memory_context = {
+                "session_id": str(uuid.uuid4()),
+                "recent_plan_event_ids": recent_event_ids,
+                "liked_tags": liked_tags,
+                "disliked_tags": disliked_tags,
+                "preferred_campuses": profile.get("preferred_campuses", []),
+                "memory_items": [
+                    {
+                        "memory_id": m.id,
+                        "memory_type": m.memory_type,
+                        "content": m.content,
+                        "confidence": m.confidence,
+                        "priority": m.priority,
+                    }
+                    for m in active_memories
+                ],
+            }
+    except Exception:
+        pass
+
     runid = str(uuid.uuid4())
     run = PlanRun(
         id=runid,
@@ -181,6 +226,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
         for pi in plan_items:
             event = db.query(Event).filter_by(id=pi.event_id).first() if pi.event_id else None
             items.append(RunItem(
+                plan_item_id=pi.id,
                 event_id=pi.event_id or "",
                 title=event.title if event else "",
                 summary=event.summary if event else None,
@@ -191,6 +237,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
                 organizer=event.organizer if event else None,
                 tags=event.tags if event else None,
                 source_url=event.source_url if event else None,
+                source_name=event.source_name if event else None,
                 reason_text=pi.reason_text,
                 display_order=pi.display_order or 0,
                 quality_score=event.quality_score if event else None,
