@@ -68,6 +68,8 @@ class Memory:
     liked_tags: tuple[str, ...] = ()                # tags the user has liked → soft boost
     disliked_tags: tuple[str, ...] = ()             # tags the user dislikes → soft penalty
     negative_keywords: tuple[str, ...] = ()         # keywords to penalize → soft penalty
+    liked_event_ids: tuple[str, ...] = ()           # events user liked → similar get boost
+    disliked_event_ids: tuple[str, ...] = ()        # events user disliked → similar get penalty
     recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids → repeat penalty
 
 
@@ -104,6 +106,8 @@ class SoftPreferences:
     penalty_disliked_tags: tuple[str, ...] = ()
     penalty_negative_keywords: tuple[str, ...] = ()
     boost_liked_tags: tuple[str, ...] = ()
+    boost_liked_event_ids: tuple[str, ...] = ()
+    penalty_disliked_event_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -133,7 +137,7 @@ class MatchedEvent:
 
     event: dict[str, Any]
     score: float = 0.0
-    score_components: dict[str, float] = field(default_factory=dict)
+    score_components: dict[str, Any] = field(default_factory=dict)
     matched_terms: list[str] = field(default_factory=list)
 
 
@@ -148,6 +152,7 @@ class SearchResult:
     total_before_filter: int
     rejections: list[dict[str, str]] = field(default_factory=list)
     is_stale: bool = False
+    timings_ms: dict[str, float] = field(default_factory=dict)
 
 
 # ===========================================================================

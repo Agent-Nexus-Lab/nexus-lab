@@ -10,6 +10,7 @@ V2 public signature:
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -163,6 +164,8 @@ def _build_query(
         penalty_disliked_tags=memory.disliked_tags,
         penalty_negative_keywords=memory.negative_keywords,
         boost_liked_tags=memory.liked_tags,
+        boost_liked_event_ids=memory.liked_event_ids,
+        penalty_disliked_event_ids=memory.disliked_event_ids,
     )
 
     return SearchQuery(
@@ -188,9 +191,11 @@ def _search_events_legacy(
     if now is None:
         now = _resolve_now()
 
+    t_start = time.perf_counter()
     total_before_filter = len(events)
 
     # Phase 1: Hard constraint filtering
+    t_filter_start = time.perf_counter()
     rejections: list[dict[str, str]] = []
     filtered = apply_hard_constraints(
         events,
@@ -198,9 +203,12 @@ def _search_events_legacy(
         now=now,
         rejections=rejections,
     )
+    t_filter_ms = (time.perf_counter() - t_filter_start) * 1000
 
     # Phase 2: Soft preference scoring
+    t_score_start = time.perf_counter()
     scored = score_and_sort(filtered, preferences=query.soft, now=now)
+    t_score_ms = (time.perf_counter() - t_score_start) * 1000
 
     # Phase 3: Pagination
     pagination = query.pagination
@@ -211,6 +219,13 @@ def _search_events_legacy(
     # Phase 4: Staleness check
     is_stale = not has_future_events(events, now=now)
 
+    timings_ms = {
+        "filter_and_score": round(t_filter_ms + t_score_ms, 2),
+        "hard_constraints": round(t_filter_ms, 2),
+        "score_and_sort": round(t_score_ms, 2),
+        "search_events_total": round((time.perf_counter() - t_start) * 1000, 2),
+    }
+
     result = SearchResult(
         items=page_items,
         total=len(scored),
@@ -218,6 +233,7 @@ def _search_events_legacy(
         page_size=pagination.page_size,
         total_before_filter=total_before_filter,
         is_stale=is_stale,
+        timings_ms=timings_ms,
     )
 
     if query.include_debug:
@@ -229,6 +245,7 @@ def _search_events_legacy(
             total_before_filter=result.total_before_filter,
             rejections=rejections,
             is_stale=result.is_stale,
+            timings_ms=result.timings_ms,
         )
 
     return result

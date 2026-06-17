@@ -155,6 +155,22 @@ def score_and_sort(
 
     This replaces the inline score_candidates() logic in runtime.py (line 313).
     """
+    # --- Pre-processing: extract tags from liked/disliked event IDs ---
+    extra_boost_tags: set[str] = set()
+    extra_penalty_tags: set[str] = set()
+    if preferences.boost_liked_event_ids or preferences.penalty_disliked_event_ids:
+        for evt in events:
+            eid = str(evt.get("event_id", ""))
+            tags = tuple(t for t in (evt.get("tags") or []) if isinstance(t, str))
+            if eid in preferences.boost_liked_event_ids:
+                extra_boost_tags.update(tags)
+            if eid in preferences.penalty_disliked_event_ids:
+                extra_penalty_tags.update(tags)
+
+    # Merge explicit tags with event-derived tags
+    all_boost_tags = set(preferences.boost_liked_tags) | extra_boost_tags
+    all_disliked_tags = set(preferences.penalty_disliked_tags) | extra_penalty_tags
+
     candidates: list[MatchedEvent] = []
     for event in events:
         start_time = parse_datetime(event.get("start_time"))
@@ -179,63 +195,135 @@ def score_and_sort(
 
         total_score = sum(WEIGHTS[k] * components[k] for k in WEIGHTS)
 
-        # --- Memory-based additive adjustments (soft, do NOT reject) ---
-        adjust: dict[str, float] = {}
+        # --- Memory-based soft adjustments with explainability ---
+        mem_adjust: dict[str, float] = {}
+        mem_matched_terms: list[str] = []
+        mem_details: list[dict[str, Any]] = []
 
-        # Repeat penalty: -0.15 if this event was recently recommended
-        if preferences.penalty_event_ids:
-            event_id = str(event.get("event_id", ""))
-            if event_id and event_id in preferences.penalty_event_ids:
-                adjust["repeat_penalty"] = -0.15
+        event_id = str(event.get("event_id", ""))
+        haystack = event_text(event)
 
-        # Disliked / liked / keyword adjustments — compute haystack once
-        haystack: str | None = None
+        # 1. Repeat penalty
+        if preferences.penalty_event_ids and event_id and event_id in preferences.penalty_event_ids:
+            mem_adjust["repeat_penalty"] = -0.15
+            mem_matched_terms.append(f"重复推荐:{event_id}")
+            mem_details.append({
+                "type": "repeat_penalty",
+                "delta": -0.15,
+                "matched": event_id,
+                "matched_field": "event_id",
+                "source": "recent_plan_event_ids",
+                "reason": f"近期已推荐过活动 {event_id}",
+            })
 
-        def _ensure_haystack() -> str:
-            nonlocal haystack
-            if haystack is None:
-                haystack = event_text(event)
-            return haystack
+        # 2. Disliked tag penalty (tag aliases, from explicit + event-derived)
+        if all_disliked_tags:
+            matched_disliked: list[str] = []
+            for tag in sorted(all_disliked_tags):
+                if term_matches(tag, haystack):
+                    # Determine which field matched
+                    tag_lower = tag.casefold()
+                    matched_field = "tags"
+                    if tag_lower in (event.get("title") or "").casefold():
+                        matched_field = "title"
+                    elif tag_lower in (event.get("summary") or "").casefold():
+                        matched_field = "summary"
+                    source = "disliked_tags" if tag in preferences.penalty_disliked_tags else "disliked_event_ids"
+                    matched_disliked.append(tag)
+                    mem_matched_terms.append(f"排除:{tag}")
+                    mem_details.append({
+                        "type": "disliked_penalty",
+                        "delta": -0.10,
+                        "matched": tag,
+                        "matched_field": matched_field,
+                        "source": source,
+                        "reason": "命中不感兴趣标签: " + tag,
+                    })
+            if matched_disliked:
+                raw = -0.10 * len(matched_disliked)
+                mem_adjust["disliked_penalty"] = round(max(-0.20, raw), 4)
 
-        # Disliked tag penalty: -0.10 per matched tag, cap -0.20
-        if preferences.penalty_disliked_tags:
-            disliked_matches = sum(
-                1 for tag in preferences.penalty_disliked_tags
-                if term_matches(tag, _ensure_haystack())
-            )
-            if disliked_matches:
-                adjust["disliked_penalty"] = round(-0.10 * min(disliked_matches, 2), 4)
-
-        # Negative keyword penalty: -0.10 per matched keyword, cap -0.20
+        # 3. Negative keyword penalty (raw substring, no aliases)
         if preferences.penalty_negative_keywords:
-            txt = _ensure_haystack().casefold()
-            kw_matches = sum(
-                1 for kw in preferences.penalty_negative_keywords
-                if kw.casefold() in txt
-            )
-            if kw_matches:
-                adjust["keyword_penalty"] = round(-0.10 * min(kw_matches, 2), 4)
+            txt = haystack.casefold()
+            matched_kws: list[str] = []
+            for kw in preferences.penalty_negative_keywords:
+                if kw.casefold() in txt:
+                    kw_lower = kw.casefold()
+                    matched_field = "title" if kw_lower in (event.get("title") or "").casefold() else "summary"
+                    matched_kws.append(kw)
+                    mem_matched_terms.append(f"排除:{kw}")
+                    mem_details.append({
+                        "type": "keyword_penalty",
+                        "delta": -0.10,
+                        "matched": kw,
+                        "matched_field": matched_field,
+                        "source": "negative_keywords",
+                        "reason": "命中负向关键词: " + kw,
+                    })
+            if matched_kws:
+                raw = -0.10 * len(matched_kws)
+                mem_adjust["keyword_penalty"] = round(max(-0.20, raw), 4)
 
-        # Liked tag boost: +0.10 per matched tag, cap +0.20
-        if preferences.boost_liked_tags:
-            liked_matches = sum(
-                1 for tag in preferences.boost_liked_tags
-                if term_matches(tag, _ensure_haystack())
-            )
-            if liked_matches:
-                adjust["liked_boost"] = round(0.10 * min(liked_matches, 2), 4)
+        # 4. Liked tag boost (tag aliases, from explicit + event-derived)
+        if all_boost_tags:
+            matched_liked: list[str] = []
+            for tag in sorted(all_boost_tags):
+                if term_matches(tag, haystack):
+                    tag_lower = tag.casefold()
+                    matched_field = "tags"
+                    if tag_lower in (event.get("title") or "").casefold():
+                        matched_field = "title"
+                    elif tag_lower in (event.get("summary") or "").casefold():
+                        matched_field = "summary"
+                    source = "liked_tags" if tag in preferences.boost_liked_tags else "liked_event_ids"
+                    matched_liked.append(tag)
+                    mem_matched_terms.append(f"喜欢:{tag}")
+                    mem_details.append({
+                        "type": "liked_boost",
+                        "delta": 0.10,
+                        "matched": tag,
+                        "matched_field": matched_field,
+                        "source": source,
+                        "reason": "命中喜欢标签: " + tag,
+                    })
+            if matched_liked:
+                raw = 0.10 * len(matched_liked)
+                mem_adjust["liked_boost"] = round(min(0.20, raw), 4)
 
-        # Apply adjustments and clamp to [0, 1]
-        final_score = total_score + sum(adjust.values())
+        # --- Compute total_memory_delta with cap [-0.30, +0.20] ---
+        raw_delta = sum(mem_adjust.values())
+        total_memory_delta = round(max(-0.30, min(0.20, raw_delta)), 4)
+
+        # --- Build explanation ---
+        explanation = _build_memory_explanation(mem_adjust, mem_matched_terms, total_memory_delta)
+
+        # --- Build nested memory component ---
+        memory_component: dict[str, Any] = {
+            "total_memory_delta": total_memory_delta,
+            "matched_memory_terms": mem_matched_terms,
+            "explanation": explanation,
+            "details": mem_details,
+        }
+        # Include individual adjustment keys (only non-zero ones)
+        for k, v in mem_adjust.items():
+            memory_component[k] = v
+
+        # --- Final score ---
+        final_score = total_score + total_memory_delta
         final_score = max(0.0, min(1.0, final_score))
 
-        # Merge base components + memory adjustments into score_components
-        full_components = {**components, **adjust}
+        # --- score_components: 5 base dims + nested memory ---
+        full_components: dict[str, Any] = {
+            **components,
+            "memory": memory_component,
+        }
 
         candidates.append(MatchedEvent(
             event=event,
             score=round(final_score, 4),
-            score_components={k: round(v, 4) for k, v in full_components.items()},
+            score_components={k: round(v, 4) if isinstance(v, (int, float)) else v
+                              for k, v in full_components.items()},
             matched_terms=matched_terms,
         ))
 
@@ -244,6 +332,57 @@ def score_and_sort(
         candidates,
         key=lambda m: (-m.score, parse_datetime(m.event.get("start_time")) or now, m.event.get("title") or ""),
     )
+
+
+# ---------------------------------------------------------------------------
+# Utility: build memory explanation text
+# ---------------------------------------------------------------------------
+
+
+def _build_memory_explanation(
+    mem_adjust: dict[str, float],
+    mem_matched_terms: list[str],
+    total_memory_delta: float,
+) -> str:
+    """Build a human-readable Chinese explanation of memory adjustments."""
+    if not mem_adjust:
+        return ""
+
+    parts: list[str] = []
+
+    # Positive signals
+    liked_terms = [t.replace("喜欢:", "") for t in mem_matched_terms if t.startswith("喜欢:")]
+    if liked_terms:
+        parts.append("命中喜欢标签: " + "、".join(liked_terms))
+
+    # Negative tag signals
+    if "disliked_penalty" in mem_adjust:
+        # Collect terms that triggered disliked_penalty (tag matching, not keyword)
+        # We use mem_matched_terms entries that are "排除:X" where X matches a tag-alias
+        disliked = [t.replace("排除:", "") for t in mem_matched_terms if t.startswith("排除:")]
+        if disliked:
+            parts.append("命中不感兴趣标签: " + "、".join(disliked))
+
+    # Keyword-specific signal (only if separate from disliked tags)
+    if "keyword_penalty" in mem_adjust:
+        parts.append("命中负向关键词")
+
+    # Repeat
+    if "repeat_penalty" in mem_adjust:
+        parts.append("近期已推荐过，降权")
+
+    if not parts:
+        return ""
+
+    # Conclusion
+    if total_memory_delta > 0:
+        conclusion = f"综合正向影响 +{total_memory_delta:.2f}"
+    elif total_memory_delta < 0:
+        conclusion = f"综合负向影响 {total_memory_delta:.2f}"
+    else:
+        conclusion = "正负影响抵消"
+
+    return "；".join(parts) + f"。{conclusion}"
 
 
 # ---------------------------------------------------------------------------

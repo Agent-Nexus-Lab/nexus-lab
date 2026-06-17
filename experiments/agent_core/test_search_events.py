@@ -557,7 +557,10 @@ class FixedNowTest(unittest.TestCase):
 
 
 class MemoryScoringTest(unittest.TestCase):
-    """Tests for Memory-based soft adjustments in scoring."""
+    """Tests for Memory-based soft adjustments in scoring (nested structure)."""
+
+    def _memory(self, m: MatchedEvent) -> dict:
+        return m.score_components.get("memory", {})
 
     # --- repeat_penalty ---
 
@@ -572,12 +575,11 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(recent_plan_event_ids=("e1",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         self.assertEqual(result.total, 2)
-        # e2 (not seen) should rank above e1 (repeat)
         self.assertEqual(result.items[0].event["event_id"], "e2")
-        # e1 should have repeat_penalty in score_components
         e1 = next(m for m in result.items if m.event["event_id"] == "e1")
-        self.assertIn("repeat_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["repeat_penalty"], -0.15)
+        mem = self._memory(e1)
+        self.assertIn("repeat_penalty", mem)
+        self.assertAlmostEqual(mem["repeat_penalty"], -0.15)
 
     def test_repeat_penalty_no_match(self) -> None:
         """No penalty when event_id not in recent_plan_event_ids."""
@@ -589,7 +591,8 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(recent_plan_event_ids=("e_other",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertNotIn("repeat_penalty", e1.score_components)
+        mem = self._memory(e1)
+        self.assertNotIn("repeat_penalty", mem)
 
     # --- disliked_penalty ---
 
@@ -603,11 +606,11 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(disliked_tags=("AI",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         self.assertEqual(result.total, 2)
-        # e2 should rank higher (no disliked tag)
         self.assertEqual(result.items[0].event["event_id"], "e2")
         e1 = next(m for m in result.items if m.event["event_id"] == "e1")
-        self.assertIn("disliked_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["disliked_penalty"], -0.10)
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
 
     def test_disliked_tags_capped_at_two(self) -> None:
         """Disliked penalty caps at -0.20 even with 3+ matching tags."""
@@ -619,8 +622,9 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(disliked_tags=("AI", "大模型", "编程"))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertIn("disliked_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["disliked_penalty"], -0.20)
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.20)
 
     # --- liked_boost ---
 
@@ -634,11 +638,11 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(liked_tags=("音乐",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         self.assertEqual(result.total, 2)
-        # e2 (with music) should rank higher due to boost
         self.assertEqual(result.items[0].event["event_id"], "e2")
         e2 = next(m for m in result.items if m.event["event_id"] == "e2")
-        self.assertIn("liked_boost", e2.score_components)
-        self.assertAlmostEqual(e2.score_components["liked_boost"], 0.10)
+        mem = self._memory(e2)
+        self.assertIn("liked_boost", mem)
+        self.assertAlmostEqual(mem["liked_boost"], 0.10)
 
     def test_liked_tags_capped_at_two(self) -> None:
         """Liked boost caps at +0.20 even with 3+ matching tags."""
@@ -650,8 +654,9 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(liked_tags=("AI", "大模型", "编程"))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertIn("liked_boost", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["liked_boost"], 0.20)
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertAlmostEqual(mem["liked_boost"], 0.20)
 
     # --- keyword_penalty ---
 
@@ -667,8 +672,9 @@ class MemoryScoringTest(unittest.TestCase):
         self.assertEqual(result.total, 2)
         self.assertEqual(result.items[0].event["event_id"], "e2")
         e1 = next(m for m in result.items if m.event["event_id"] == "e1")
-        self.assertIn("keyword_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["keyword_penalty"], -0.10)
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.10)
 
     def test_keyword_penalty_capped(self) -> None:
         """Keyword penalty caps at -0.20 with 3+ matching keywords."""
@@ -680,8 +686,9 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(negative_keywords=("考试", "收费", "报名"))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertIn("keyword_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["keyword_penalty"], -0.20)
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.20)
 
     def test_keyword_case_insensitive(self) -> None:
         """Negative keyword matching is case-insensitive."""
@@ -693,20 +700,24 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(negative_keywords=("EXAM", "考试"))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertIn("keyword_penalty", e1.score_components)
-        self.assertAlmostEqual(e1.score_components["keyword_penalty"], -0.20)  # 2 matches, capped at 2
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.20)
 
     # --- empty / default memory ---
 
-    def test_empty_memory_no_penalties(self) -> None:
-        """Empty Memory has no effect on results."""
+    def test_empty_memory_has_zero_memory_delta(self) -> None:
+        """Empty Memory produces memory component with total_memory_delta=0."""
         events = [make_event(event_id="e1", title="活动")]
         intent = Intent(date_scope="this_week")
         result = search_events(events, intent=intent, now=NOW)
         self.assertEqual(result.total, 1)
         e1 = result.items[0]
-        memory_keys = {"repeat_penalty", "disliked_penalty", "keyword_penalty", "liked_boost"}
-        self.assertFalse(memory_keys & e1.score_components.keys())
+        self.assertIn("memory", e1.score_components)
+        mem = e1.score_components["memory"]
+        self.assertIsInstance(mem, dict)
+        self.assertEqual(mem.get("total_memory_delta"), 0.0)
+        self.assertEqual(mem.get("matched_memory_terms"), [])
 
     def test_memory_default_constructor(self) -> None:
         """Memory() with no args must still work."""
@@ -714,6 +725,8 @@ class MemoryScoringTest(unittest.TestCase):
         self.assertEqual(m.liked_tags, ())
         self.assertEqual(m.disliked_tags, ())
         self.assertEqual(m.negative_keywords, ())
+        self.assertEqual(m.liked_event_ids, ())
+        self.assertEqual(m.disliked_event_ids, ())
         self.assertEqual(m.recent_plan_event_ids, ())
         self.assertEqual(m.recent_query_texts, ())
         self.assertEqual(m.session_id, "")
@@ -721,7 +734,7 @@ class MemoryScoringTest(unittest.TestCase):
     # --- soft vs hard boundary ---
 
     def test_penalty_does_not_exclude(self) -> None:
-        """Memory penalties are soft — events still appear in results."""
+        """Memory penalties are soft -- events still appear in results."""
         events = [
             make_event(event_id="e1", title="考试通知", tags=["考试"]),
             make_event(event_id="e2", title="音乐会", tags=["音乐"]),
@@ -730,14 +743,12 @@ class MemoryScoringTest(unittest.TestCase):
         profile = Profile()
         memory = Memory(disliked_tags=("考试",), recent_plan_event_ids=("e1",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
-        # Both events survive; e1 is just ranked lower
         self.assertEqual(result.total, 2)
 
     def test_memory_penalty_vs_profile_exclusion(self) -> None:
         """Memory.disliked_tags is soft; Profile.excluded_keywords is hard rejection."""
         events = [make_event(event_id="e1", title="考试通知", tags=["考试"])]
         intent = Intent(date_scope="this_week")
-        # Memory penalty: soft → event survives
         mem_result = search_events(
             events, intent=intent,
             profile=Profile(),
@@ -745,7 +756,6 @@ class MemoryScoringTest(unittest.TestCase):
             now=NOW,
         )
         self.assertEqual(mem_result.total, 1, "memory penalty should not reject")
-        # Profile excluded: hard → event rejected
         prof_result = search_events(
             events, intent=intent,
             profile=Profile(excluded_keywords=("考试",)),
@@ -753,10 +763,10 @@ class MemoryScoringTest(unittest.TestCase):
         )
         self.assertEqual(prof_result.total, 0, "profile excluded_keywords should reject")
 
-    # --- stacking and clamping ---
+    # --- stacking and total_memory_delta cap ---
 
     def test_multiple_penalties_stack(self) -> None:
-        """All penalties stack and score clamps to 0."""
+        """All penalties stack but total_memory_delta clamped to [-0.30, +0.20]."""
         events = [
             make_event(event_id="e1", title="考试", tags=["考试"]),
         ]
@@ -771,9 +781,29 @@ class MemoryScoringTest(unittest.TestCase):
         e1 = result.items[0]
         self.assertGreaterEqual(e1.score, 0.0)
         self.assertLessEqual(e1.score, 1.0)
-        self.assertIn("repeat_penalty", e1.score_components)
-        self.assertIn("disliked_penalty", e1.score_components)
-        self.assertIn("keyword_penalty", e1.score_components)
+        mem = self._memory(e1)
+        self.assertIn("repeat_penalty", mem)
+        self.assertIn("disliked_penalty", mem)
+        self.assertIn("keyword_penalty", mem)
+        self.assertGreaterEqual(mem["total_memory_delta"], -0.30)
+
+    def test_total_memory_delta_capped_at_minus_30(self) -> None:
+        """When penalties would exceed -0.30, total_memory_delta clamps."""
+        events = [
+            make_event(event_id="e1", title="考试 收费 AI", tags=["考试", "收费", "AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            recent_plan_event_ids=("e1",),
+            disliked_tags=("考试", "收费", "AI"),
+            negative_keywords=("考试", "收费", "AI"),
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertGreaterEqual(mem["total_memory_delta"], -0.30)
+        self.assertGreaterEqual(e1.score, 0.0)
 
     def test_liked_and_disliked_net(self) -> None:
         """Liked boost and disliked penalty can coexist; net may be zero."""
@@ -785,13 +815,11 @@ class MemoryScoringTest(unittest.TestCase):
         memory = Memory(liked_tags=("AI",), disliked_tags=("AI",))
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
-        self.assertIn("liked_boost", e1.score_components)
-        self.assertIn("disliked_penalty", e1.score_components)
-        # +0.10 - 0.10 = 0 net from memory
-        self.assertAlmostEqual(
-            e1.score_components["liked_boost"] + e1.score_components["disliked_penalty"],
-            0.0,
-        )
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["liked_boost"] + mem["disliked_penalty"], 0.0)
+        self.assertAlmostEqual(mem["total_memory_delta"], 0.0)
 
     def test_score_clamped_to_one(self) -> None:
         """Score never exceeds 1.0 even with heavy boost."""
@@ -816,6 +844,141 @@ class MemoryScoringTest(unittest.TestCase):
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
         self.assertLessEqual(e1.score, 1.0)
+
+    # --- NEW: nested structure ---
+
+    def test_memory_component_is_nested(self) -> None:
+        """score_components contains a 'memory' sub-dict with required keys."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",), disliked_tags=("考试",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        self.assertIn("memory", e1.score_components)
+        mem = e1.score_components["memory"]
+        self.assertIsInstance(mem, dict)
+        for key in ("total_memory_delta", "matched_memory_terms", "explanation", "details"):
+            self.assertIn(key, mem, f"memory component missing key: {key}")
+
+    # --- NEW: matched_memory_terms ---
+
+    def test_matched_memory_terms_populated(self) -> None:
+        """matched_memory_terms lists all matched signals."""
+        events = [
+            make_event(event_id="e1", title="AI 创业讲座", tags=["AI", "创业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",), disliked_tags=("创业",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        terms = mem["matched_memory_terms"]
+        self.assertTrue(any("喜欢:" in t for t in terms), f"expected liked term in {terms}")
+        self.assertTrue(any("排除:" in t for t in terms), f"expected disliked term in {terms}")
+
+    # --- NEW: explanation ---
+
+    def test_explanation_not_empty_when_memory_active(self) -> None:
+        """explanation is populated when memory adjustments are active."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertTrue(len(mem["explanation"]) > 0, "explanation should not be empty")
+
+    def test_explanation_empty_when_no_memory(self) -> None:
+        """explanation is empty string when memory is empty."""
+        events = [make_event(event_id="e1", title="活动")]
+        intent = Intent(date_scope="this_week")
+        result = search_events(events, intent=intent, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertEqual(mem["explanation"], "")
+
+    # --- NEW: details per adjustment ---
+
+    def test_memory_details_per_adjustment(self) -> None:
+        """Each memory adjustment has a corresponding detail entry."""
+        events = [
+            make_event(event_id="e1", title="AI 创业讲座", tags=["AI", "创业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+            recent_plan_event_ids=("e1",),
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        details = mem["details"]
+        self.assertIsInstance(details, list)
+        detail_types = {d["type"] for d in details}
+        self.assertIn("liked_boost", detail_types)
+        self.assertIn("disliked_penalty", detail_types)
+        self.assertIn("repeat_penalty", detail_types)
+        for d in details:
+            for key in ("type", "delta", "matched", "matched_field", "source", "reason"):
+                self.assertIn(key, d, f"detail missing key: {key}")
+
+    # --- NEW: event_id similarity ---
+
+    def test_liked_event_ids_extract_tags(self) -> None:
+        """Events similar to liked_event_ids get a boost via shared tags."""
+        events = [
+            make_event(event_id="e1", title="科技讲座", tags=["科技"]),
+            make_event(event_id="e_liked", title="科技峰会", tags=["科技", "AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_event_ids=("e_liked",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertGreater(mem["liked_boost"], 0)
+        liked_details = [d for d in mem["details"] if d["type"] == "liked_boost"]
+        self.assertTrue(any("liked_event_ids" in d.get("source", "") for d in liked_details))
+
+    def test_disliked_event_ids_extract_tags(self) -> None:
+        """Events similar to disliked_event_ids get penalized via shared tags."""
+        events = [
+            make_event(event_id="e1", title="创业讲座", tags=["创业"]),
+            make_event(event_id="e_disliked", title="创业峰会", tags=["创业", "商业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(disliked_event_ids=("e_disliked",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertLess(mem["disliked_penalty"], 0)
+
+    # --- NEW: timings ---
+
+    def test_timings_in_search_result(self) -> None:
+        """SearchResult includes timings_ms with key phases."""
+        events = [make_event(event_id="e1", title="活动", start_time="2026-06-05T14:00:00+08:00")]
+        intent = Intent(date_scope="this_week")
+        result = search_events(events, intent=intent, now=NOW)
+        self.assertIn("hard_constraints", result.timings_ms)
+        self.assertIn("score_and_sort", result.timings_ms)
+        self.assertIn("filter_and_score", result.timings_ms)
+        self.assertIn("search_events_total", result.timings_ms)
+        self.assertGreater(result.timings_ms["search_events_total"], 0)
 
 
 if __name__ == "__main__":
