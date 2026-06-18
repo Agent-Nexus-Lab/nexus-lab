@@ -1,0 +1,163 @@
+page {
+  min-height: 100vh;
+  background: #f6f7f9;
+  color: #172033;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 28rpx 28rpx 44rpx;
+  box-sizing: border-box;
+}
+
+.hero {
+  padding: 4rpx 2rpx 26rpx;
+}
+
+.eyebrow {
+  color: #4263b0;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.title {
+  margin-top: 10rpx;
+  font-size: 42rpx;
+  line-height: 1.22;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  margin-top: 12rpx;
+  color: #68758a;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+.panel {
+  margin-bottom: 20rpx;
+  padding: 26rpx 24rpx;
+  border: 1rpx solid #e5eaf2;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 20rpx rgba(23, 32, 51, 0.035);
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18rpx;
+  margin-bottom: 16rpx;
+}
+
+.panel-title {
+  font-size: 29rpx;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.field-name {
+  display: none;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+}
+
+.chip {
+  min-height: 64rpx;
+  padding: 0 22rpx;
+  border: 1rpx solid #dde5f0;
+  border-radius: 999rpx;
+  background: #ffffff;
+  color: #2a364a;
+  font-size: 25rpx;
+  line-height: 64rpx;
+  box-sizing: border-box;
+}
+
+.chip-active {
+  border-color: #2f65e8;
+  background: #2f65e8;
+  color: #ffffff;
+  box-shadow: 0 8rpx 16rpx rgba(47, 101, 232, 0.16);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 164rpx;
+  padding: 22rpx;
+  border: 1rpx solid #dde5f0;
+  border-radius: 14rpx;
+  background: #fafcff;
+  color: #182235;
+  font-size: 27rpx;
+  line-height: 1.55;
+  box-sizing: border-box;
+}
+
+.hint {
+  margin-top: 14rpx;
+  color: #77869a;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.primary-button {
+  width: 100%;
+  height: 92rpx;
+  margin-top: 10rpx;
+  border-radius: 14rpx;
+  background: #2f65e8;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 92rpx;
+  box-shadow: 0 14rpx 26rpx rgba(47, 101, 232, 0.18);
+}
+
+.secondary-button {
+  width: 100%;
+  height: 84rpx;
+  margin-top: 14rpx;
+  border: 1rpx solid #dde5f0;
+  border-radius: 14rpx;
+  background: #ffffff;
+  color: #2a364a;
+  font-size: 28rpx;
+  font-weight: 750;
+  line-height: 84rpx;
+}
+
+.summary-list {
+  display: grid;
+  gap: 12rpx;
+}
+
+.summary-row {
+  display: flex;
+  gap: 14rpx;
+  align-items: flex-start;
+  padding: 16rpx 18rpx;
+  border-radius: 14rpx;
+  background: #f7f9fc;
+}
+
+.summary-label {
+  flex: 0 0 150rpx;
+  color: #65748a;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.summary-value {
+  flex: 1;
+  color: #1f2b3f;
+  font-size: 24rpx;
+  line-height: 1.45;
+}

@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/profile/profile",
+    "pages/plan/plan",
+    "pages/loading/loading",
+    "pages/result/result"
+  ],
+  "window": {
+    "navigationBarTitleText": "校园日程 AI 助手",
+    "navigationBarBackgroundColor": "#f7f9fc",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f9fc"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

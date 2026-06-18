@@ -32,8 +32,8 @@ from agent_core.time_provider import resolve_now
 _EXPERIMENTS_ROOT = Path(__file__).resolve().parents[1]
 
 # Default paths relative to experiments/
-DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent-maas-cli" / "texts"
-DEFAULT_OUTPUTS_DIR = _EXPERIMENTS_ROOT / "agent-maas-cli" / "outputs"
+DEFAULT_TEXTS_DIR = _EXPERIMENTS_ROOT / "agent_maas_cli" / "texts"
+DEFAULT_OUTPUTS_DIR = _EXPERIMENTS_ROOT / "agent_maas_cli" / "outputs"
 DEFAULT_EVENTS_PATH = DEFAULT_OUTPUTS_DIR / "events.json"
 
 
@@ -105,7 +105,7 @@ class DataSource(ABC):
 
 
 class FileTextSource(DataSource):
-    """DataSource backed by text files in agent-maas-cli/texts/.
+    """DataSource backed by text files in agent_maas_cli/texts/.
 
     This is the fast path: text files are already scraped (e.g., by fetch_weixin.py).
     The source wraps the MaaS extraction step only.

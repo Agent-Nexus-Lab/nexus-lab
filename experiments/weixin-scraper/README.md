@@ -60,7 +60,7 @@ python list_articles.py --max 10 --format urls "https://mp.weixin.qq.com/s/xxxx"
 done
 ```
 
-输出文件默认保存到 `../agent-maas-cli/texts/`，可直接被 MaaS 事件提取管道消费。
+输出文件默认保存到 `../agent_maas_cli/texts/`，可直接被 MaaS 事件提取管道消费。
 
 ## 工作原理
 

@@ -1,0 +1,76 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">生成结果</view>
+    <view class="title">{{result.title}}</view>
+    <view class="subtitle">{{result.summary}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">本次输入</view>
+      <view class="field-name">{{result.date_scope}}</view>
+    </view>
+    <view class="request-card">{{result.request_text}}</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">活动卡片</view>
+      <view class="field-name">{{result.items.length}} 个结果</view>
+    </view>
+
+    <view wx:if="{{!hasItems}}" class="empty-state">
+      <view class="empty-title">暂无可展示活动</view>
+      <view class="empty-text">后端已返回结果，但本次没有活动卡片。可以调整时间范围或偏好后重新生成。</view>
+    </view>
+
+    <view
+      wx:else
+      wx:for="{{result.items}}"
+      wx:key="event_id"
+      class="event-card"
+    >
+      <view class="event-topline">
+        <view class="event-order">#{{item.display_order}}</view>
+        <view class="event-score">质量分 {{item.quality_score}}</view>
+      </view>
+      <view class="event-title">{{item.title}}</view>
+      <view class="event-summary">{{item.summary}}</view>
+
+      <view class="event-meta">
+        <view>时间：{{item.time_text}}</view>
+        <view>地点：{{item.location}}</view>
+        <view>校区：{{item.campus}}</view>
+        <view>主办：{{item.organizer}}</view>
+      </view>
+
+      <view class="tag-row">
+        <view
+          wx:for="{{item.tags}}"
+          wx:key="*this"
+          wx:for-item="tag"
+          class="small-tag"
+        >{{tag}}</view>
+      </view>
+
+      <view class="reason-box">{{item.reason_text}}</view>
+      <view class="source-text">
+        来源：
+        <text
+          wx:if="{{item.has_source_url}}"
+          class="source-link"
+          data-url="{{item.source_url}}"
+          bindtap="copySourceUrl"
+        >查看来源</text>
+        <text wx:else>{{item.source_url}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{debugText}}" class="panel debug-panel">
+    <view class="panel-title">开发调试信息</view>
+    <text selectable class="debug-text">{{debugText}}</text>
+  </view>
+
+  <button class="primary-button" bindtap="goPlan">重新生成</button>
+</view>

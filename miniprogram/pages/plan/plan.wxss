@@ -1,0 +1,7 @@
+.request-textarea {
+  min-height: 210rpx;
+}
+
+.primary-button {
+  margin-bottom: env(safe-area-inset-bottom);
+}

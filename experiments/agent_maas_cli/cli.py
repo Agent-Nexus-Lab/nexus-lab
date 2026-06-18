@@ -73,14 +73,14 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         const=DEFAULT_INPUT_DIR,
         type=Path,
-        help="批量读取目录下的 .txt/.md/.html 文件；不传目录时使用 experiments/agent-maas-cli/texts",
+        help="批量读取目录下的 .txt/.md/.html 文件；不传目录时使用 experiments/agent_maas_cli/texts",
     )
     parser.add_argument("--env-file", type=Path, default=None, help="环境变量文件，默认自动查找 .env")
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path(os.getenv("AGENT_MAAS_OUTPUT_DIR", str(DEFAULT_OUTPUT_DIR))),
-        help="批量输出目录，默认 experiments/agent-maas-cli/outputs",
+        help="批量输出目录，默认 experiments/agent_maas_cli/outputs",
     )
     parser.add_argument("--output-file", type=Path, help="单文件模式下写入指定 JSON；批量模式下写入聚合 events.json")
     parser.add_argument("--write-output", action="store_true", help="单文件模式下同时写入标准输出目录")

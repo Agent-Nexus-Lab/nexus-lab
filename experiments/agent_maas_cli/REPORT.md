@@ -4,14 +4,14 @@
 
 ## 1. 测评范围
 
-输入目录：`experiments/agent-maas-cli/texts/`
+输入目录：`experiments/agent_maas_cli/texts/`
 
-输出文件：`experiments/agent-maas-cli/outputs/events.json`
+输出文件：`experiments/agent_maas_cli/outputs/events.json`
 
 运行命令：
 
 ```powershell
-python experiments\agent-maas-cli\run_eval.py --range 1-5 --base-url https://api.modelarts-maas.com/openai/v1 --thinking disabled --max-tokens 16000 --delay-seconds 22 --retries 1
+python experiments\agent_maas_cli\run_eval.py --range 1-5 --base-url https://api.modelarts-maas.com/openai/v1 --thinking disabled --max-tokens 16000 --delay-seconds 22 --retries 1
 ```
 
 参数说明：

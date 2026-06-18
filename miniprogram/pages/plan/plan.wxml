@@ -1,0 +1,71 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">日程生成</view>
+    <view class="title">今天想怎么安排？</view>
+    <view class="subtitle">先完成前端输入闭环，点击生成后会在控制台打印请求数据。</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">当前偏好</view>
+      <view class="field-name">profile</view>
+    </view>
+    <view wx:if="{{hasProfile}}" class="summary-list">
+      <view class="summary-row">
+        <view class="summary-label">校区</view>
+        <view class="summary-value">{{profile.campus}}</view>
+      </view>
+      <view class="summary-row">
+        <view class="summary-label">身份</view>
+        <view class="summary-value">{{profile.identity}}</view>
+      </view>
+      <view class="summary-row">
+        <view class="summary-label">兴趣</view>
+        <view class="summary-value">{{profile.interest_tagsText}}</view>
+      </view>
+      <view class="summary-row">
+        <view class="summary-label">时间</view>
+        <view class="summary-value">{{profile.available_time || '未选择'}}</view>
+      </view>
+      <view class="summary-row">
+        <view class="summary-label">风格</view>
+        <view class="summary-value">{{profile.activity_style_tagsText}}</view>
+      </view>
+    </view>
+    <view wx:else class="hint">还没有保存偏好。可以先返回偏好页选择标签。</view>
+    <button class="secondary-button" bindtap="goProfile">重新选择偏好</button>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">时间范围</view>
+      <view class="field-name">date_scope</view>
+    </view>
+    <view class="chip-grid">
+      <view
+        wx:for="{{dateScopeOptions}}"
+        wx:key="value"
+        class="chip {{date_scope === item.value ? 'chip-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectDateScope"
+      >{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">日程需求</view>
+      <view class="field-name">request_text</view>
+    </view>
+    <textarea
+      class="textarea request-textarea"
+      value="{{request_text}}"
+      maxlength="500"
+      placeholder="例如：今晚想安排点 AI 相关但别太累的活动"
+      bindinput="onRequestInput"
+    />
+    <view class="hint">例如：今晚想安排点 AI 相关但别太累的活动。</view>
+  </view>
+
+  <button class="primary-button" bindtap="generatePlan">生成日程</button>
+</view>

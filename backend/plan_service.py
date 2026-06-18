@@ -5,12 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-_RUNTIME_DIR = Path(__file__).resolve().parents[1] / "experiments" / "agent-plan-runtime"
+_RUNTIME_DIR = Path(__file__).resolve().parents[1] / "experiments" / "agent_plan_runtime"
 if str(_RUNTIME_DIR) not in sys.path:
     sys.path.insert(0, str(_RUNTIME_DIR))
 
-import runtime as _rt
-import llm as _llm
+import experiments.agent_plan_runtime.runtime as _rt
+import experiments.agent_plan_runtime.llm as _llm
 from backend.schemas import (
     CandidateDetail,
     DebugInfo,

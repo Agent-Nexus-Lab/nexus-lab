@@ -1,8 +1,8 @@
-"""Schema helpers extracted from agent-maas-cli/schema.py.
+"""Schema helpers extracted from agent_maas_cli/schema.py.
 
 These functions are needed by agent_core/datasource.py for building and
 validating aggregated events.  Extracting them here makes agent_core
-self-contained without depending on agent-maas-cli at import time.
+self-contained without depending on agent_maas_cli at import time.
 """
 
 from __future__ import annotations

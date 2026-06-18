@@ -10,7 +10,7 @@ from runtime import load_events, load_profile, parse_now, plan_day
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_EVENTS_PATH = SCRIPT_DIR.parent / "agent-maas-cli" / "outputs" / "events.json"
+DEFAULT_EVENTS_PATH = SCRIPT_DIR.parent / "agent_maas_cli" / "outputs" / "events.json"
 DEFAULT_PROFILE_PATH = SCRIPT_DIR / "profile.sample.json"
 
 

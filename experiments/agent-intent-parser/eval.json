@@ -100,5 +100,116 @@
       "min_hard_constraints": 0,
       "min_soft_constraints": 1
     }
+  },
+  {
+    "id": "eval_008",
+    "description": "切换请求+排除重复推荐",
+    "query": "换一个，不要重复推荐刚才的活动",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 2,
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_009",
+    "description": "不想太累+风格轻松",
+    "query": "不想太累，轻松一点就好",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": ["轻松"],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "太累",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_010",
+    "description": "更偏AI+排除讲座(soft_constraint权重>=1.5)",
+    "query": "更偏AI方面的活动，最好不要讲座",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": ["AI"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "讲座",
+      "min_soft_constraints": 1,
+      "soft_weight_ge_1_5": true
+    }
+  },
+  {
+    "id": "eval_011",
+    "description": "排除毕业季(硬约束)",
+    "query": "不要毕业季相关的活动",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "毕业季相关",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_012",
+    "description": "换点不一样的+反馈语义",
+    "query": "换点不一样的，上次的都不喜欢",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "不一样",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_013",
+    "description": "排除体育+偏好工作坊+轻松风格",
+    "query": "不要体育，想看轻松的工作坊",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": ["工作坊"],
+      "style_tag_includes": ["轻松"],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "体育",
+      "min_soft_constraints": 1
+    }
+  },
+  {
+    "id": "eval_014",
+    "description": "别推讲座+多兴趣AI创业",
+    "query": "最近别推讲座了，想看AI或者创业",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": ["AI", "创业"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "min_soft_constraints": 1
+    }
+  },
+  {
+    "id": "eval_015",
+    "description": "想要新鲜+避免重复",
+    "query": "想看新鲜的，避免重复推荐",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "重复推荐",
+      "min_soft_constraints": 1
+    }
   }
 ]

@@ -200,6 +200,7 @@ def plan_day(
     include_debug: bool = False,
     rewriter: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     use_search_events: bool = False,
+    memory: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     run_id = f"run_{uuid.uuid4().hex[:8]}"
     window_start, window_end = date_window(date_scope, now)
@@ -265,9 +266,9 @@ def plan_day(
         "status": "completed",
         "plan_id": f"plan_{uuid.uuid4().hex[:8]}",
         "title": DATE_SCOPE_TITLES[date_scope],
-        "summary": build_summary(schedule, profile, request_text),
+        "summary": build_summary(schedule, profile, request_text, memory=memory),
         "date_scope": date_scope,
-        "items": [render_item(candidate, index) for index, candidate in enumerate(schedule, start=1)],
+        "items": [render_item(candidate, index, memory_context=memory) for index, candidate in enumerate(schedule, start=1)],
         "started_at": now.isoformat(),
         "ended_at": now.isoformat(),
         "error_message": None,
@@ -475,7 +476,7 @@ def schedule_conflict(schedule: list[Candidate], candidate: Candidate) -> str | 
     return None
 
 
-def render_item(candidate: Candidate, display_order: int) -> dict[str, Any]:
+def render_item(candidate: Candidate, display_order: int, memory_context: dict[str, Any] | None = None) -> dict[str, Any]:
     event = candidate.event
     item = {
         "event_id": event.get("event_id"),
@@ -488,22 +489,42 @@ def render_item(candidate: Candidate, display_order: int) -> dict[str, Any]:
         "organizer": event.get("organizer"),
         "tags": event.get("tags") or [],
         "source_url": event.get("source_url"),
-        "reason_text": build_reason_text(candidate),
+        "reason_text": build_reason_text(candidate, memory_context=memory_context),
         "display_order": display_order,
         "quality_score": round(candidate.score, 2),
     }
     return item
 
 
-def build_summary(schedule: list[Candidate], profile: dict[str, Any], request_text: str) -> str:
+def build_summary(
+    schedule: list[Candidate],
+    profile: dict[str, Any],
+    request_text: str,
+    memory: dict[str, Any] | None = None,
+) -> str:
     campuses = sorted({normalize_campus(item.event.get("campus")) for item in schedule if normalize_campus(item.event.get("campus"))})
     matched = sorted({term for item in schedule for term in item.matched_terms})
     campus_text = "、".join(campuses) if campuses else "多个校区"
     matched_text = "、".join(matched[:3]) if matched else "你的偏好"
-    return f"为你安排了 {len(schedule)} 个活动，主要匹配 {matched_text}，地点集中在 {campus_text}。"
+    base = f"为你安排了 {len(schedule)} 个活动，主要匹配 {matched_text}，地点集中在 {campus_text}。"
+    # 追加 memory 相关说明
+    if memory:
+        extra_parts: list[str] = []
+        excluded_feedback = memory.get("excluded_from_feedback") or memory.get("disliked_event_ids")
+        if excluded_feedback:
+            extra_parts.append("已根据你的反馈调整推荐方向")
+        repeat_penalty = memory.get("repeat_penalty_applied")
+        if repeat_penalty:
+            extra_parts.append("避免重复推荐你刚才不感兴趣的活动")
+        if extra_parts:
+            base = base.rstrip("。") + "。" + "，".join(extra_parts) + "。"
+    return base
 
 
-def build_reason_text(candidate: Candidate) -> str:
+def build_reason_text(
+    candidate: Candidate,
+    memory_context: dict[str, Any] | None = None,
+) -> str:
     parts: list[str] = []
     if candidate.matched_terms:
         parts.append(f"匹配 {', '.join(candidate.matched_terms[:3])}")
@@ -511,6 +532,15 @@ def build_reason_text(candidate: Candidate) -> str:
     if campus:
         parts.append(f"校区为{campus}")
     parts.append(f"规则评分 {candidate.score:.2f}")
+    # memory 相关说明
+    if memory_context:
+        event_id = candidate.event.get("event_id")
+        if event_id:
+            disliked_ids = memory_context.get("disliked_event_ids") or memory_context.get("excluded_from_feedback") or []
+            if isinstance(disliked_ids, list) and event_id in disliked_ids:
+                parts.append("因您反馈不感兴趣已降权")
+            if memory_context.get("repeat_penalty_applied"):
+                parts.append("重复内容已降权")
     if candidate.end_time_estimated:
         parts.append("结束时间未明确，冲突检查按60分钟估算")
     return "；".join(parts) + "。"
