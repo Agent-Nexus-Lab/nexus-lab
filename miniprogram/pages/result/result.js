@@ -112,6 +112,7 @@ Page({
       feedback_source: 'result_card',
       weight: feedbackType === 'like' ? 1 : (feedbackType === 'dislike' ? -1 : 0.2),
       metadata: {
+        action: feedbackType,
         title: item.title,
         tags: item.tags || [],
         source_url: item.source_url,
@@ -152,7 +153,7 @@ Page({
         [`${path}.feedback_pending`]: false
       })
       wx.showToast({
-        title: feedbackType === 'like' ? '已记录喜欢' : '已减少推荐',
+        title: feedbackType === 'like' ? '已记录，下次会参考' : '已记录，下次会减少类似推荐',
         icon: 'none'
       })
     } catch (error) {
