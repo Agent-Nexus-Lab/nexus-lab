@@ -58,7 +58,10 @@ Optional runtime fields:
 
 | Field | Frontend behavior |
 |---|---|
-| `data.stage` | Proposed field: drives the reserved Agent progress steps when present |
+| `data.stage` | Drives the Agent progress steps when present |
+| `data.stage_message` | Highest-priority loading copy. If present, the frontend displays it directly |
+| `data.progress` | Numeric progress. If present, the frontend uses it after clamping into a safe UI range |
+| `data.cache_hit` | When `true`, loading displays `命中缓存，正在返回上次可复用结果` |
 | `data.debug` | Shown in the loading failure state and result page when present and `ENABLE_DEBUG_VIEW` is enabled |
 | `data.error_message` | Shown when the run enters `failed` |
 | `data.plan_id` | Preserved for result feedback and history |
@@ -67,11 +70,29 @@ Optional runtime fields:
 Reserved progress steps:
 
 1. `正在理解需求`
-2. `正在检索活动`
-3. `正在编排日程`
-4. `正在整理结果`
+2. `正在读取记忆`
+3. `正在检索活动`
+4. `正在编排日程`
+5. `正在整理推荐理由`
 
-`data.stage` is reserved for backend alignment and is not part of the current runtime schema yet. Without it, the loading page shows a generic queued/running state and does not simulate stage progress. Recognized stage aliases include `intent_parsing`, `load_profile`, `load_memory`, `search_events`, `build_schedule`, `rewrite_plan`, and `save_plan`.
+Without `data.stage`, the loading page shows a generic queued/running state and does not simulate stage progress. Recognized stage aliases include `intent_parsing`, `load_profile`, `read_memory`, `load_memory`, `search_events`, `filter_and_score`, `build_schedule`, `rewrite_plan`, `save_plan`, and `cache_hit`.
+
+The loading page also recognizes cache flags in these locations:
+
+```text
+data.cache_hit
+data.debug.cache_hit
+data.debug.cache.cache_hit
+```
+
+Failed runs should return `data.error_message` and, in development mode, one of these debug fields when available:
+
+```text
+debug.rejection_reason
+debug.error_message
+debug.error
+debug.llm_rewrite.error
+```
 
 ## Completed Result Fields
 
@@ -118,8 +139,33 @@ Frontend request fields:
 | `feedback_type` | string | `like` / `dislike` / `clicked_source` |
 | `feedback_source` | string | Fixed to `result_card` |
 | `weight` | number | `1`, `-1`, or `0.2` |
-| `metadata` | object | Includes title, tags, source URL, display order |
+| `metadata` | object | Includes action, title, tags, source URL, display order |
 
 ## History Placeholder
 
 The miniprogram now has a placeholder `pages/history/history` entry. Until `GET /api/plans` is stable, the page reads a local `planHistoryDraft` list written after a successful completed run. The fields mirror the planned history list shape: `plan_id`, `run_id`, `title`, `date_scope`, `request_text`, `item_count`, `status`, and `created_at`.
+
+## Streaming Exploration
+
+The formal plan-day flow still uses:
+
+```text
+POST /api/agent/plan-day
+GET /api/agent/runs/{run_id}
+```
+
+For the phase-2 exploration line, the miniprogram includes a dev-only page:
+
+```text
+pages/stream-demo/stream-demo
+```
+
+This page calls `api.streamRuntimeDemo()` with `wx.request({ enableChunked: true })` and listens through `task.onChunkReceived`. It is not linked from the user-facing flow and should only be used after the backend provides a dev-only chunked endpoint such as `/api/agent/stream-demo`.
+
+Current conclusion for acceptance:
+
+```text
+Main path: keep polling.
+Exploration path: verify whether the current WeChat base library and real device can receive chunks stably.
+If chunked HTTP is unstable, use stage/progress polling for this phase and evaluate WebSocket in the next phase.
+```

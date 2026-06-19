@@ -11,19 +11,43 @@ const STAGE_INDEX = {
   intent_parser: 0,
   understanding_request: 0,
   parse_intent: 0,
-  load_profile: 0,
-  load_memory: 0,
-  search_events: 1,
-  searching_events: 1,
-  tool_service_boundary: 1,
-  build_schedule: 2,
-  arranging_schedule: 2,
-  runtime_orchestration: 2,
-  rewrite_plan: 3,
-  save_plan: 3,
-  saving_plan: 3,
-  memory_feedback_loop: 3,
-  feedback_loop: 3
+  load_profile: 1,
+  read_memory: 1,
+  load_memory: 1,
+  search_events: 2,
+  searching_events: 2,
+  filter_and_score: 2,
+  tool_service_boundary: 2,
+  build_schedule: 3,
+  arranging_schedule: 3,
+  runtime_orchestration: 3,
+  rewrite_plan: 4,
+  rewrite_summary_and_reasons: 4,
+  save_plan: 4,
+  saving_plan: 4,
+  cache_hit: 4,
+  memory_feedback_loop: 4,
+  feedback_loop: 4
+}
+
+const STAGE_MESSAGES = {
+  intent_parsing: '正在理解你的需求',
+  intent_parser: '正在理解你的需求',
+  understanding_request: '正在理解你的需求',
+  parse_intent: '正在理解你的需求',
+  load_profile: '正在读取你的画像',
+  read_memory: '正在读取你的偏好记忆',
+  load_memory: '正在读取你的偏好记忆',
+  search_events: '正在检索可参加的校园活动',
+  searching_events: '正在检索可参加的校园活动',
+  filter_and_score: '正在根据时间、地点和偏好排序',
+  build_schedule: '正在编排你的日程',
+  arranging_schedule: '正在编排你的日程',
+  rewrite_plan: '正在整理推荐理由',
+  rewrite_summary_and_reasons: '正在整理推荐理由',
+  save_plan: '正在保存规划结果',
+  saving_plan: '正在保存规划结果',
+  cache_hit: '命中缓存，正在返回上次可复用结果'
 }
 
 Page({
@@ -38,9 +62,10 @@ Page({
     debugText: '',
     steps: [
       { text: '正在理解需求' },
+      { text: '正在读取记忆' },
       { text: '正在检索活动' },
       { text: '正在编排日程' },
-      { text: '正在整理结果' }
+      { text: '正在整理推荐理由' }
     ]
   },
 
@@ -111,24 +136,21 @@ Page({
   },
 
   updateRunningState(runData) {
-    const activeStep = STAGE_INDEX[runData.stage] == null ? -1 : STAGE_INDEX[runData.stage]
-    const messages = [
-      '正在理解你的需求...',
-      '正在检索校园活动...',
-      '正在编排你的日程...',
-      '正在整理推荐结果...'
-    ]
-    const currentMessage = activeStep === -1
-      ? (runData.status === 'queued' ? '任务已入队，等待 Agent 处理...' : 'Agent 正在运行...')
-      : messages[activeStep]
+    const stage = runData.stage || ''
+    const cacheHit = this.isCacheHit(runData)
+    const activeStep = cacheHit ? STAGE_INDEX.cache_hit : (STAGE_INDEX[stage] == null ? -1 : STAGE_INDEX[stage])
+    const currentMessage = runData.stage_message ||
+      (cacheHit ? STAGE_MESSAGES.cache_hit : STAGE_MESSAGES[stage]) ||
+      (runData.status === 'queued' ? '任务已入队，等待 Agent 处理...' : 'Agent 正在运行...')
+    const nextProgress = this.normalizeProgress(runData.progress, activeStep, cacheHit)
 
     this.setData({
       viewState: 'running',
       runStatus: runData.status,
-      statusLabel: runData.status === 'queued' ? '任务已入队' : 'Agent 正在运行',
+      statusLabel: cacheHit ? '命中缓存' : (runData.status === 'queued' ? '任务已入队' : 'Agent 正在运行'),
       currentMessage,
       activeStep,
-      progress: activeStep === -1 ? 32 : Math.min(28 + activeStep * 20, 88),
+      progress: nextProgress,
       debugText: this.formatDebug(runData.debug)
     })
   },
@@ -187,13 +209,14 @@ Page({
 
   failRun(message, debug) {
     console.error('轮询后端失败:', message, debug)
+    const debugReason = this.extractDebugReason(debug)
     this.clearTimer()
     this.setData({
       viewState: 'failed',
       runStatus: 'failed',
       statusLabel: '生成失败',
       currentMessage: '这次没有成功生成日程',
-      errorMessage: message,
+      errorMessage: debugReason ? `${message}：${debugReason}` : message,
       debugText: this.formatDebug(debug),
       progress: 100
     })
@@ -218,6 +241,42 @@ Page({
       return JSON.stringify(normalized, null, 2)
     } catch (error) {
       return String(debug)
+    }
+  },
+
+  isCacheHit(runData) {
+    const debug = this.parseDebugObject(runData.debug)
+    const cache = debug.cache && typeof debug.cache === 'object' ? debug.cache : {}
+    return runData.cache_hit === true || debug.cache_hit === true || cache.cache_hit === true
+  },
+
+  normalizeProgress(progress, activeStep, cacheHit) {
+    if (typeof progress === 'number' && Number.isFinite(progress)) {
+      return Math.max(8, Math.min(progress, 96))
+    }
+    if (cacheHit) return 92
+    if (activeStep === -1) return 32
+    return Math.min(22 + activeStep * 17, 88)
+  },
+
+  extractDebugReason(debug) {
+    const normalized = this.parseDebugObject(debug)
+    if (!normalized) return typeof debug === 'string' ? debug : ''
+    return normalized.rejection_reason ||
+      normalized.error_message ||
+      normalized.error ||
+      (normalized.llm_rewrite && normalized.llm_rewrite.error) ||
+      ''
+  },
+
+  parseDebugObject(debug) {
+    if (!debug) return null
+    if (typeof debug === 'object') return debug
+    if (typeof debug !== 'string') return null
+    try {
+      return JSON.parse(debug)
+    } catch (error) {
+      return null
     }
   }
 })

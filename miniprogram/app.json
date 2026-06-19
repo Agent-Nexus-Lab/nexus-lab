@@ -5,7 +5,8 @@
     "pages/loading/loading",
     "pages/result/result",
     "pages/history/history",
-    "pages/source/source"
+    "pages/source/source",
+    "pages/stream-demo/stream-demo"
   ],
   "window": {
     "navigationBarTitleText": "校园日程 AI 助手",

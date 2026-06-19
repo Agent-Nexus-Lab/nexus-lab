@@ -58,11 +58,64 @@ function feedbackEvent(feedbackPayload) {
   })
 }
 
+function decodeChunk(data) {
+  if (!data) return ''
+  if (typeof data === 'string') return data
+  const bytes = new Uint8Array(data)
+  let binary = ''
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index])
+  }
+  try {
+    return decodeURIComponent(escape(binary))
+  } catch (error) {
+    return binary
+  }
+}
+
+function streamRuntimeDemo({ url = '/agent/stream-demo', data = {}, onChunk }) {
+  return new Promise((resolve, reject) => {
+    const task = wx.request({
+      url: `${API_BASE_URL}${url}`,
+      method: 'POST',
+      data,
+      enableChunked: true,
+      responseType: 'arraybuffer',
+      header: {
+        Authorization: 'Bearer dev-openid',
+        'content-type': 'application/json'
+      },
+      success(res) {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error(`HTTP ${res.statusCode}`))
+          return
+        }
+        resolve(res)
+      },
+      fail(error) {
+        reject(error)
+      }
+    })
+
+    if (!task || typeof task.onChunkReceived !== 'function') {
+      reject(new Error('当前微信基础库不支持 onChunkReceived'))
+      return
+    }
+
+    task.onChunkReceived((response) => {
+      if (typeof onChunk === 'function') {
+        onChunk(decodeChunk(response.data))
+      }
+    })
+  })
+}
+
 module.exports = {
   API_BASE_URL,
   ENABLE_DEBUG_VIEW,
   saveProfile,
   planDay,
   getRunStatus,
-  feedbackEvent
+  feedbackEvent,
+  streamRuntimeDemo
 }
