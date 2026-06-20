@@ -21,7 +21,6 @@ if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 from memory_service import read_memory
 
-
 load_dotenv()
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_MODEL = os.getenv("LLM_MODEL")
@@ -36,11 +35,11 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
 
     user = db.query(User).first()
     if not user:
-        return {"code": 1001, "data": None, "message": "用户画像未创建，请先提交偏好信息"}
+        return {"code": 1001, "data": None, "message": "用户画像未创建"}
 
     profile_raw = db.query(UserProfile).filter_by(user_id=user.id).first()
     if not profile_raw:
-        return {"code": 1001, "data": None, "message": "用户画像未创建，请先提交偏好信息"}
+        return {"code": 1001, "data": None, "message": "用户画像未创建"}
 
     t_load_profile = time.perf_counter()
 
@@ -72,7 +71,6 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "profile_summary": profile_raw.profile_summary or "",
     }
 
-    # ── read_memory aggregation ──
     t_before_memory = time.perf_counter()
     memory_context: dict[str, Any] = {}
     try:
@@ -115,66 +113,63 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         run.debug = None
         db.commit()
         return {"code": 500, "data": None, "message": f"生成失败：{str(e)}"}
-    else:
-        data = result.model_dump()
-        inner = data.get("data") or {}
-        plan_id = inner.get("plan_id") or str(uuid.uuid4())
 
-        plan = Plan(
-            id=plan_id,
-            run_id=runid,
-            user_id=user.id,
-            title=inner.get("title"),
-            date_scope=inner.get("date_scope"),
-            summary=inner.get("summary"),
+    data = result.model_dump()
+    inner = data.get("data") or {}
+    plan_id = inner.get("plan_id") or str(uuid.uuid4())
+
+    plan = Plan(
+        id=plan_id,
+        run_id=runid,
+        user_id=user.id,
+        title=inner.get("title"),
+        date_scope=inner.get("date_scope"),
+        summary=inner.get("summary"),
+    )
+    db.add(plan)
+    db.flush()
+
+    items = inner.get("items") or []
+    for item_raw in items:
+        item = PlanItem(
+            id=str(uuid.uuid4()),
+            plan_id=plan_id,
+            event_id=item_raw.get("event_id"),
+            start_time=datetime.fromisoformat(item_raw["start_time"]),
+            end_time=datetime.fromisoformat(item_raw["end_time"]) if item_raw.get("end_time") else None,
+            reason_text=item_raw.get("reason_text", ""),
+            score=item_raw.get("score"),
+            score_components=item_raw.get("score_components"),
+            display_order=item_raw.get("display_order", 0),
         )
-        db.add(plan)
-        db.flush()
+        db.add(item)
 
-        items = inner.get("items") or []
-        for item_raw in items:
-            item = PlanItem(
-                id=str(uuid.uuid4()),
-                plan_id=plan_id,
-                event_id=item_raw.get("event_id"),
-                start_time=datetime.fromisoformat(item_raw["start_time"]).astimezone(DEFAULT_TIMEZONE),
-                end_time=datetime.fromisoformat(item_raw["end_time"]).astimezone(DEFAULT_TIMEZONE) if item_raw.get("end_time") else None,
-                reason_text=item_raw.get("reason_text", ""),
-                score=item_raw.get("score"),
-                score_components=item_raw.get("score_components"),
-                display_order=item_raw.get("display_order", 0),
-            )
-            db.add(item)
+    t_end = time.perf_counter()
+    debug_raw = inner.get("debug") or {}
+    if not isinstance(debug_raw, dict):
+        debug_raw = {}
 
-        # Build debug with timings_ms and memory_used
-        debug_raw = inner.get("debug") or {}
-        if not isinstance(debug_raw, dict):
-            debug_raw = {}
+    timings_ms = {
+        "load_profile": round((t_load_profile - t_start) * 1000),
+        "read_memory": round((t_after_memory - t_before_memory) * 1000),
+    }
+    if isinstance(debug_raw, dict) and "timings_ms" in debug_raw:
+        timings_ms.update(debug_raw.pop("timings_ms"))
+    timings_ms["total"] = round((t_end - t_start) * 1000)
+    debug_raw["timings_ms"] = timings_ms
 
-        t_end = time.perf_counter()
-        timings_ms = {
-            "load_profile": round((t_load_profile - t_start) * 1000),
-            "read_memory": round((t_after_memory - t_before_memory) * 1000),
-        }
-        if isinstance(debug_raw, dict) and "timings_ms" in debug_raw:
-            timings_ms.update(debug_raw.pop("timings_ms"))
-        timings_ms["total"] = round((t_end - t_start) * 1000)
+    debug_raw["memory_used"] = {
+        "enabled": bool(memory_context),
+        "liked_tags": memory_context.get("liked_tags", []),
+        "disliked_tags": memory_context.get("disliked_tags", []),
+        "negative_keywords": memory_context.get("negative_keywords", []),
+        "recent_plan_event_ids": memory_context.get("recent_plan_event_ids", []),
+        "memory_item_count": len(memory_context.get("memory_items", [])),
+    }
 
-        memory_used = {
-            "enabled": bool(memory_context),
-            "liked_tags": memory_context.get("liked_tags", []),
-            "disliked_tags": memory_context.get("disliked_tags", []),
-            "negative_keywords": memory_context.get("negative_keywords", []),
-            "recent_plan_event_ids": memory_context.get("recent_plan_event_ids", []),
-            "memory_item_count": len(memory_context.get("memory_items", [])),
-        }
-
-        debug_raw["timings_ms"] = timings_ms
-        debug_raw["memory_used"] = memory_used
-
-        run.status = "completed"
-        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
-        run.debug = json.dumps(debug_raw, ensure_ascii=False)
+    run.status = "completed"
+    run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+    run.debug = json.dumps(debug_raw, ensure_ascii=False)
 
     db.commit()
     db.refresh(run)
