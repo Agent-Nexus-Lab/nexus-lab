@@ -103,6 +103,8 @@ class PlanItem(Base):
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))
     reason_text = Column(Text)
+    score = Column(Float)
+    score_components = Column(JSON)
     display_order = Column(Integer)
 
 

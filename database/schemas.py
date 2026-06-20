@@ -74,6 +74,8 @@ class RunItem(BaseModel):
     source_url: Optional[str] = None
     source_name: Optional[str] = None
     reason_text: Optional[str] = None
+    score: Optional[float] = None
+    score_components: Optional[dict] = None
     display_order: int
     quality_score: Optional[float] = None
 
@@ -91,6 +93,8 @@ class RunStatusData(BaseModel):
     ended_at: Optional[datetime] = None
     error_message: Optional[str] = None
     debug: Optional[str] = None
+    memory_used: Optional[dict] = None
+
 
 class FeedbackEventRequest(BaseModel):
     """POST /api/feedback/event 请求体"""
@@ -316,3 +320,44 @@ class EventListData(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ============================================================
+# 计划级反馈 — POST /api/feedback/plan
+# ============================================================
+
+class FeedbackPlanRequest(BaseModel):
+    """POST /api/feedback/plan 请求体"""
+    plan_id: str
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / regenerate / too_many_conflicts / not_enough_items / not_relevant")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackPlanData(BaseModel):
+    """POST /api/feedback/plan 响应 data"""
+    feedback_id: str
+    message: str = "plan feedback saved"
+
+
+# ============================================================
+# 记忆确认/拒绝 — POST /api/memory/{memory_id}/confirm | reject
+# ============================================================
+
+class MemoryActionRequest(BaseModel):
+    """POST /api/memory/{memory_id}/confirm 或 reject 请求体"""
+    comment: Optional[str] = None
+
+
+class MemoryActionData(BaseModel):
+    """POST /api/memory/{memory_id}/confirm 或 reject 响应 data"""
+    memory_id: str
+    status: str
+    last_confirmed_at: Optional[datetime] = None
+
+
+# ============================================================
+# 更新后的 RunItem / RunStatusData（含 memory 相关字段）
+# 注：RunItem 已在上方定义，此处仅为 memory_used 补充到 RunStatusData
+# ============================================================

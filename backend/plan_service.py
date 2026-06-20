@@ -187,6 +187,7 @@ def plan_day_service(
     llm_base_url: Optional[str] = None,
     llm_model: Optional[str] = None,
     llm_timeout: Optional[float] = None,
+    memory: dict[str, Any] | None = None,
 ) -> PlanDayResponse:
     if now is None:
         now = datetime.now(_rt.DEFAULT_TIMEZONE)
@@ -211,6 +212,7 @@ def plan_day_service(
         now=now,
         include_debug=include_debug,
         rewriter=rewriter,
+        memory=memory,
     )
     return _plan_day_to_response(result)
 
