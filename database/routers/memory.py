@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User, MemoryItem
-from schemas import MemoryItemData, MemoryListData
+import uuid
+from datetime import datetime, timezone, timedelta
+from models import User, MemoryItem, MemoryAuditLog
+from schemas import MemoryItemData, MemoryListData, MemoryActionRequest, MemoryActionData
+
+DEFAULT_TIMEZONE = timezone(timedelta(hours=8))
 
 router = APIRouter(prefix="/api", tags=["memory"])
 
@@ -55,5 +59,119 @@ def get_memory(
             page=page,
             page_size=page_size,
         ).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.post("/memory/{memory_id}/confirm")
+def confirm_memory(memory_id: str, req: MemoryActionRequest = MemoryActionRequest(), db: Session = Depends(get_db)):
+    user = db.query(User).first()
+    if not user:
+        return {"code": 1001, "data": None, "message": "用户不存在"}
+
+    mem = db.query(MemoryItem).filter_by(id=memory_id, user_id=user.id).first()
+    if not mem:
+        return {"code": 1002, "data": None, "message": "记忆不存在"}
+
+    now = datetime.now(DEFAULT_TIMEZONE)
+    before = {"status": mem.status, "confidence": mem.confidence}
+
+    mem.status = "active"
+    mem.confidence = min(1.0, mem.confidence + 0.3)
+    mem.last_confirmed_at = now
+    mem.updated_at = now
+
+    audit = MemoryAuditLog(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        memory_item_id=mem.id,
+        action="confirm",
+        before_state=before,
+        after_state={"status": mem.status, "confidence": mem.confidence},
+        actor="user",
+        reason=req.comment or "",
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "code": 0,
+        "data": MemoryActionData(
+            memory_id=mem.id, status=mem.status, last_confirmed_at=mem.last_confirmed_at,
+        ).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.post("/memory/{memory_id}/reject")
+def reject_memory(memory_id: str, req: MemoryActionRequest = MemoryActionRequest(), db: Session = Depends(get_db)):
+    user = db.query(User).first()
+    if not user:
+        return {"code": 1001, "data": None, "message": "用户不存在"}
+
+    mem = db.query(MemoryItem).filter_by(id=memory_id, user_id=user.id).first()
+    if not mem:
+        return {"code": 1002, "data": None, "message": "记忆不存在"}
+
+    now = datetime.now(DEFAULT_TIMEZONE)
+    before = {"status": mem.status}
+
+    mem.status = "rejected"
+    mem.updated_at = now
+    mem.deleted_at = now
+
+    audit = MemoryAuditLog(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        memory_item_id=mem.id,
+        action="reject",
+        before_state=before,
+        after_state={"status": "rejected"},
+        actor="user",
+        reason=req.comment or "",
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "code": 0,
+        "data": MemoryActionData(memory_id=mem.id, status=mem.status).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.delete("/memory/{memory_id}")
+def delete_memory(memory_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).first()
+    if not user:
+        return {"code": 1001, "data": None, "message": "用户不存在"}
+
+    mem = db.query(MemoryItem).filter_by(id=memory_id, user_id=user.id).first()
+    if not mem:
+        return {"code": 1002, "data": None, "message": "记忆不存在"}
+
+    now = datetime.now(DEFAULT_TIMEZONE)
+    before = {"status": mem.status}
+
+    mem.status = "deleted"
+    mem.deleted_at = now
+    mem.updated_at = now
+
+    audit = MemoryAuditLog(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        memory_item_id=mem.id,
+        action="delete",
+        before_state=before,
+        after_state={"status": "deleted"},
+        actor="user",
+        reason="user deleted memory",
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "code": 0,
+        "data": MemoryActionData(memory_id=mem.id, status=mem.status).model_dump(mode="json"),
         "message": "ok",
     }
