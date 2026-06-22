@@ -12,12 +12,14 @@ from agent_core.datasource import DataSource, DataSourceRegistry, FileTextSource
 from agent_core.freshness import has_future_events, needs_refresh
 from agent_core.pipeline import PlanDayPipeline
 from agent_core.query import (
+    DisplayMemory,
     HardConstraints,
     Intent,
     MatchedEvent,
     Memory,
     Pagination,
     Profile,
+    ScoringMemory,
     SearchQuery,
     SearchResult,
     SoftPreferences,
@@ -49,4 +51,7 @@ __all__ = [
     # Freshness
     "has_future_events",
     "needs_refresh",
+    # Memory subsets for cache
+    "ScoringMemory",
+    "DisplayMemory",
 ]

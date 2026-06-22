@@ -768,14 +768,14 @@ class MemoryScoringTest(unittest.TestCase):
     def test_multiple_penalties_stack(self) -> None:
         """All penalties stack but total_memory_delta clamped to [-0.30, +0.20]."""
         events = [
-            make_event(event_id="e1", title="考试", tags=["考试"]),
+            make_event(event_id="e1", title="考试收费", tags=["考试"]),
         ]
         intent = Intent(date_scope="this_week")
         profile = Profile()
         memory = Memory(
             recent_plan_event_ids=("e1",),
-            disliked_tags=("考试",),
-            negative_keywords=("考试",),
+            disliked_tags=("考试",),             # matches tag "考试"
+            negative_keywords=("收费",),          # different term from disliked → not deduped
         )
         result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
         e1 = result.items[0]
@@ -979,6 +979,151 @@ class MemoryScoringTest(unittest.TestCase):
         self.assertIn("filter_and_score", result.timings_ms)
         self.assertIn("search_events_total", result.timings_ms)
         self.assertGreater(result.timings_ms["search_events_total"], 0)
+
+    # --- NEW: dedup between disliked_penalty and keyword_penalty ---
+
+    def test_keyword_dedup_with_disliked_tags(self) -> None:
+        """Same term in disliked_tags and negative_keywords penalized only once."""
+        events = [
+            make_event(event_id="e1", title="创业路演大赛", tags=["创业"]),
+            make_event(event_id="e2", title="天文观测", tags=["天文"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("创业",),
+            negative_keywords=("创业",),  # same term as disliked → should be deduped
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        # disliked_penalty should exist (matched via tag)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
+        # keyword_penalty should NOT exist (deduped because "创业" already matched as disliked tag)
+        self.assertNotIn("keyword_penalty", mem)
+        # Only one "排除:创业" entry
+        terms = mem["matched_memory_terms"]
+        self.assertEqual(terms.count("排除:创业"), 1, f"expected 1 '排除:创业', got {terms}")
+
+    def test_keyword_no_dedup_when_disliked_not_matched(self) -> None:
+        """Keyword NOT in disliked_tags is penalized normally."""
+        events = [
+            make_event(event_id="e1", title="考试报名通知"),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("创业",),              # "创业" not in event
+            negative_keywords=("考试",),          # "考试" IS in title
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        # disliked_penalty should NOT exist (no match)
+        self.assertNotIn("disliked_penalty", mem)
+        # keyword_penalty should exist (normal operation, no dedup needed)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.10)
+
+    def test_keyword_dedup_case_insensitive(self) -> None:
+        """Dedup between disliked and keyword is case-insensitive."""
+        events = [
+            make_event(event_id="e1", title="ENTREPRENEURSHIP 创业", tags=["ENTREPRENEURSHIP"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("entrepreneurship",),  # matches "ENTREPRENEURSHIP" in tags
+            negative_keywords=("Entrepreneurship",),  # same, different case → deduped
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertNotIn("keyword_penalty", mem, "keyword should be deduped (case-insensitive)")
+
+    # --- NEW: ScoringMemory / DisplayMemory ---
+
+    def test_scoring_memory_from_memory(self) -> None:
+        """ScoringMemory.from_memory() extracts scoring-relevant fields."""
+        from agent_core.query import ScoringMemory
+        m = Memory(
+            liked_tags=("AI", "展览"),
+            disliked_tags=("创业",),
+            negative_keywords=("收费",),
+            liked_event_ids=("e1", "e2"),
+            disliked_event_ids=("e3",),
+            recent_plan_event_ids=("e4",),
+            recent_query_texts=("test",),           # NOT in ScoringMemory
+            session_id="sess-123",                  # NOT in ScoringMemory
+        )
+        sm = ScoringMemory.from_memory(m)
+        self.assertEqual(sm.liked_tags, ("AI", "展览"))
+        self.assertEqual(sm.disliked_tags, ("创业",))
+        self.assertEqual(sm.negative_keywords, ("收费",))
+        self.assertEqual(sm.liked_event_ids, ("e1", "e2"))
+        self.assertEqual(sm.disliked_event_ids, ("e3",))
+        self.assertEqual(sm.recent_plan_event_ids, ("e4",))
+
+    def test_scoring_memory_cache_hash_stable(self) -> None:
+        """Same ScoringMemory fields → same cache_hash."""
+        from agent_core.query import ScoringMemory
+        sm1 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        sm2 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        self.assertEqual(sm1.cache_hash(), sm2.cache_hash())
+
+    def test_scoring_memory_cache_hash_changes(self) -> None:
+        """Different ScoringMemory fields → different cache_hash."""
+        from agent_core.query import ScoringMemory
+        sm1 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        sm2 = ScoringMemory(liked_tags=("展览",), disliked_tags=("创业",))
+        self.assertNotEqual(sm1.cache_hash(), sm2.cache_hash())
+
+    def test_display_memory_from_memory(self) -> None:
+        """DisplayMemory.from_memory() extracts display-relevant fields."""
+        from agent_core.query import DisplayMemory
+        m = Memory(
+            recent_query_texts=("test query",),
+            liked_tags=("AI", "展览"),
+            disliked_tags=("创业",),
+            negative_keywords=("收费",),            # NOT in DisplayMemory
+            liked_event_ids=("e1",),                # NOT in DisplayMemory
+        )
+        dm = DisplayMemory.from_memory(m)
+        self.assertEqual(dm.recent_query_texts, ("test query",))
+        self.assertEqual(dm.liked_tags, ("AI", "展览"))
+        self.assertEqual(dm.disliked_tags, ("创业",))
+
+    def test_display_memory_cache_hash_stable(self) -> None:
+        """Same DisplayMemory fields → same cache_hash."""
+        from agent_core.query import DisplayMemory
+        dm1 = DisplayMemory(
+            recent_query_texts=("q1", "q2"),
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+        )
+        dm2 = DisplayMemory(
+            recent_query_texts=("q1", "q2"),
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+        )
+        self.assertEqual(dm1.cache_hash(), dm2.cache_hash())
+
+    def test_scoring_memory_default_empty(self) -> None:
+        """ScoringMemory() with no args has empty fields and valid hash."""
+        from agent_core.query import ScoringMemory
+        sm = ScoringMemory()
+        self.assertEqual(sm.liked_tags, ())
+        self.assertEqual(sm.cache_hash(), ScoringMemory().cache_hash())
+
+    def test_display_memory_default_empty(self) -> None:
+        """DisplayMemory() with no args has empty fields and valid hash."""
+        from agent_core.query import DisplayMemory
+        dm = DisplayMemory()
+        self.assertEqual(dm.recent_query_texts, ())
+        self.assertEqual(dm.cache_hash(), DisplayMemory().cache_hash())
 
 
 if __name__ == "__main__":

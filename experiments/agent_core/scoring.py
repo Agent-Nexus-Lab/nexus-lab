@@ -242,12 +242,19 @@ def score_and_sort(
             if matched_disliked:
                 raw = -0.10 * len(matched_disliked)
                 mem_adjust["disliked_penalty"] = round(max(-0.20, raw), 4)
+            # Collect casefolded matched tags for keyword_penalty dedup
+            matched_disliked_folded: set[str] = {t.casefold() for t in matched_disliked}
+        else:
+            matched_disliked_folded: set[str] = set()
 
         # 3. Negative keyword penalty (raw substring, no aliases)
+        #    Skip keywords already penalized by disliked_penalty (dedup)
         if preferences.penalty_negative_keywords:
             txt = haystack.casefold()
             matched_kws: list[str] = []
             for kw in preferences.penalty_negative_keywords:
+                if kw.casefold() in matched_disliked_folded:
+                    continue  # already penalized via disliked_penalty
                 if kw.casefold() in txt:
                     kw_lower = kw.casefold()
                     matched_field = "title" if kw_lower in (event.get("title") or "").casefold() else "summary"

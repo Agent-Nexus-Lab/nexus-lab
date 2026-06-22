@@ -74,6 +74,94 @@ class Memory:
 
 
 # ===========================================================================
+# Memory subsets — for cache key generation (Scoring vs Display)
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class ScoringMemory:
+    """Memory subset that affects event scoring/ranking.
+
+    Used in plan_result_cache key — when these fields are unchanged,
+    the sorted result is identical and can be served from cache.
+    """
+
+    liked_tags: tuple[str, ...] = ()
+    disliked_tags: tuple[str, ...] = ()
+    negative_keywords: tuple[str, ...] = ()
+    liked_event_ids: tuple[str, ...] = ()
+    disliked_event_ids: tuple[str, ...] = ()
+    recent_plan_event_ids: tuple[str, ...] = ()
+
+    @classmethod
+    def from_memory(cls, m: Memory) -> ScoringMemory:
+        return cls(
+            liked_tags=m.liked_tags,
+            disliked_tags=m.disliked_tags,
+            negative_keywords=m.negative_keywords,
+            liked_event_ids=m.liked_event_ids,
+            disliked_event_ids=m.disliked_event_ids,
+            recent_plan_event_ids=m.recent_plan_event_ids,
+        )
+
+    def cache_hash(self) -> str:
+        import hashlib
+        import json
+
+        return hashlib.md5(
+            json.dumps(
+                {
+                    "lt": sorted(self.liked_tags),
+                    "dt": sorted(self.disliked_tags),
+                    "nk": sorted(self.negative_keywords),
+                    "le": sorted(self.liked_event_ids),
+                    "de": sorted(self.disliked_event_ids),
+                    "rp": sorted(self.recent_plan_event_ids),
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()[:12]
+
+
+@dataclass(frozen=True)
+class DisplayMemory:
+    """Memory subset that affects LLM summary/reason wording.
+
+    Used in rewrite_cache key — when these fields are unchanged,
+    LLM-generated text can be reused for the same plan items.
+    """
+
+    recent_query_texts: tuple[str, ...] = ()
+    liked_tags: tuple[str, ...] = ()
+    disliked_tags: tuple[str, ...] = ()
+
+    @classmethod
+    def from_memory(cls, m: Memory) -> DisplayMemory:
+        return cls(
+            recent_query_texts=m.recent_query_texts,
+            liked_tags=m.liked_tags,
+            disliked_tags=m.disliked_tags,
+        )
+
+    def cache_hash(self) -> str:
+        import hashlib
+        import json
+
+        return hashlib.md5(
+            json.dumps(
+                {
+                    "rq": list(self.recent_query_texts),
+                    "lt": sorted(self.liked_tags),
+                    "dt": sorted(self.disliked_tags),
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()[:12]
+
+
+# ===========================================================================
 # Internal types — derived from Intent + Profile + Memory by search_events()
 # ===========================================================================
 
