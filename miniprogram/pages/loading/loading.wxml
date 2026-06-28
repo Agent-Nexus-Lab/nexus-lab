@@ -28,6 +28,55 @@
       <button class="primary-button retry-button" bindtap="goPlan">重新生成</button>
     </view>
 
+    <view wx:if="{{dataHealth}}" class="data-health-panel data-health-{{dataHealth.statusClass}}">
+      <view class="data-health-head">
+        <view>
+          <view class="debug-title">数据健康</view>
+          <view class="data-health-subtitle">仅开发模式可见</view>
+        </view>
+        <view class="health-badge">{{dataHealth.healthLabel}}</view>
+      </view>
+
+      <view class="health-metrics">
+        <view class="health-metric">
+          <view class="metric-value">{{dataHealth.total_events}}</view>
+          <view class="metric-label">活动总数</view>
+        </view>
+        <view class="health-metric">
+          <view class="metric-value">{{dataHealth.future_events_7d}}</view>
+          <view class="metric-label">未来 7 天</view>
+        </view>
+        <view class="health-metric">
+          <view class="metric-value">{{dataHealth.future_events_14d}}</view>
+          <view class="metric-label">未来 14 天</view>
+        </view>
+      </view>
+
+      <view class="health-row">
+        <view class="health-row-label">最近采集</view>
+        <view class="health-row-value">{{dataHealth.lastCollectionText}} · {{dataHealth.last_collection_result}}</view>
+      </view>
+      <view class="health-row">
+        <view class="health-row-label">来源分布</view>
+        <view class="health-row-value">{{dataHealth.sourceSummary}}</view>
+      </view>
+
+      <view wx:if="{{dataHealth.alerts.length > 0}}" class="health-alerts">
+        <view wx:for="{{dataHealth.alerts}}" wx:key="*this" class="health-alert">{{item}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{dataHealthError}}" class="data-health-panel data-health-warning">
+      <view class="data-health-head">
+        <view>
+          <view class="debug-title">数据健康</view>
+          <view class="data-health-subtitle">仅开发模式可见</view>
+        </view>
+        <view class="health-badge">未连接</view>
+      </view>
+      <view class="health-alert">{{dataHealthError}}</view>
+    </view>
+
     <view wx:if="{{debugText}}" class="debug-panel">
       <view class="debug-title">开发调试信息</view>
       <text selectable class="debug-text">{{debugText}}</text>

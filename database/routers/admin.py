@@ -6,12 +6,31 @@ from schemas import (
     SourceItem, SourceListData,
     ImportUrlRequest, ImportUrlData,
     AdminEventItem, EventListData,
+    DataHealthData,
 )
 from models import Source, RawDocument, Event
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _as_utc_naive(value: datetime) -> datetime:
+    if value.tzinfo:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _event_is_visible(event: Event) -> bool:
+    return event.is_user_visible is not False
+
+
+def _source_bucket(event: Event, sources_by_id: dict[str, Source]) -> str:
+    if event.source_id and event.source_id in sources_by_id:
+        return sources_by_id[event.source_id].source_type or "unknown"
+    if event.source_name:
+        return event.source_name
+    return "unknown"
 
 
 @router.post("/sources")
@@ -130,5 +149,88 @@ def list_events(page: int = 1, page_size: int = 20, db: Session = Depends(get_db
     return {
         "code": 0,
         "data": EventListData(items=items, total=(total-1)/page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.get("/data-health")
+def get_data_health(db: Session = Depends(get_db)):
+    now = _as_utc_naive(datetime.now(timezone.utc))
+    future_3d = now + timedelta(days=3)
+    future_7d = now + timedelta(days=7)
+    future_14d = now + timedelta(days=14)
+    expired_cutoff = now - timedelta(days=7)
+
+    events = db.query(Event).all()
+    sources = db.query(Source).all()
+    sources_by_id = {source.id: source for source in sources}
+
+    visible_events = [event for event in events if _event_is_visible(event)]
+    future_events = [
+        event for event in visible_events
+        if event.start_time and _as_utc_naive(event.start_time) >= now
+    ]
+
+    def count_before(cutoff: datetime) -> int:
+        return sum(1 for event in future_events if _as_utc_naive(event.start_time) < cutoff)
+
+    source_breakdown: dict[str, int] = {}
+    for event in visible_events:
+        bucket = _source_bucket(event, sources_by_id)
+        source_breakdown[bucket] = source_breakdown.get(bucket, 0) + 1
+
+    recently_expired = sum(
+        1 for event in visible_events
+        if event.end_time
+        and expired_cutoff <= _as_utc_naive(event.end_time) < now
+    )
+
+    latest_source_time = max(
+        [source.last_crawled_at for source in sources if source.last_crawled_at],
+        default=None,
+    )
+    latest_doc = (
+        db.query(RawDocument)
+        .order_by(RawDocument.fetched_at.desc())
+        .first()
+    )
+    latest_doc_time = latest_doc.fetched_at if latest_doc and latest_doc.fetched_at else None
+
+    last_collection_time = max(
+        [value for value in [latest_source_time, latest_doc_time] if value],
+        default=None,
+    )
+    last_collection_result = latest_doc.status if latest_doc and latest_doc.status else "unknown"
+
+    future_events_3d = count_before(future_3d)
+    future_events_7d = count_before(future_7d)
+    future_events_14d = count_before(future_14d)
+
+    alerts = []
+    if future_events_3d < 5:
+        alerts.append("未来 3 天活动不足 5 个，建议立即触发采集。")
+    if future_events_7d < 5:
+        alerts.append("未来 7 天活动不足 5 个，推荐结果可能偏少。")
+    if not last_collection_time:
+        alerts.append("还没有采集记录，请确认自动采集器是否已接入。")
+    elif now - _as_utc_naive(last_collection_time) > timedelta(hours=24):
+        alerts.append("最近一次采集已超过 24 小时，请检查采集任务。")
+    if last_collection_result not in {"success", "completed", "done", "ok", "unknown"}:
+        alerts.append(f"最近一次采集状态为 {last_collection_result}，需要排查。")
+
+    return {
+        "code": 0,
+        "data": DataHealthData(
+            total_events=len(visible_events),
+            future_events_3d=future_events_3d,
+            future_events_7d=future_events_7d,
+            future_events_14d=future_events_14d,
+            recently_expired=recently_expired,
+            sources_breakdown=source_breakdown,
+            last_collection_time=last_collection_time,
+            last_collection_result=last_collection_result,
+            is_healthy=len(alerts) == 0,
+            alerts=alerts,
+        ).model_dump(mode="json"),
         "message": "ok",
     }

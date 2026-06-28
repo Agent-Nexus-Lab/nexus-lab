@@ -322,6 +322,20 @@ class EventListData(BaseModel):
     page_size: int
 
 
+class DataHealthData(BaseModel):
+    """GET /api/admin/data-health 响应 data"""
+    total_events: int
+    future_events_3d: int
+    future_events_7d: int
+    future_events_14d: int
+    recently_expired: int
+    sources_breakdown: dict[str, int]
+    last_collection_time: Optional[datetime] = None
+    last_collection_result: str
+    is_healthy: bool
+    alerts: list[str]
+
+
 # ============================================================
 # 计划级反馈 — POST /api/feedback/plan
 # ============================================================

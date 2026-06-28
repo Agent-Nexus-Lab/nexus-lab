@@ -58,6 +58,13 @@ function feedbackEvent(feedbackPayload) {
   })
 }
 
+function getDataHealth() {
+  return request({
+    url: '/admin/data-health',
+    method: 'GET'
+  })
+}
+
 function decodeChunk(data) {
   if (!data) return ''
   if (typeof data === 'string') return data
@@ -117,5 +124,6 @@ module.exports = {
   planDay,
   getRunStatus,
   feedbackEvent,
+  getDataHealth,
   streamRuntimeDemo
 }

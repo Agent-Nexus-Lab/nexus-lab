@@ -60,6 +60,8 @@ Page({
     activeStep: 0,
     errorMessage: '',
     debugText: '',
+    dataHealth: null,
+    dataHealthError: '',
     steps: [
       { text: '正在理解需求' },
       { text: '正在读取记忆' },
@@ -87,6 +89,7 @@ Page({
     }
 
     this.pollRunStatus()
+    this.loadDataHealth()
   },
 
   onUnload() {
@@ -234,6 +237,50 @@ Page({
     this.timer = null
   },
 
+  async loadDataHealth() {
+    if (!api.ENABLE_DEBUG_VIEW || typeof api.getDataHealth !== 'function') return
+    try {
+      const res = await api.getDataHealth()
+      if (!res || res.code !== 0 || !res.data) {
+        throw new Error((res && res.message) || '数据健康状态获取失败')
+      }
+      this.setData({
+        dataHealth: this.normalizeDataHealth(res.data),
+        dataHealthError: ''
+      })
+    } catch (error) {
+      this.setData({
+        dataHealth: null,
+        dataHealthError: error.message || '数据健康状态获取失败'
+      })
+    }
+  },
+
+  normalizeDataHealth(data) {
+    const sources = data.sources_breakdown || {}
+    return {
+      ...data,
+      healthLabel: data.is_healthy ? '健康' : '需关注',
+      statusClass: data.is_healthy ? 'healthy' : 'warning',
+      lastCollectionText: this.formatDateTime(data.last_collection_time),
+      sourceSummary: Object.keys(sources).length > 0
+        ? Object.keys(sources).map((key) => `${key} ${sources[key]}`).join(' / ')
+        : '暂无来源统计',
+      alerts: Array.isArray(data.alerts) ? data.alerts : []
+    }
+  },
+
+  formatDateTime(value) {
+    if (!value) return '暂无记录'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hour = String(date.getHours()).padStart(2, '0')
+    const minute = String(date.getMinutes()).padStart(2, '0')
+    return `${month}-${day} ${hour}:${minute}`
+  },
+
   formatDebug(debug) {
     if (!api.ENABLE_DEBUG_VIEW || !debug) return ''
     try {
@@ -245,7 +292,7 @@ Page({
   },
 
   isCacheHit(runData) {
-    const debug = this.parseDebugObject(runData.debug)
+    const debug = this.parseDebugObject(runData.debug) || {}
     const cache = debug.cache && typeof debug.cache === 'object' ? debug.cache : {}
     return runData.cache_hit === true || debug.cache_hit === true || cache.cache_hit === true
   },
