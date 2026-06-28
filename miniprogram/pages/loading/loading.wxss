@@ -9,6 +9,7 @@
 }
 
 .loading-card {
+  position: relative;
   width: 100%;
   padding: 54rpx 34rpx 38rpx;
   border: 1rpx solid #dce6f4;
@@ -16,6 +17,81 @@
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 22rpx 58rpx rgba(15, 23, 42, 0.08);
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.loading-card::before {
+  content: "";
+  position: absolute;
+  top: -90rpx;
+  right: -90rpx;
+  width: 210rpx;
+  height: 210rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.14), rgba(20, 184, 166, 0));
+  pointer-events: none;
+}
+
+.runtime-visual {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  min-height: 92rpx;
+  margin-bottom: 16rpx;
+}
+
+.runtime-ring {
+  position: relative;
+  width: 92rpx;
+  height: 92rpx;
+  border: 2rpx solid #dbeafe;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff 0%, #eef6ff 100%);
+  box-shadow: 0 12rpx 28rpx rgba(30, 64, 175, 0.12);
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+.runtime-ring::before {
+  content: "";
+  position: absolute;
+  inset: -10rpx;
+  border: 4rpx solid transparent;
+  border-top-color: #2563eb;
+  border-right-color: #14b8a6;
+  border-radius: 50%;
+  animation: spin 1.05s linear infinite;
+}
+
+.runtime-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e40af, #14b8a6);
+  transform: translate(-50%, -50%);
+}
+
+.runtime-node {
+  position: absolute;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 5rpx rgba(37, 99, 235, 0.12);
+}
+
+.runtime-node-a {
+  left: 18rpx;
+  top: 18rpx;
+  animation: nodePulse 1.4s ease-in-out infinite;
+}
+
+.runtime-node-b {
+  right: 18rpx;
+  bottom: 18rpx;
+  animation: nodePulse 1.4s ease-in-out 0.32s infinite;
 }
 
 .spinner {
@@ -30,16 +106,16 @@
 }
 
 .state-icon {
+  position: relative;
   display: flex;
   width: 76rpx;
   height: 76rpx;
-  margin: 0 auto 20rpx;
+  margin: 8rpx auto 0;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   color: #ffffff;
-  font-size: 48rpx;
-  font-weight: 850;
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.13);
 }
 
 .state-success {
@@ -48,6 +124,33 @@
 
 .state-failed {
   background: #dc2626;
+}
+
+.icon-check {
+  width: 34rpx;
+  height: 18rpx;
+  border-left: 7rpx solid #ffffff;
+  border-bottom: 7rpx solid #ffffff;
+  transform: rotate(-45deg) translate(2rpx, -2rpx);
+}
+
+.icon-alert {
+  position: relative;
+  width: 8rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+}
+
+.icon-alert::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -14rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #ffffff;
 }
 
 .status-badge {
@@ -131,10 +234,21 @@
 }
 
 .step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 16rpx;
   height: 16rpx;
   border-radius: 50%;
   background: #c9d2df;
+  flex: 0 0 16rpx;
+}
+
+.step-dot-mark {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .step-active {
@@ -147,6 +261,10 @@
 .step-active .step-dot {
   background: #2563eb;
   box-shadow: 0 0 0 8rpx rgba(37, 99, 235, 0.1);
+}
+
+.step-active .step-dot-mark {
+  animation: dotBlink 1.2s ease-in-out infinite;
 }
 
 .action-row {
@@ -198,6 +316,43 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18rpx;
+}
+
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.health-signal {
+  display: flex;
+  align-items: flex-end;
+  gap: 4rpx;
+  height: 30rpx;
+  padding: 8rpx 9rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.signal-bar {
+  width: 6rpx;
+  border-radius: 999rpx;
+  background: #2563eb;
+  animation: signalRise 1.4s ease-in-out infinite;
+}
+
+.signal-1 {
+  height: 10rpx;
+}
+
+.signal-2 {
+  height: 18rpx;
+  animation-delay: 0.16s;
+}
+
+.signal-3 {
+  height: 26rpx;
+  animation-delay: 0.32s;
 }
 
 .data-health-subtitle {
@@ -312,5 +467,49 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes nodePulse {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes dotBlink {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes signalRise {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scaleY(0.72);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
   }
 }

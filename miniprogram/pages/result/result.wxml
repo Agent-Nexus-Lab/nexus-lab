@@ -40,10 +40,22 @@
       <view class="event-summary">{{item.summary}}</view>
 
       <view class="event-meta">
-        <view>时间：{{item.time_text}}</view>
-        <view>地点：{{item.location}}</view>
-        <view>校区：{{item.campus}}</view>
-        <view>主办：{{item.organizer}}</view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-time"></view>
+          <view>时间：{{item.time_text}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-location"></view>
+          <view>地点：{{item.location}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-campus"></view>
+          <view>校区：{{item.campus}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-organizer"></view>
+          <view>主办：{{item.organizer}}</view>
+        </view>
       </view>
 
       <view class="tag-row">
@@ -64,20 +76,29 @@
           data-index="{{index}}"
           data-type="like"
           bindtap="submitFeedback"
-        >{{item.feedback_type === 'like' ? '已喜欢' : '喜欢'}}</button>
+        >
+          <view class="feedback-icon icon-like"></view>
+          <text>{{item.feedback_type === 'like' ? '已喜欢' : '喜欢'}}</text>
+        </button>
         <button
           class="feedback-button {{item.feedback_type === 'dislike' ? 'danger active' : ''}}"
           loading="{{item.feedback_pending && item.feedback_type === 'dislike'}}"
           data-index="{{index}}"
           data-type="dislike"
           bindtap="submitFeedback"
-        >{{item.feedback_type === 'dislike' ? '已减少推荐' : '不感兴趣'}}</button>
+        >
+          <view class="feedback-icon icon-dislike"></view>
+          <text>{{item.feedback_type === 'dislike' ? '已减少推荐' : '不感兴趣'}}</text>
+        </button>
         <button
           wx:if="{{item.has_source_url}}"
           class="feedback-button source"
           data-index="{{index}}"
           bindtap="openSource"
-        >{{item.source_clicked ? '已查看来源' : '查看来源'}}</button>
+        >
+          <view class="feedback-icon icon-source"></view>
+          <text>{{item.source_clicked ? '已查看来源' : '查看来源'}}</text>
+        </button>
       </view>
 
       <view class="source-text" wx:if="{{!item.has_source_url}}">

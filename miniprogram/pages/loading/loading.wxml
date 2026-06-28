@@ -1,8 +1,18 @@
 <view class="page loading-page">
   <view class="loading-card">
-    <view wx:if="{{viewState === 'running'}}" class="spinner"></view>
-    <view wx:elif="{{viewState === 'completed'}}" class="state-icon state-success">✓</view>
-    <view wx:else class="state-icon state-failed">!</view>
+    <view class="runtime-visual runtime-{{viewState}}">
+      <view wx:if="{{viewState === 'running'}}" class="runtime-ring">
+        <view class="runtime-node runtime-node-a"></view>
+        <view class="runtime-node runtime-node-b"></view>
+        <view class="runtime-core"></view>
+      </view>
+      <view wx:elif="{{viewState === 'completed'}}" class="state-icon state-success">
+        <view class="icon-check"></view>
+      </view>
+      <view wx:else class="state-icon state-failed">
+        <view class="icon-alert"></view>
+      </view>
+    </view>
     <view class="status-badge status-{{viewState}}">{{statusLabel}}</view>
     <view class="loading-title">{{currentMessage}}</view>
     <view wx:if="{{viewState !== 'failed'}}" class="loading-subtitle">正在根据你的偏好、时间范围和活动库生成结果。</view>
@@ -18,7 +28,9 @@
         wx:key="text"
         class="step-item {{index <= activeStep ? 'step-active' : ''}}"
       >
-        <view class="step-dot"></view>
+        <view class="step-dot">
+          <view class="step-dot-mark"></view>
+        </view>
         <view class="step-text">{{item.text}}</view>
       </view>
     </view>
@@ -34,7 +46,14 @@
           <view class="debug-title">数据健康</view>
           <view class="data-health-subtitle">仅开发模式可见</view>
         </view>
-        <view class="health-badge">{{dataHealth.healthLabel}}</view>
+        <view class="health-status">
+          <view class="health-signal">
+            <view class="signal-bar signal-1"></view>
+            <view class="signal-bar signal-2"></view>
+            <view class="signal-bar signal-3"></view>
+          </view>
+          <view class="health-badge">{{dataHealth.healthLabel}}</view>
+        </view>
       </view>
 
       <view class="health-metrics">
