@@ -2,15 +2,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(59, 130, 246, 0.08), transparent 34%),
+    radial-gradient(circle at 88% 22%, rgba(20, 184, 166, 0.08), transparent 30%),
+    #f4f7fb;
 }
 
 .loading-card {
   width: 100%;
-  padding: 54rpx 34rpx 36rpx;
-  border: 1rpx solid #e5eaf2;
-  border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 18rpx 42rpx rgba(23, 32, 51, 0.06);
+  padding: 54rpx 34rpx 38rpx;
+  border: 1rpx solid #dce6f4;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 22rpx 58rpx rgba(15, 23, 42, 0.08);
   box-sizing: border-box;
 }
 
@@ -18,8 +22,9 @@
   width: 76rpx;
   height: 76rpx;
   margin: 0 auto 28rpx;
-  border: 8rpx solid #e6edfb;
-  border-top-color: #2f65e8;
+  border: 8rpx solid #e6eef9;
+  border-top-color: #1e40af;
+  border-right-color: #14b8a6;
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
@@ -38,11 +43,11 @@
 }
 
 .state-success {
-  background: #2a9d68;
+  background: #16a36d;
 }
 
 .state-failed {
-  background: #d94b4b;
+  background: #dc2626;
 }
 
 .status-badge {
@@ -50,34 +55,34 @@
   margin: 0 auto 18rpx;
   padding: 6rpx 14rpx;
   border-radius: 999rpx;
-  background: #edf3ff;
-  color: #3158b4;
+  background: #e9f2ff;
+  color: #1e40af;
   font-size: 22rpx;
   font-weight: 750;
 }
 
 .status-failed {
   background: #fff0f0;
-  color: #b33838;
+  color: #b91c1c;
 }
 
 .status-completed {
-  background: #edf9f2;
-  color: #238454;
+  background: #ecfdf3;
+  color: #15803d;
 }
 
 .loading-title {
   text-align: center;
-  color: #172033;
+  color: #0f172a;
   font-size: 36rpx;
-  font-weight: 850;
+  font-weight: 900;
   line-height: 1.35;
 }
 
 .loading-subtitle {
   margin-top: 12rpx;
   text-align: center;
-  color: #69778b;
+  color: #64748b;
   font-size: 25rpx;
   line-height: 1.55;
 }
@@ -85,9 +90,9 @@
 .error-message {
   margin-top: 14rpx;
   padding: 18rpx;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   background: #fff5f5;
-  color: #a13b3b;
+  color: #991b1b;
   font-size: 24rpx;
   line-height: 1.55;
 }
@@ -96,20 +101,20 @@
   height: 14rpx;
   margin-top: 34rpx;
   border-radius: 999rpx;
-  background: #eef2f8;
+  background: #e7edf6;
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
   border-radius: 999rpx;
-  background: #2f65e8;
+  background: linear-gradient(90deg, #1e40af 0%, #2563eb 58%, #14b8a6 100%);
   transition: width 0.3s ease;
 }
 
 .step-list {
   display: grid;
-  gap: 18rpx;
+  gap: 16rpx;
   margin-top: 34rpx;
 }
 
@@ -117,8 +122,12 @@
   display: flex;
   gap: 14rpx;
   align-items: center;
-  color: #8a96a8;
+  padding: 14rpx 16rpx;
+  border: 1rpx solid transparent;
+  border-radius: 16rpx;
+  color: #7a8798;
   font-size: 25rpx;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .step-dot {
@@ -129,12 +138,15 @@
 }
 
 .step-active {
-  color: #25324a;
-  font-weight: 750;
+  border-color: #dbeafe;
+  background: #f5f9ff;
+  color: #1e293b;
+  font-weight: 850;
 }
 
 .step-active .step-dot {
-  background: #2f65e8;
+  background: #2563eb;
+  box-shadow: 0 0 0 8rpx rgba(37, 99, 235, 0.1);
 }
 
 .action-row {
@@ -150,23 +162,24 @@
 }
 
 .secondary-button {
-  border: 1rpx solid #d6deea;
+  border: 1rpx solid #d6e2f0;
   background: #ffffff;
-  color: #344258;
+  color: #1e3a8a;
 }
 
 .debug-panel {
   margin-top: 28rpx;
   padding: 18rpx;
-  border-radius: 14rpx;
-  background: #f7f9fc;
+  border: 1rpx solid #dce6f4;
+  border-radius: 16rpx;
+  background: #f8fbff;
 }
 
 .data-health-panel {
   margin-top: 28rpx;
   padding: 22rpx;
   border: 1rpx solid #dbeafe;
-  border-radius: 18rpx;
+  border-radius: 16rpx;
   background: #f8fbff;
 }
 
@@ -222,14 +235,14 @@
 .health-metric {
   min-height: 104rpx;
   padding: 14rpx 10rpx;
-  border: 1rpx solid rgba(30, 64, 175, 0.08);
-  border-radius: 14rpx;
+  border: 1rpx solid rgba(30, 64, 175, 0.1);
+  border-radius: 16rpx;
   background: rgba(255, 255, 255, 0.72);
   box-sizing: border-box;
 }
 
 .metric-value {
-  color: #172033;
+  color: #0f172a;
   font-size: 34rpx;
   font-weight: 850;
   line-height: 1.2;
@@ -237,7 +250,7 @@
 
 .metric-label {
   margin-top: 6rpx;
-  color: #68758a;
+  color: #64748b;
   font-size: 20rpx;
   line-height: 1.25;
 }
@@ -246,7 +259,7 @@
   display: flex;
   gap: 16rpx;
   margin-top: 16rpx;
-  color: #344258;
+  color: #25324a;
   font-size: 23rpx;
   line-height: 1.45;
 }
@@ -270,7 +283,7 @@
 
 .health-alert {
   padding: 14rpx 16rpx;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   background: rgba(217, 119, 6, 0.12);
   color: #8a4f00;
   font-size: 22rpx;
@@ -279,13 +292,13 @@
 
 .debug-title {
   margin-bottom: 10rpx;
-  color: #5f6d82;
+  color: #526174;
   font-size: 22rpx;
-  font-weight: 750;
+  font-weight: 850;
 }
 
 .debug-text {
-  color: #68758a;
+  color: #64748b;
   font-family: monospace;
   font-size: 20rpx;
   line-height: 1.55;

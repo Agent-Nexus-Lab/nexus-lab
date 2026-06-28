@@ -1,14 +1,15 @@
 .history-list {
   display: grid;
-  gap: 18rpx;
+  gap: 20rpx;
 }
 
 .history-card,
 .empty-state {
-  padding: 24rpx;
-  border: 1rpx solid #dde5f0;
-  border-radius: 18rpx;
-  background: #fff;
+  padding: 26rpx 24rpx;
+  border: 1rpx solid #dce6f4;
+  border-radius: 16rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.045);
 }
 
 .history-topline {
@@ -19,9 +20,9 @@
 }
 
 .history-title {
-  color: #172033;
+  color: #0f172a;
   font-size: 30rpx;
-  font-weight: 850;
+  font-weight: 900;
   line-height: 1.35;
 }
 
@@ -29,16 +30,16 @@
   flex: 0 0 auto;
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
-  background: #edf3ff;
-  color: #3158b4;
+  background: #e9f2ff;
+  color: #1e40af;
   font-size: 20rpx;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .history-summary,
 .empty-text {
   margin-top: 12rpx;
-  color: #68758a;
+  color: #64748b;
   font-size: 24rpx;
   line-height: 1.55;
 }
@@ -48,14 +49,14 @@
   flex-wrap: wrap;
   gap: 14rpx;
   margin-top: 18rpx;
-  color: #7c8797;
+  color: #64748b;
   font-size: 22rpx;
 }
 
 .empty-title {
-  color: #26344a;
+  color: #172033;
   font-size: 30rpx;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .primary-button {
@@ -64,8 +65,8 @@
   margin-top: 24rpx;
   border: 0;
   border-radius: 16rpx;
-  background: #2f65e8;
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 58%, #0f766e 100%);
   color: #fff;
   font-size: 27rpx;
-  font-weight: 850;
+  font-weight: 900;
 }
