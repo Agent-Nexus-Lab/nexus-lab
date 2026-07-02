@@ -557,7 +557,18 @@ class FixedNowTest(unittest.TestCase):
 
 
 class MemoryScoringTest(unittest.TestCase):
-    """Tests for Memory-based soft adjustments in scoring (nested structure)."""
+    """Tests for Memory-based soft adjustments in scoring (nested structure).
+
+    覆盖保证（验收逐条核对）：
+    - 空 memory 不改变分数        → test_empty_memory_has_zero_memory_delta
+    - liked_tags 加分             → test_liked_tags_boost / test_liked_tags_capped_at_two
+    - disliked_tags 降分          → test_disliked_tags_penalty / test_disliked_tags_capped_at_two
+    - negative_keywords 降分      → test_negative_keyword_penalty / test_keyword_penalty_capped
+    - recent_plan_event_ids 降分  → test_repeat_penalty_demotes_seen_event
+    - liked/disliked 同时命中不崩 → test_liked_and_disliked_net
+    - 端到端排序翻转              → test_dislike_memory_flips_ranking_end_to_end
+                                   test_repeat_memory_flips_ranking_end_to_end
+    """
 
     def _memory(self, m: MatchedEvent) -> dict:
         return m.score_components.get("memory", {})
@@ -1043,6 +1054,54 @@ class MemoryScoringTest(unittest.TestCase):
         mem = self._memory(e1)
         self.assertIn("disliked_penalty", mem)
         self.assertNotIn("keyword_penalty", mem, "keyword should be deduped (case-insensitive)")
+
+    # --- NEW: end-to-end before/after ranking flip ---
+
+    def test_dislike_memory_flips_ranking_end_to_end(self) -> None:
+        """同一批 events：空 memory 时 e1 排前；dislike memory 时 e2 反超，
+        且 e1.score_components.memory 写入 disliked_penalty。"""
+        events = [
+            make_event(event_id="e1", title="AI 创业路演", tags=["AI", "创业"],
+                       start_time="2026-06-05T14:00:00+08:00"),
+            make_event(event_id="e2", title="AI 学术报告", tags=["AI", "学术"],
+                       start_time="2026-06-05T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+
+        # before：无 memory，e1 因 interest 命中更多 tag 排在前
+        before = search_events(events, intent=intent, profile=profile, memory=Memory(), now=NOW)
+        self.assertEqual(before.items[0].event["event_id"], "e1")
+        before_mem = self._memory(before.items[0])
+        self.assertEqual(before_mem.get("total_memory_delta"), 0.0)
+
+        # after：dislike "创业"，e1 被软降权，e2 反超
+        after = search_events(events, intent=intent, profile=profile,
+                              memory=Memory(disliked_tags=("创业",)), now=NOW)
+        self.assertEqual(after.items[0].event["event_id"], "e2")
+        e1_after = next(m for m in after.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1_after)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
+        self.assertLess(mem["total_memory_delta"], 0.0)
+
+    def test_repeat_memory_flips_ranking_end_to_end(self) -> None:
+        """e1 刚被推荐过 → repeat_penalty 让 e2 反超。"""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", start_time="2026-06-05T14:00:00+08:00"),
+            make_event(event_id="e2", title="AI 讲座", start_time="2026-06-06T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+        before = search_events(events, intent=intent, profile=profile, memory=Memory(), now=NOW)
+        self.assertEqual(before.items[0].event["event_id"], "e1")
+        after = search_events(events, intent=intent, profile=profile,
+                              memory=Memory(recent_plan_event_ids=("e1",)), now=NOW)
+        self.assertEqual(after.items[0].event["event_id"], "e2")
+        e1_after = next(m for m in after.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1_after)
+        self.assertIn("repeat_penalty", mem)
+        self.assertAlmostEqual(mem["repeat_penalty"], -0.15)
 
     # --- NEW: ScoringMemory / DisplayMemory ---
 
