@@ -110,9 +110,8 @@ Page({
       run_id: item.run_id || (this.resultContext && this.resultContext.run_id) || '',
       feedback_type: feedbackType,
       feedback_source: 'result_card',
-      weight: feedbackType === 'like' ? 1 : (feedbackType === 'dislike' ? -1 : 0.2),
       metadata: {
-        action: feedbackType,
+        feedback_type: feedbackType,
         title: item.title,
         tags: item.tags || [],
         source_url: item.source_url,

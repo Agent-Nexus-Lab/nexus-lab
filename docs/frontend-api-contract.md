@@ -122,7 +122,7 @@ Time parsing supports ISO datetime strings, datetime strings with a space separa
 
 The result page sends activity-level feedback from three entry points:
 
-| UI action | `feedback_type` | Behavior |
+| UI entry | `feedback_type` | Behavior |
 |---|---|---|
 | `喜欢` | `like` | Optimistically marks the card as liked; rolls back on failure |
 | `不感兴趣` | `dislike` | Optimistically marks the card as reduced; rolls back on failure |
@@ -138,8 +138,7 @@ Frontend request fields:
 | `run_id` | string | From item or top-level result |
 | `feedback_type` | string | `like` / `dislike` / `clicked_source` |
 | `feedback_source` | string | Fixed to `result_card` |
-| `weight` | number | `1`, `-1`, or `0.2` |
-| `metadata` | object | Includes action, title, tags, source URL, display order |
+| `metadata` | object | Includes feedback type, title, tags, source URL, display order |
 
 ## History Placeholder
 
