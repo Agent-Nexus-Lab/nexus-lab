@@ -86,7 +86,7 @@ Page({
     }
 
     wx.showLoading({
-      title: '连接后端中',
+      title: '准备生成中',
       mask: true
     })
 
@@ -94,18 +94,10 @@ Page({
       const profileRes = await api.saveProfile(profilePayload)
       console.log('POST /api/profile response:', profileRes)
 
-      const planRes = await api.planDay(planDayPayload)
-      console.log('POST /api/agent/plan-day response:', planRes)
-
-      if (planRes.code !== 0 || !planRes.data || !planRes.data.run_id) {
-        throw new Error(planRes.message || '生成任务创建失败')
-      }
-
       wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, {
         profilePayload,
         planDayPayload,
-        run_id: planRes.data.run_id,
-        status: planRes.data.status,
+        stream_first: true,
         api_base_url: api.API_BASE_URL,
         created_at: new Date().toISOString()
       })

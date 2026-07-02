@@ -144,27 +144,32 @@ Frontend request fields:
 
 The miniprogram now has a placeholder `pages/history/history` entry. Until `GET /api/plans` is stable, the page reads a local `planHistoryDraft` list written after a successful completed run. The fields mirror the planned history list shape: `plan_id`, `run_id`, `title`, `date_scope`, `request_text`, `item_count`, `status`, and `created_at`.
 
-## Streaming Exploration
+## Streaming Plan-Day Flow
 
-The formal plan-day flow still uses:
+The user-facing generation flow now tries chunked streaming first and falls back to the stable polling flow when streaming is unavailable.
+
+Preferred path:
+
+```text
+POST /api/agent/stream-plan-day
+```
+
+The miniprogram calls `api.streamPlanDay()` with `wx.request({ enableChunked: true })` and listens through `task.onChunkReceived`. The loading page accepts common streaming shapes:
+
+```text
+{"stage":"search_events","stage_message":"正在检索活动","progress":45}
+data: {"status":"running","stage":"build_schedule"}
+{"status":"completed","items":[...]}
+{"status":"failed","error_message":"..."}
+```
+
+Fallback path:
 
 ```text
 POST /api/agent/plan-day
 GET /api/agent/runs/{run_id}
 ```
 
-For the phase-2 exploration line, the miniprogram includes a dev-only page:
+If `/api/agent/stream-plan-day` returns HTTP 404/500, the WeChat base library does not support `onChunkReceived`, or the stream closes without a completed result, the loading page creates a normal run and continues polling. This keeps the formal demo stable while allowing real-time stage/message updates when the backend stream is ready.
 
-```text
-pages/stream-demo/stream-demo
-```
-
-This page calls `api.streamRuntimeDemo()` with `wx.request({ enableChunked: true })` and listens through `task.onChunkReceived`. It is not linked from the user-facing flow and should only be used after the backend provides a dev-only chunked endpoint such as `/api/agent/stream-demo`.
-
-Current conclusion for acceptance:
-
-```text
-Main path: keep polling.
-Exploration path: verify whether the current WeChat base library and real device can receive chunks stably.
-If chunked HTTP is unstable, use stage/progress polling for this phase and evaluate WebSocket in the next phase.
-```
+`pages/stream-demo/stream-demo` remains as a dev-only diagnostic page for testing arbitrary chunked endpoints.

@@ -74,10 +74,14 @@ Page({
   timer: null,
   pollCount: 0,
   request: null,
+  streamBuffer: '',
+  streamCompleted: false,
 
   onLoad() {
     this.request = wx.getStorageSync(PLAN_REQUEST_STORAGE_KEY)
-    if (!this.request || !this.request.run_id) {
+    const hasRunId = this.request && this.request.run_id
+    const hasPlanPayload = this.request && this.request.planDayPayload
+    if (!hasRunId && !hasPlanPayload) {
       wx.showToast({
         title: '请先输入日程需求',
         icon: 'none'
@@ -88,12 +92,88 @@ Page({
       return
     }
 
-    this.pollRunStatus()
     this.loadDataHealth()
+    if (hasRunId) {
+      this.pollRunStatus()
+      return
+    }
+
+    if (this.request.stream_first !== false && typeof api.streamPlanDay === 'function') {
+      this.startStreamPlan()
+      return
+    }
+
+    this.createRunAndPoll()
   },
 
   onUnload() {
     this.clearTimer()
+  },
+
+  async startStreamPlan() {
+    this.streamBuffer = ''
+    this.streamCompleted = false
+    this.updateRunningState({
+      status: 'running',
+      stage: 'intent_parsing',
+      stage_message: '正在连接实时生成通道',
+      progress: 12
+    })
+
+    try {
+      await api.streamPlanDay(
+        {
+          ...this.request.planDayPayload,
+          include_debug: api.ENABLE_DEBUG_VIEW
+        },
+        (chunkText) => this.handleStreamChunk(chunkText)
+      )
+      this.flushStreamBuffer()
+      if (!this.streamCompleted) {
+        throw new Error('流式接口结束但未返回 completed')
+      }
+    } catch (error) {
+      if (this.streamCompleted) return
+      console.warn('流式生成不可用，切换轮询:', error)
+      await this.createRunAndPoll(error)
+    }
+  },
+
+  async createRunAndPoll(streamError) {
+    const fallbackDebug = streamError
+      ? { stream_fallback_reason: streamError.message || String(streamError) }
+      : null
+    this.setData({
+      viewState: 'running',
+      runStatus: 'queued',
+      statusLabel: streamError ? '切换轮询' : '创建任务',
+      currentMessage: streamError ? '实时通道暂不可用，正在切换稳定轮询...' : '正在创建生成任务...',
+      activeStep: 0,
+      progress: 18,
+      debugText: this.formatDebug(fallbackDebug)
+    })
+
+    try {
+      const planRes = await api.planDay(this.request.planDayPayload)
+      console.log('POST /api/agent/plan-day response:', planRes)
+      if (planRes.code !== 0 || !planRes.data || !planRes.data.run_id) {
+        throw new Error(planRes.message || '生成任务创建失败')
+      }
+
+      this.request = {
+        ...this.request,
+        run_id: planRes.data.run_id,
+        status: planRes.data.status,
+        stream_fallback_reason: fallbackDebug && fallbackDebug.stream_fallback_reason
+      }
+      wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, this.request)
+      this.pollRunStatus()
+    } catch (error) {
+      this.failRun(error.message || '生成任务创建失败', {
+        ...(fallbackDebug || {}),
+        error: error.message || String(error)
+      })
+    }
   },
 
   async pollRunStatus() {
@@ -138,6 +218,110 @@ Page({
     }
   },
 
+  handleStreamChunk(chunkText) {
+    console.log('POST /api/agent/stream-plan-day chunk:', chunkText)
+    const events = this.extractStreamEvents(chunkText)
+    if (events.length === 0 && String(chunkText || '').trim()) {
+      this.updateRunningState({
+        status: 'running',
+        stage_message: String(chunkText).trim(),
+        progress: this.data.progress
+      })
+      return
+    }
+    events.forEach((event) => this.processStreamEvent(event))
+  },
+
+  flushStreamBuffer() {
+    const text = this.streamBuffer.trim()
+    if (!text) return
+    this.streamBuffer = ''
+    const event = this.parseStreamLine(text)
+    if (event) this.processStreamEvent(event)
+  },
+
+  extractStreamEvents(chunkText) {
+    this.streamBuffer += String(chunkText || '')
+    const lines = this.streamBuffer.split(/\r?\n/)
+    this.streamBuffer = lines.pop() || ''
+    const events = []
+
+    lines.forEach((line) => {
+      const event = this.parseStreamLine(line)
+      if (event) events.push(event)
+    })
+
+    const buffered = this.streamBuffer.trim()
+    if (buffered.startsWith('{') && buffered.endsWith('}')) {
+      const event = this.parseStreamLine(buffered)
+      if (event) {
+        events.push(event)
+        this.streamBuffer = ''
+      }
+    }
+
+    return events
+  },
+
+  parseStreamLine(line) {
+    let text = String(line || '').trim()
+    if (!text || text.startsWith(':') || text.startsWith('event:')) return null
+    if (text.startsWith('data:')) text = text.slice(5).trim()
+    if (!text) return null
+    if (text === '[DONE]') return { stream_done: true }
+
+    try {
+      return JSON.parse(text)
+    } catch (error) {
+      return { status: 'running', stage_message: text }
+    }
+  },
+
+  processStreamEvent(event) {
+    let payload = event && event.code != null && event.data ? event.data : event
+    if (event && event.data && typeof event.data === 'object' && (event.type || event.event)) {
+      payload = { ...event.data, type: event.type, event: event.event }
+    }
+    if (!payload || typeof payload !== 'object' || payload.stream_done) return
+
+    if (payload.run_id) {
+      this.request = { ...this.request, run_id: payload.run_id }
+      wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, this.request)
+    }
+
+    const status = payload.status || payload.event || payload.type
+    if (status === 'completed' || status === 'result' || payload.done === true) {
+      this.streamCompleted = true
+      this.finishRealRun(this.normalizeStreamResult(payload))
+      return
+    }
+
+    if (status === 'failed' || status === 'error') {
+      this.streamCompleted = true
+      this.failRun(payload.error_message || payload.message || '流式生成失败', payload.debug || payload)
+      return
+    }
+
+    this.updateRunningState({
+      ...payload,
+      status: payload.status || 'running',
+      stage: payload.stage || payload.current_stage,
+      stage_message: payload.stage_message || payload.message || payload.text,
+      progress: payload.progress
+    })
+  },
+
+  normalizeStreamResult(payload) {
+    const result = payload.data || payload.result || payload.plan || payload
+    return {
+      ...result,
+      status: 'completed',
+      run_id: result.run_id || payload.run_id || this.request.run_id || '',
+      plan_id: result.plan_id || payload.plan_id || '',
+      debug: result.debug || payload.debug
+    }
+  },
+
   updateRunningState(runData) {
     const stage = runData.stage || ''
     const cacheHit = this.isCacheHit(runData)
@@ -169,10 +353,11 @@ Page({
       progress: 100
     })
 
+    const planDayPayload = this.request.planDayPayload || {}
     const result = {
       ...runData,
-      date_scope: runData.date_scope || this.request.planDayPayload.date_scope,
-      request_text: this.request.planDayPayload.request_text,
+      date_scope: runData.date_scope || planDayPayload.date_scope,
+      request_text: planDayPayload.request_text || runData.request_text || '',
       items: Array.isArray(runData.items) ? runData.items : []
     }
 
@@ -211,7 +396,7 @@ Page({
   },
 
   failRun(message, debug) {
-    console.error('轮询后端失败:', message, debug)
+    console.error('生成失败:', message, debug)
     const debugReason = this.extractDebugReason(debug)
     this.clearTimer()
     this.setData({
@@ -312,6 +497,7 @@ Page({
     return normalized.rejection_reason ||
       normalized.error_message ||
       normalized.error ||
+      normalized.stream_fallback_reason ||
       (normalized.llm_rewrite && normalized.llm_rewrite.error) ||
       ''
   },

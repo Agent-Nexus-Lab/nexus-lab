@@ -80,7 +80,7 @@ function decodeChunk(data) {
   }
 }
 
-function streamRuntimeDemo({ url = '/agent/stream-demo', data = {}, onChunk }) {
+function requestChunkedStream({ url, data = {}, onChunk }) {
   return new Promise((resolve, reject) => {
     const task = wx.request({
       url: `${API_BASE_URL}${url}`,
@@ -117,6 +117,17 @@ function streamRuntimeDemo({ url = '/agent/stream-demo', data = {}, onChunk }) {
   })
 }
 
+function streamRuntimeDemo({ url = '/agent/stream-demo', data = {}, onChunk }) {
+  return requestChunkedStream({ url, data, onChunk })
+}
+
+function streamPlanDay(planDayPayload, onChunk) {
+  return requestChunkedStream({
+    url: '/agent/stream-plan-day',
+    data: planDayPayload,
+    onChunk
+  })
+}
 module.exports = {
   API_BASE_URL,
   ENABLE_DEBUG_VIEW,
@@ -125,5 +136,6 @@ module.exports = {
   getRunStatus,
   feedbackEvent,
   getDataHealth,
-  streamRuntimeDemo
+  streamRuntimeDemo,
+  streamPlanDay
 }
