@@ -199,7 +199,7 @@ def plan_day(
     now: datetime,
     include_debug: bool = False,
     rewriter: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
-    use_search_events: bool = False,
+    use_search_events: bool = True,
     memory: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     run_id = f"run_{uuid.uuid4().hex[:8]}"
@@ -230,6 +230,7 @@ def plan_day(
             window_start=window_start,
             window_end=window_end,
             rejections=debug["rejections"],
+            memory=memory,
         )
     else:
         filtered = filter_candidates(
@@ -384,6 +385,7 @@ def _search_and_score(
     window_start: datetime,
     window_end: datetime,
     rejections: list[dict[str, str]],
+    memory: dict[str, Any] | None = None,
 ) -> list[Candidate]:
     """Bridge: use agent-core search_events to filter and score, return Candidates.
 
@@ -399,14 +401,15 @@ def _search_and_score(
         sys.path.insert(0, _experiments_root)
 
     from agent_core.search_events import search_events
-    from agent_core.query import Intent, Profile
+    from agent_core.query import Intent, Profile, Memory
 
     intent = Intent(
         request_text=request_text,
         date_scope=date_scope,
     )
     prof = Profile.from_dict(profile)
-    result = search_events(events, intent=intent, profile=prof, now=now)
+    mem = Memory.from_dict(memory) if memory else None
+    result = search_events(events, intent=intent, profile=prof, memory=mem, now=now)
 
     # Copy agent-core rejections into the runtime debug rejections list
     for r in result.rejections:

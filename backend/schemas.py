@@ -94,6 +94,25 @@ class CommuteMatrix(BaseModel):
     unknown: int = 60
 
 
+class CacheInfo(BaseModel):
+    cache_hit: bool = False
+    cache_type: str = "none"  # "none" | "plan_result" | "rewrite"
+    plan_result_cache_hit: bool = False
+    rewrite_cache_hit: bool = False
+    redis_available: bool = False
+    using_fallback: bool = False
+
+
+class LlmRewriteInfo(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
+    used_fallback: bool = False
+    rewrite_error: Optional[str] = None
+    timeout_seconds: Optional[float] = None
+    model_name: Optional[str] = None
+    prompt_version: Optional[str] = None
+
+
 class DebugInfo(BaseModel):
     window_start: Optional[str] = None
     window_end: Optional[str] = None
@@ -105,6 +124,9 @@ class DebugInfo(BaseModel):
     commute_matrix: CommuteMatrix = Field(default_factory=CommuteMatrix)
     llm_error: Optional[str] = None
     llm_invalid_event_ids: list[str] = Field(default_factory=list)
+    cache: Optional[CacheInfo] = None
+    llm_rewrite: Optional[LlmRewriteInfo] = None
+    timings_ms: Optional[dict[str, float]] = None
 
 
 class PlanDayData(BaseModel):
