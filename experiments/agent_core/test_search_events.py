@@ -1184,6 +1184,62 @@ class MemoryScoringTest(unittest.TestCase):
         self.assertEqual(dm.recent_query_texts, ())
         self.assertEqual(dm.cache_hash(), DisplayMemory().cache_hash())
 
+    # --- NEW: ScoringMemory / DisplayMemory hash 边界（影响排序 vs 影响文案） ---
+
+    def test_scoring_memory_hash_ignores_recent_query_texts(self) -> None:
+        """recent_query_texts 是文案信号，变化不应改变 ScoringMemory hash（排序缓存仍命中）。"""
+        from agent_core.query import ScoringMemory
+        m1 = Memory(liked_tags=("AI",), recent_query_texts=("q1",))
+        m2 = Memory(liked_tags=("AI",), recent_query_texts=("q1", "q2"))
+        self.assertEqual(
+            ScoringMemory.from_memory(m1).cache_hash(),
+            ScoringMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_scoring_memory_hash_changes_with_disliked_tags(self) -> None:
+        """disliked_tags 影响排序，变化必须改变 ScoringMemory hash（缓存失效）。"""
+        from agent_core.query import ScoringMemory
+        m1 = Memory(liked_tags=("AI",))
+        m2 = Memory(liked_tags=("AI",), disliked_tags=("创业",))
+        self.assertNotEqual(
+            ScoringMemory.from_memory(m1).cache_hash(),
+            ScoringMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_ignores_scoring_only_fields(self) -> None:
+        """negative_keywords/liked_event_ids/recent_plan_event_ids 只影响排序，
+        变化不应改变 DisplayMemory hash（文案缓存仍命中）。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",), liked_tags=("AI",), disliked_tags=("创业",))
+        m2 = Memory(
+            recent_query_texts=("q1",), liked_tags=("AI",), disliked_tags=("创业",),
+            negative_keywords=("收费",), liked_event_ids=("e1",), recent_plan_event_ids=("e2",),
+        )
+        self.assertEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_changes_with_recent_query_texts(self) -> None:
+        """recent_query_texts 影响文案，变化必须改变 DisplayMemory hash。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",))
+        m2 = Memory(recent_query_texts=("q1", "q2"))
+        self.assertNotEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_changes_with_disliked_tags(self) -> None:
+        """disliked_tags 同时影响文案，变化必须改变 DisplayMemory hash。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",))
+        m2 = Memory(recent_query_texts=("q1",), disliked_tags=("创业",))
+        self.assertNotEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

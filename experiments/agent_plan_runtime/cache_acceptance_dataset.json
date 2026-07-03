@@ -1,0 +1,82 @@
+{
+  "scenario": "cache 验收：同请求 miss→hit，dislike 后失效",
+  "pinned_now": "2026-07-09T12:00:00+08:00",
+  "request_text": "这周末想看天文或戏剧活动",
+  "date_scope": "this_week",
+  "profile": {
+    "campus": "邯郸",
+    "interest_tags": [
+      "天文",
+      "戏剧",
+      "AI"
+    ],
+    "preferred_campuses": [
+      "邯郸"
+    ]
+  },
+  "r3_memory": {
+    "disliked_tags": [
+      "天文"
+    ],
+    "disliked_event_ids": [
+      "evt_tianwen"
+    ]
+  },
+  "scoring_memory_hash": {
+    "r1": "b1ef4689cac4",
+    "r2": "b1ef4689cac4",
+    "r3": "d7a1ad35b5c5"
+  },
+  "hash_assertions": {
+    "h1==h2": true,
+    "h1!=h3": true
+  },
+  "results": {
+    "r1": {
+      "status": "completed",
+      "selected_event_ids": [
+        "evt_tianwen",
+        "evt_drama",
+        "evt_ai"
+      ],
+      "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。",
+      "cache_hit_observed": null
+    },
+    "r2": {
+      "status": "completed",
+      "selected_event_ids": [
+        "evt_tianwen",
+        "evt_drama",
+        "evt_ai"
+      ],
+      "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。",
+      "cache_hit_observed": null
+    },
+    "r3": {
+      "status": "completed",
+      "selected_event_ids": [
+        "evt_tianwen",
+        "evt_drama",
+        "evt_ai"
+      ],
+      "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。已根据你的反馈调整推荐方向。",
+      "cache_hit_observed": null
+    }
+  },
+  "cache_expectations_7月4日": {
+    "r1_miss": {
+      "expected": false,
+      "observed": null
+    },
+    "r2_hit": {
+      "expected": true,
+      "observed": null
+    },
+    "r3_invalidated": {
+      "expected": false,
+      "observed": null
+    }
+  },
+  "warnings": [],
+  "note": "cache_hit_observed 为 null 表示后端尚未写入 cache 标志（今天预期）。7月4日曹昕宇 cache 落地后重跑本脚本，三项 observed 应分别等于 expected。"
+}
