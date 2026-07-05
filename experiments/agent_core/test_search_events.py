@@ -1240,6 +1240,80 @@ class MemoryScoringTest(unittest.TestCase):
             DisplayMemory.from_memory(m2).cache_hash(),
         )
 
+    # --- NEW: hash 测试与真实 cache key 一致性（task 3） ---
+
+    def test_scoring_memory_hash_matches_plan_cache_key(self) -> None:
+        """ScoringMemory.cache_hash() 必须与 plan_service._compute_scoring_memory_hash 一致。
+
+        单测证明的字段边界只有和真实 cache key 派生逻辑同源才有效。若两套实现漂移
+        （例如 plan_service 漏了 disliked_event_ids），单测全绿但线上 cache 会错误命中。
+        """
+        from agent_core.query import ScoringMemory
+        # backend/ 在 repo root，加到 path 以便 import backend.plan_service
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_scoring_memory_hash
+
+        # 非空 memory：字段集与排序逻辑必须逐字段一致
+        cases = [
+            {"liked_tags": ["AI"], "disliked_tags": ["创业"]},
+            {
+                "liked_tags": ["AI", "ML"],
+                "recent_plan_event_ids": ["e1", "e2"],
+                "negative_keywords": ["收费"],
+                "disliked_event_ids": ["e9"],
+                "liked_event_ids": ["e3"],
+            },
+        ]
+        for c in cases:
+            mem = Memory.from_dict(c)
+            self.assertEqual(
+                ScoringMemory.from_memory(mem).cache_hash(),
+                _compute_scoring_memory_hash(c),
+                f"scoring hash mismatch for {c}",
+            )
+
+    def test_scoring_memory_empty_case_asymmetry_pinned(self) -> None:
+        """空 memory 的归一化两侧不同：plan_service 短路成 md5('{}')，ScoringMemory 建空 dict。
+
+        不是 bug——两侧都确定性，同输入永远同 hash，cache 仍正确命中。钉死此处，避免
+        任意一侧悄悄改空归一化而另一侧没跟上。
+        """
+        from agent_core.query import ScoringMemory
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_scoring_memory_hash
+
+        empty_dataclass_hash = ScoringMemory.from_memory(Memory()).cache_hash()
+        plan_service_empty_hash = _compute_scoring_memory_hash(None)
+        # 两侧各自确定性
+        self.assertEqual(empty_dataclass_hash, ScoringMemory.from_memory(Memory()).cache_hash())
+        self.assertEqual(plan_service_empty_hash, _compute_scoring_memory_hash(None))
+        # 已知不相等（归一化差异），钉死
+        self.assertNotEqual(empty_dataclass_hash, plan_service_empty_hash)
+
+    def test_display_memory_hash_matches_rewrite_cache_key(self) -> None:
+        """DisplayMemory.cache_hash() 必须与 plan_service._compute_display_memory_hash 一致。"""
+        from agent_core.query import DisplayMemory
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_display_memory_hash
+
+        cases = [
+            {"recent_query_texts": ["q1"], "liked_tags": ["AI"], "disliked_tags": ["创业"]},
+            {"recent_query_texts": ["q1", "q2"], "liked_tags": ["AI", "ML"]},
+        ]
+        for c in cases:
+            mem = Memory.from_dict(c)
+            self.assertEqual(
+                DisplayMemory.from_memory(mem).cache_hash(),
+                _compute_display_memory_hash(c),
+                f"display hash mismatch for {c}",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +65,7 @@ class CandidateDetail(BaseModel):
     event_id: Optional[str] = None
     title: Optional[str] = None
     score: float = 0.0
-    components: dict[str, float] = Field(default_factory=dict)
+    components: dict[str, Any] = Field(default_factory=dict)
     matched_terms: list[str] = Field(default_factory=list)
     source_file: Optional[str] = None
     evidence_text: Optional[str] = None
