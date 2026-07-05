@@ -72,6 +72,22 @@ class Memory:
     disliked_event_ids: tuple[str, ...] = ()        # events user disliked → similar get penalty
     recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids → repeat penalty
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any] | None) -> Memory:
+        """Build Memory from the dict returned by read_memory()."""
+        if d is None:
+            return cls()
+        return cls(
+            session_id=str(d.get("session_id") or ""),
+            recent_query_texts=tuple(d.get("recent_query_texts") or ()),
+            liked_tags=tuple(d.get("liked_tags") or ()),
+            disliked_tags=tuple(d.get("disliked_tags") or ()),
+            negative_keywords=tuple(d.get("negative_keywords") or ()),
+            liked_event_ids=tuple(d.get("liked_event_ids") or ()),
+            disliked_event_ids=tuple(d.get("disliked_event_ids") or ()),
+            recent_plan_event_ids=tuple(d.get("recent_plan_event_ids") or ()),
+        )
+
 
 # ===========================================================================
 # Memory subsets — for cache key generation (Scoring vs Display)

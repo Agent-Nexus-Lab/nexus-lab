@@ -94,6 +94,10 @@ class RunStatusData(BaseModel):
     error_message: Optional[str] = None
     debug: Optional[str] = None
     memory_used: Optional[dict] = None
+    stage: Optional[str] = None  # loading / scoring / scheduling / rewriting / completed / failed
+    stage_message: Optional[str] = None
+    progress: Optional[float] = None  # 0.0 - 1.0
+    cache_hit: Optional[bool] = None
 
 
 class FeedbackEventRequest(BaseModel):

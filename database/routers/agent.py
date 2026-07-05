@@ -201,6 +201,10 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
                 "error_message": None,
                 "debug": None,
                 "memory_used": None,
+                "stage": "loading",
+                "stage_message": "正在生成日程...",
+                "progress": 0.3,
+                "cache_hit": None,
             },
             "message": "ok",
         }
@@ -208,6 +212,7 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
     plan = db.query(Plan).filter_by(run_id=run.id).first()
     items = []
     memory_used = None
+    cache_hit = None
 
     if plan:
         plan_items = (
@@ -242,8 +247,20 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
             try:
                 debug_data = json.loads(run.debug) if isinstance(run.debug, str) else run.debug
                 memory_used = debug_data.get("memory_used")
+                cache_info = debug_data.get("cache")
+                if isinstance(cache_info, dict):
+                    cache_hit = cache_info.get("cache_hit", False)
+                else:
+                    cache_hit = None
             except (json.JSONDecodeError, TypeError):
                 pass
+
+    stage = "completed" if run.status == "completed" else run.status
+    stage_message_map = {
+        "running": "正在生成日程...",
+        "completed": "日程已生成",
+        "failed": run.error_message or "生成失败",
+    }
 
     return {
         "code": 0,
@@ -260,6 +277,10 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
             error_message=run.error_message,
             debug=run.debug,
             memory_used=memory_used,
+            stage=stage,
+            stage_message=stage_message_map.get(run.status, ""),
+            progress=1.0 if run.status in ("completed", "failed") else 0.5,
+            cache_hit=cache_hit,
         ).model_dump(mode="json"),
         "message": "ok",
     }
