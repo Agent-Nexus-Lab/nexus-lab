@@ -23,7 +23,7 @@ class IntentParserTest(unittest.TestCase):
             cls.eval_cases = json.load(f)
 
     def test_eval_dataset_not_empty(self):
-        self.assertGreaterEqual(len(self.eval_cases), 12, "评测集至少需要 12 条用例")
+        self.assertGreaterEqual(len(self.eval_cases), 17, "评测集至少需要 17 条用例")
 
     def test_001_clear_time_interest_style_campus(self):
         case = self._get_case("eval_001")
@@ -210,6 +210,69 @@ class IntentParserTest(unittest.TestCase):
             values = [c.value for c in result.hard_constraints]
             self.assertIn(exp["hard_constraint_contains"], values)
         self.assertGreaterEqual(len(result.soft_constraints), exp["min_soft_constraints"])
+
+    # --- 第二阶段补充：反馈语义用例 (eval_016 ~ eval_020) ---
+
+    def test_016_exclude_startup_roadshow(self):
+        case = self._get_case("eval_016")
+        result = parse_intent(case["query"])
+        exp = case["expected"]
+        self.assertEqual(result.date_scope, exp["date_scope"])
+        self.assertIn("创业", result.interest_tags)
+        self.assertGreaterEqual(len(result.hard_constraints), exp["min_hard_constraints"])
+        if "hard_constraint_contains" in exp:
+            values = [c.value for c in result.hard_constraints]
+            self.assertIn(exp["hard_constraint_contains"], values)
+        self.assertGreaterEqual(len(result.soft_constraints), exp["min_soft_constraints"])
+
+    def test_017_exclude_too_commercial(self):
+        case = self._get_case("eval_017")
+        result = parse_intent(case["query"])
+        exp = case["expected"]
+        self.assertEqual(result.date_scope, exp["date_scope"])
+        self.assertEqual(result.interest_tags, exp["interest_tag_includes"])
+        self.assertGreaterEqual(len(result.hard_constraints), exp["min_hard_constraints"])
+        if "hard_constraint_contains" in exp:
+            values = [c.value for c in result.hard_constraints]
+            self.assertIn(exp["hard_constraint_contains"], values)
+        # 核心断言："不想XX"中的XX不应进入软偏好
+        self.assertEqual(len(result.soft_constraints), 0)
+
+    def test_018_prefer_ai_exhibition(self):
+        case = self._get_case("eval_018")
+        result = parse_intent(case["query"])
+        exp = case["expected"]
+        interest_set = set(result.interest_tags)
+        for tag in exp["interest_tag_includes"]:
+            self.assertIn(tag, interest_set)
+        self.assertEqual(len(result.hard_constraints), exp["min_hard_constraints"])
+        self.assertGreaterEqual(len(result.soft_constraints), exp["min_soft_constraints"])
+        if exp.get("soft_weight_ge_1_5"):
+            weights = [s.weight for s in result.soft_constraints]
+            self.assertTrue(any(w >= 1.5 for w in weights),
+                            f"expected soft constraint with weight >= 1.5, got {weights}")
+
+    def test_019_exclude_too_far_afternoon(self):
+        case = self._get_case("eval_019")
+        result = parse_intent(case["query"])
+        exp = case["expected"]
+        self.assertEqual(result.date_scope, exp["date_scope"])
+        self.assertTrue(result.time_preference.afternoon)
+        self.assertGreaterEqual(len(result.hard_constraints), exp["min_hard_constraints"])
+        if "hard_constraint_contains" in exp:
+            values = [c.value for c in result.hard_constraints]
+            self.assertIn(exp["hard_constraint_contains"], values)
+
+    def test_020_exclude_repeat_feedback_semantics(self):
+        case = self._get_case("eval_020")
+        result = parse_intent(case["query"])
+        exp = case["expected"]
+        self.assertEqual(result.date_scope, exp["date_scope"])
+        self.assertGreaterEqual(len(result.hard_constraints), exp["min_hard_constraints"])
+        if "hard_constraint_contains" in exp:
+            values = [c.value for c in result.hard_constraints]
+            self.assertIn(exp["hard_constraint_contains"], values)
+        self.assertEqual(len(result.soft_constraints), exp["min_soft_constraints"])
 
     def test_empty_query(self):
         result = parse_intent("")
