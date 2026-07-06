@@ -179,6 +179,66 @@ class RuntimeTest(unittest.TestCase):
         self.assertNotEqual(result["data"]["items"][0]["reason_text"], "不应该写入")
         self.assertEqual(result["data"]["debug"]["llm_invalid_event_ids"], ["missing"])
 
+    def test_rewrite_fallback_on_timeout(self) -> None:
+        """LLM rewrite exception → used_fallback=true, plan_day still completed."""
+        events = [
+            sample_event(
+                "evt_h",
+                title="邯郸天文活动",
+                start_time="2026-05-10T10:00:00+08:00",
+                end_time="2026-05-10T10:30:00+08:00",
+                campus="邯郸校区",
+            )
+        ]
+
+        def failing_rewriter(_result):
+            raise RuntimeError("simulated timeout")
+
+        result = plan_day(
+            events=events,
+            profile={"campus": "邯郸", "interest_tags": ["天文"], "preferred_campuses": ["邯郸"]},
+            request_text="想看天文活动",
+            date_scope="this_week",
+            now=parse_now("2026-05-09T12:00:00+08:00"),
+            include_debug=True,
+            rewriter=failing_rewriter,
+        )
+        self.assertEqual(result["data"]["status"], "completed")
+        self.assertTrue(result["data"]["debug"]["used_fallback"])
+        self.assertIn("simulated timeout", result["data"]["debug"]["llm_error"])
+        # 模板 summary 仍然存在
+        self.assertIsInstance(result["data"]["summary"], str)
+        self.assertGreater(len(result["data"]["summary"]), 0)
+
+    def test_rewrite_disabled_has_readable_summary(self) -> None:
+        """rewriter=None → 模板 summary/reason fallback 可读."""
+        events = [
+            sample_event(
+                "evt_h",
+                title="邯郸天文活动",
+                start_time="2026-05-10T10:00:00+08:00",
+                end_time="2026-05-10T10:30:00+08:00",
+                campus="邯郸校区",
+            )
+        ]
+        result = plan_day(
+            events=events,
+            profile={"campus": "邯郸", "interest_tags": ["天文"], "preferred_campuses": ["邯郸"]},
+            request_text="想看天文活动",
+            date_scope="this_week",
+            now=parse_now("2026-05-09T12:00:00+08:00"),
+            rewriter=None,
+        )
+        self.assertEqual(result["data"]["status"], "completed")
+        summary = result["data"]["summary"]
+        self.assertIsInstance(summary, str)
+        self.assertIn("活动", summary)
+        self.assertIn("天文", summary)
+        # reason_text 来自模板
+        reason = result["data"]["items"][0]["reason_text"]
+        self.assertIn("邯郸", reason)
+        self.assertIn("评分", reason)
+
 
 if __name__ == "__main__":
     unittest.main()

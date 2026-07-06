@@ -16,6 +16,9 @@ DEFAULT_MODEL = "deepseek-v4-pro"
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.5
 
+# Phase 2: prompt version for fallback tracking
+PROMPT_VERSION = "2026-07-04-v1"
+
 _REWRITE_TOOL_SCHEMA = {
     "type": "function",
     "function": {

@@ -8,6 +8,16 @@ TOP_LEVEL_FIELDS = ["source_name", "source_url", "events", "warnings"]
 EVENTS_FILE_FIELDS = ["events"]
 CAMPUS_VALUES = ["邯郸", "江湾", "枫林", "张江", "其他"]
 DEFAULT_CAMPUS = "邯郸"
+
+# 文章输入格式定义（Phase 2, 李颖哲）
+ARTICLE_INPUT_FIELDS = [
+    "source_platform",  # wechat / website / other
+    "source_name",      # 公众号名称 / 网站名称
+    "source_url",       # 原文链接
+    "title",            # 文章标题
+    "publish_time",     # 发布时间 ISO 8601
+    "text",             # 清洗后的正文
+]
 EVENT_FIELDS = [
     "title",
     "summary",

@@ -546,6 +546,15 @@ def build_reason_text(
     return "；".join(parts) + "。"
 
 
+def _get_prompt_version() -> str:
+    """Return the LLM rewrite prompt version for audit trail."""
+    try:
+        from experiments.agent_plan_runtime import llm
+        return llm.PROMPT_VERSION
+    except Exception:
+        return "unknown"
+
+
 def apply_rewrite(
     result: dict[str, Any],
     rewriter: Callable[[dict[str, Any]], dict[str, Any]],
@@ -558,11 +567,16 @@ def apply_rewrite(
     debug = data.setdefault("debug", {}) if include_debug else {}
     try:
         rewrite = rewriter(result)
+        if include_debug:
+            debug["used_fallback"] = False
     except Exception as exc:  # pragma: no cover - exercised by CLI usage
         if include_debug:
             debug["llm_error"] = str(exc)
+            debug["used_fallback"] = True
         return result
 
+    if include_debug:
+        debug["prompt_version"] = _get_prompt_version()
     if isinstance(rewrite.get("summary"), str) and rewrite["summary"].strip():
         data["summary"] = rewrite["summary"].strip()
 

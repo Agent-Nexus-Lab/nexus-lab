@@ -211,5 +211,76 @@
       "hard_constraint_contains": "重复推荐",
       "min_soft_constraints": 1
     }
+  },
+  {
+    "id": "eval_016",
+    "description": "排除创业路演(硬约束)",
+    "query": "不要创业路演",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": ["创业"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "创业路演",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_017",
+    "description": "不想看太商业的活动(硬排除+零软偏好)",
+    "query": "不想看太商业的活动",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "看太商业",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_018",
+    "description": "更喜欢AI展览(软偏好weight>=1.5, 无排除)",
+    "query": "更喜欢 AI 展览",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": ["AI", "展览"],
+      "style_tag_includes": [],
+      "min_hard_constraints": 0,
+      "min_soft_constraints": 1,
+      "soft_weight_ge_1_5": true
+    }
+  },
+  {
+    "id": "eval_019",
+    "description": "不要太远(硬约束+下午偏好)",
+    "query": "今天下午不要太远",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "time_preference": {"morning": false, "afternoon": true, "evening": false, "weekend": false},
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "太远",
+      "min_soft_constraints": 0
+    }
+  },
+  {
+    "id": "eval_020",
+    "description": "不要重复推荐刚才那个(排除+反馈语义)",
+    "query": "不要重复推荐刚才那个",
+    "expected": {
+      "date_scope": "today",
+      "explicit_campuses": [],
+      "interest_tag_includes": [],
+      "style_tag_includes": [],
+      "min_hard_constraints": 1,
+      "hard_constraint_contains": "重复推荐刚才那个",
+      "min_soft_constraints": 0
+    }
   }
 ]
