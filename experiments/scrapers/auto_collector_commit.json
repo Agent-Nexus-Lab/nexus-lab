@@ -1,6 +1,6 @@
 {
-  "dry_run": false,
-  "commit": false,
+  "dry_run": true,
+  "commit": true,
   "scanned_accounts": 61,
   "total_articles": 0,
   "new_articles": 0,
@@ -376,6 +376,6 @@
   ],
   "event_drafts": [],
   "warnings": [
-    "cn8n_client 未落地（曹昕宇 step 1）：No module named 'experiments.scrapers.cn8n_client'"
+    "database.import_events 未落地（曹昕宇 step 4）：cannot import name 'get_db' from 'database' (unknown location)"
   ]
 }
