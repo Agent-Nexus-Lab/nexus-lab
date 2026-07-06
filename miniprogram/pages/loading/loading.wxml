@@ -21,6 +21,7 @@
     <view class="progress-track">
       <view class="progress-bar" style="width: {{progress}}%;"></view>
     </view>
+    <view class="progress-caption">进度 {{progressText}}</view>
 
     <view class="step-list">
       <view
@@ -38,6 +39,16 @@
     <view wx:if="{{viewState === 'failed'}}" class="action-row">
       <button class="secondary-button" bindtap="goPlan">返回修改</button>
       <button class="primary-button retry-button" bindtap="goPlan">重新生成</button>
+    </view>
+
+    <view wx:if="{{failureDetails.length > 0}}" class="failure-panel">
+      <view class="debug-title">失败原因</view>
+      <view wx:for="{{failureDetails}}" wx:key="id" class="failure-item">{{item.text}}</view>
+    </view>
+
+    <view wx:if="{{rewriteNotice}}" class="rewrite-notice">
+      <view class="debug-title">文案降级</view>
+      <view class="rewrite-text">{{rewriteNotice}}</view>
     </view>
 
     <view wx:if="{{dataHealth}}" class="data-health-panel data-health-{{dataHealth.statusClass}}">
@@ -82,6 +93,14 @@
 
       <view wx:if="{{dataHealth.alerts.length > 0}}" class="health-alerts">
         <view wx:for="{{dataHealth.alerts}}" wx:key="*this" class="health-alert">{{item}}</view>
+      </view>
+
+      <view class="collection-log-panel">
+        <view class="debug-title">采集日志</view>
+        <view wx:for="{{dataHealth.collectionLogs}}" wx:key="id" class="collection-log-item">
+          <view class="collection-log-main">{{item.result}}</view>
+          <view class="collection-log-sub">{{item.source}} · {{item.timeText}}</view>
+        </view>
       </view>
     </view>
 

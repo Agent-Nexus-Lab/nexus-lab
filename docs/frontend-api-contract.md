@@ -60,7 +60,7 @@ Optional runtime fields:
 |---|---|
 | `data.stage` | Drives the Agent progress steps when present |
 | `data.stage_message` | Highest-priority loading copy. If present, the frontend displays it directly |
-| `data.progress` | Numeric progress. If present, the frontend uses it after clamping into a safe UI range |
+| `data.progress` | Numeric progress in `0.0 - 1.0`; the frontend converts it to percent for display and still tolerates legacy `0 - 100` values |
 | `data.cache_hit` | When `true`, loading displays `命中缓存，正在返回上次可复用结果` |
 | `data.debug` | Shown in the loading failure state and result page when present and `ENABLE_DEBUG_VIEW` is enabled |
 | `data.error_message` | Shown when the run enters `failed` |
@@ -93,6 +93,23 @@ debug.error_message
 debug.error
 debug.llm_rewrite.error
 ```
+
+If `debug.rejections` is an array, the loading page renders each rejection as a structured failure item. If `debug.llm_rewrite.error` or `debug.rewrite_error` is present together with `used_fallback=true`, the loading page renders it as copy fallback information instead of treating it as the whole plan-day failure reason.
+
+## GET /api/admin/data-health
+
+The loading page debug panel displays collection health using these fields:
+
+| Field | UI behavior |
+|---|---|
+| `total_events` | Total event count metric |
+| `future_events_7d` | Future 7-day event count metric |
+| `future_events_14d` | Future 14-day event count metric |
+| `last_collection_time` | Rendered as the latest collection timestamp |
+| `last_collection_result` | Rendered beside the latest timestamp |
+| `sources_breakdown` | Rendered as `source count` summary |
+| `alerts` | Rendered as warning chips/list |
+| `collection_logs` | Optional list. If absent or empty, frontend shows `暂无采集日志记录` |
 
 ## Completed Result Fields
 

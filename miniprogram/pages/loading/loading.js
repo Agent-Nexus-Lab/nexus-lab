@@ -57,8 +57,11 @@ Page({
     statusLabel: '任务已入队',
     currentMessage: '正在理解你的需求...',
     progress: 18,
+    progressText: '18%',
     activeStep: 0,
     errorMessage: '',
+    failureDetails: [],
+    rewriteNotice: '',
     debugText: '',
     dataHealth: null,
     dataHealthError: '',
@@ -150,6 +153,7 @@ Page({
       currentMessage: streamError ? '实时通道暂不可用，正在切换稳定轮询...' : '正在创建生成任务...',
       activeStep: 0,
       progress: 18,
+      progressText: '18%',
       debugText: this.formatDebug(fallbackDebug)
     })
 
@@ -338,6 +342,8 @@ Page({
       currentMessage,
       activeStep,
       progress: nextProgress,
+      progressText: `${nextProgress}%`,
+      rewriteNotice: this.extractRewriteNotice(runData.debug),
       debugText: this.formatDebug(runData.debug)
     })
   },
@@ -350,7 +356,8 @@ Page({
       statusLabel: '生成完成',
       currentMessage: '日程已生成',
       activeStep: this.data.steps.length - 1,
-      progress: 100
+      progress: 100,
+      progressText: '100%'
     })
 
     const planDayPayload = this.request.planDayPayload || {}
@@ -398,6 +405,7 @@ Page({
   failRun(message, debug) {
     console.error('生成失败:', message, debug)
     const debugReason = this.extractDebugReason(debug)
+    const rewriteNotice = this.extractRewriteNotice(debug)
     this.clearTimer()
     this.setData({
       viewState: 'failed',
@@ -405,8 +413,11 @@ Page({
       statusLabel: '生成失败',
       currentMessage: '这次没有成功生成日程',
       errorMessage: debugReason ? `${message}：${debugReason}` : message,
+      failureDetails: this.extractFailureDetails(debug),
+      rewriteNotice,
       debugText: this.formatDebug(debug),
-      progress: 100
+      progress: 100,
+      progressText: '100%'
     })
   },
 
@@ -451,8 +462,26 @@ Page({
       sourceSummary: Object.keys(sources).length > 0
         ? Object.keys(sources).map((key) => `${key} ${sources[key]}`).join(' / ')
         : '暂无来源统计',
+      collectionLogs: this.normalizeCollectionLogs(data.collection_logs || data.collectionLogs),
       alerts: Array.isArray(data.alerts) ? data.alerts : []
     }
+  },
+
+  normalizeCollectionLogs(logs) {
+    if (!Array.isArray(logs) || logs.length === 0) {
+      return [{
+        id: 'empty',
+        timeText: '暂无',
+        result: '暂无采集日志记录',
+        source: 'collection_logs 未返回'
+      }]
+    }
+    return logs.slice(0, 3).map((log, index) => ({
+      id: log.id || log.log_id || `${index}`,
+      timeText: this.formatDateTime(log.created_at || log.collection_time || log.time),
+      result: log.result || log.status || 'unknown',
+      source: log.source_name || log.source || log.account || '未知来源'
+    }))
   },
 
   formatDateTime(value) {
@@ -484,7 +513,8 @@ Page({
 
   normalizeProgress(progress, activeStep, cacheHit) {
     if (typeof progress === 'number' && Number.isFinite(progress)) {
-      return Math.max(8, Math.min(progress, 96))
+      const percent = progress >= 0 && progress <= 1 ? progress * 100 : progress
+      return Math.round(Math.max(8, Math.min(percent, 96)))
     }
     if (cacheHit) return 92
     if (activeStep === -1) return 32
@@ -498,8 +528,39 @@ Page({
       normalized.error_message ||
       normalized.error ||
       normalized.stream_fallback_reason ||
-      (normalized.llm_rewrite && normalized.llm_rewrite.error) ||
+      normalized.rewrite_error ||
       ''
+  },
+
+  extractFailureDetails(debug) {
+    const normalized = this.parseDebugObject(debug)
+    if (!normalized) return []
+    const rejections = normalized.rejections || normalized.debug_rejections || normalized.rejection_reasons
+    if (!Array.isArray(rejections)) return []
+    return rejections.map((item, index) => {
+      if (typeof item === 'string') return { id: `${index}`, text: item }
+      return {
+        id: item.id || item.code || `${index}`,
+        text: item.reason || item.message || item.error || JSON.stringify(item)
+      }
+    }).filter((item) => item.text)
+  },
+
+  extractRewriteNotice(debug) {
+    const normalized = this.parseDebugObject(debug)
+    if (!normalized) return ''
+    const llmRewrite = normalized.llm_rewrite && typeof normalized.llm_rewrite === 'object'
+      ? normalized.llm_rewrite
+      : {}
+    const rewriteError = normalized.rewrite_error || llmRewrite.error
+    if (!rewriteError && normalized.used_fallback !== true && llmRewrite.used_fallback !== true) return ''
+    const timeout = normalized.timeout_seconds || llmRewrite.timeout_seconds
+    const promptVersion = normalized.prompt_version || llmRewrite.prompt_version
+    const parts = ['推荐文案已降级为模板生成']
+    if (rewriteError) parts.push(`原因：${rewriteError}`)
+    if (timeout) parts.push(`超时：${timeout}s`)
+    if (promptVersion) parts.push(`prompt：${promptVersion}`)
+    return parts.join('，')
   },
 
   parseDebugObject(debug) {

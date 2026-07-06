@@ -215,6 +215,14 @@
   transition: width 0.3s ease;
 }
 
+.progress-caption {
+  margin-top: 10rpx;
+  color: #64748b;
+  text-align: right;
+  font-size: 20rpx;
+  font-weight: 750;
+}
+
 .step-list {
   display: grid;
   gap: 16rpx;
@@ -272,6 +280,45 @@
   grid-template-columns: 1fr 1fr;
   gap: 16rpx;
   margin-top: 30rpx;
+}
+
+.failure-panel,
+.rewrite-notice {
+  margin-top: 24rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #f4c7c7;
+  background: #fff7f7;
+}
+
+.failure-item {
+  position: relative;
+  padding-left: 24rpx;
+  color: #8f1d1d;
+  font-size: 23rpx;
+  line-height: 1.55;
+}
+
+.failure-item::before {
+  content: "";
+  position: absolute;
+  left: 2rpx;
+  top: 16rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: #dc2626;
+}
+
+.rewrite-notice {
+  border-color: #f3d29b;
+  background: #fff8ea;
+}
+
+.rewrite-text {
+  color: #8a4f00;
+  font-size: 23rpx;
+  line-height: 1.55;
 }
 
 .secondary-button,
@@ -443,6 +490,36 @@
   color: #8a4f00;
   font-size: 22rpx;
   line-height: 1.45;
+}
+
+.collection-log-panel {
+  margin-top: 18rpx;
+  padding: 16rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.collection-log-item {
+  padding: 12rpx 0;
+  border-top: 1rpx solid rgba(148, 163, 184, 0.18);
+}
+
+.collection-log-item:first-of-type {
+  border-top: 0;
+}
+
+.collection-log-main {
+  color: #25324a;
+  font-size: 23rpx;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.collection-log-sub {
+  margin-top: 4rpx;
+  color: #6a778b;
+  font-size: 20rpx;
+  line-height: 1.4;
 }
 
 .debug-title {
