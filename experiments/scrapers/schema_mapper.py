@@ -1,23 +1,19 @@
 # -*- coding: utf-8 -*-
-"""schema_mapper：把公众号文章 / 小红书 note + MaaS 提取事件 → 统一 event draft。
+"""lightweight mapper：公众号文章/小红书 note + MaaS 提取事件 → 6-field event draft。
 
-字段契约来源：
-  - 任务文档"MaaS 输出 event draft 字段"：
-    title、summary、start_time、end_time、location、campus、organizer、tags、
-    source_url、source_name、evidence_text
-  - experiments/agent_maas_cli/prompt.md：source_url/source_name 透传、
-    evidence_text 来自原文片段、campus 枚举、时间不明确不编造。
+7月7日新契约：只保留 title / summary / start_time / end_time / location / source_url。
+organizer / tags / campus / evidence_text / source_name / source_platform 退场。
+语义信息全部写入 summary 自然语言（供 summary_embedding 消费）。
 
-mapper 是纯形状转换：不调网络、不调模型、不编造字段。缺失字段补 None/[]。
+mapper 是纯形状转换：不调网络、不调模型、不编造字段。
+缺失字段填 None；缺失 title/start_time 记 validation error。
 """
 from __future__ import annotations
 
 from typing import Any
 
-EVENT_DRAFT_FIELDS = (
-    "title", "summary", "start_time", "end_time", "location", "campus",
-    "organizer", "tags", "source_url", "source_name", "source_platform",
-    "evidence_text",
+LIGHTWEIGHT_FIELDS = (
+    "title", "summary", "start_time", "end_time", "location", "source_url",
 )
 
 # MaaS 输出 event 里可能出现的字段名（首选项 + 兼容别名）
@@ -27,10 +23,6 @@ _EVENT_FIELD_ALIASES = {
     "start_time": ("start_time", "start"),
     "end_time": ("end_time", "end"),
     "location": ("location",),
-    "campus": ("campus",),
-    "organizer": ("organizer", "host"),
-    "tags": ("tags", "tag_list"),
-    "evidence_text": ("evidence_text", "evidence"),
 }
 
 
@@ -41,66 +33,90 @@ def _first(event: dict, key: str) -> Any:
     return None
 
 
-def _map_to_draft(source: dict, event: dict, platform: str) -> dict:
-    """单个 event → event draft。
+def _source_from_article(article: dict) -> dict:
+    return {
+        "source_url": article.get("source_url") or article.get("url"),
+        "title": article.get("title"),
+    }
 
-    source 提供 source_url / source_name（从文章/note 透传，不编造）。
-    event 提供 title/summary/start_time/.../evidence_text（MaaS 提取）。
-    """
-    tags = _first(event, "tags") or []
-    if not isinstance(tags, list):
-        tags = [tags]
+
+def _source_from_note(note: dict) -> dict:
+    return {
+        "source_url": note.get("source_url") or note.get("url") or note.get("note_url"),
+        "title": note.get("title"),
+    }
+
+
+def _map_one(source: dict, event: dict) -> dict:
+    """单个 extracted_event → 6-field draft。"""
     return {
         "title": _first(event, "title") or source.get("title"),
         "summary": _first(event, "summary"),
         "start_time": _first(event, "start_time"),
         "end_time": _first(event, "end_time"),
         "location": _first(event, "location"),
-        "campus": _first(event, "campus"),
-        "organizer": _first(event, "organizer"),
-        "tags": tags,
-        "source_url": source.get("source_url") or source.get("url"),
-        "source_name": source.get("source_name"),
-        "source_platform": platform,
-        "evidence_text": _first(event, "evidence_text"),
+        "source_url": source.get("source_url"),
     }
 
 
-def _source_from_article(article: dict) -> dict:
-    """从公众号文章提取 source 字段（cn8n 返回的 article 形状）。"""
-    return {
-        "source_url": article.get("source_url") or article.get("url"),
-        "source_name": article.get("source_name") or article.get("account"),
-        "title": article.get("title"),
-    }
+def validate_draft(draft: dict) -> list[str]:
+    """检查 6-field draft 完整性。
+
+    缺失 title 或 source_url → error（无法去重/无法展示）
+    缺失 start_time → error（排序需要）
+    缺失 summary / end_time / location → warning（不影响入库，但标出）
+    """
+    warnings: list[str] = []
+    if not draft.get("title"):
+        warnings.append("ERROR: missing title")
+    if not draft.get("source_url"):
+        warnings.append("ERROR: missing source_url (去重依赖)")
+    if not draft.get("start_time"):
+        warnings.append("ERROR: missing start_time (排序依赖)")
+    if not draft.get("summary"):
+        warnings.append("WARNING: missing summary (embedding 质量下降)")
+    if not draft.get("end_time"):
+        warnings.append("WARNING: missing end_time")
+    if not draft.get("location"):
+        warnings.append("WARNING: missing location")
+    return warnings
 
 
-def _source_from_note(note: dict) -> dict:
-    """从小红书 note 提取 source 字段。"""
-    return {
-        "source_url": note.get("source_url") or note.get("url") or note.get("note_url"),
-        "source_name": note.get("source_name") or note.get("author"),
-        "title": note.get("title"),
-    }
+def map_wechat_article_to_drafts(
+    article: dict,
+    extracted_events: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """公众号文章 + MaaS 提取事件 → (6-field drafts, validation_warnings)。
 
-
-def map_wechat_article_to_drafts(article: dict, extracted_events: list[dict]) -> list[dict]:
-    """公众号文章 + MaaS 提取事件 → event draft 列表。
-
-    - source_platform = "wechat"
-    - source_url / source_name 从 article 透传，不编造。
-    - evidence_text 必须来自 extracted_events（MaaS 原文片段），不生成。
-    - extracted_events 为空（MaaS stub 或未提取到活动）→ 返回 []。
+    - source_url 从 article 透传，不编造。
+    - extracted_events 为空（MaaS stub 或未提取到活动）→ 返回 ([], [])。
     """
     source = _source_from_article(article)
-    return [_map_to_draft(source, e, "wechat") for e in (extracted_events or [])]
+    drafts: list[dict] = []
+    all_warnings: list[str] = []
+    for e in (extracted_events or []):
+        draft = _map_one(source, e)
+        vw = validate_draft(draft)
+        if vw:
+            vid = draft.get("title") or draft.get("source_url") or "?"
+            all_warnings.append(f"[{vid[:60]}] {'; '.join(vw)}")
+        drafts.append(draft)
+    return drafts, all_warnings
 
 
-def map_xiaohongshu_note_to_drafts(note: dict, extracted_events: list[dict]) -> list[dict]:
-    """小红书 note + MaaS 提取事件 → event draft 列表（最小版本）。
-
-    - source_platform = "xiaohongshu"
-    - 结构与 wechat mapper 共用 _map_to_draft，仅 source_platform 不同。
-    """
+def map_xiaohongshu_note_to_drafts(
+    note: dict,
+    extracted_events: list[dict],
+) -> tuple[list[dict], list[str]]:
+    """小红书 note + MaaS 提取事件 → (6-field drafts, validation_warnings)。"""
     source = _source_from_note(note)
-    return [_map_to_draft(source, e, "xiaohongshu") for e in (extracted_events or [])]
+    drafts: list[dict] = []
+    all_warnings: list[str] = []
+    for e in (extracted_events or []):
+        draft = _map_one(source, e)
+        vw = validate_draft(draft)
+        if vw:
+            vid = draft.get("title") or draft.get("source_url") or "?"
+            all_warnings.append(f"[{vid[:60]}] {'; '.join(vw)}")
+        drafts.append(draft)
+    return drafts, all_warnings

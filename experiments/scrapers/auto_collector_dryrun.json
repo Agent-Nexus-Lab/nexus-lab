@@ -1,381 +1,46 @@
 {
   "dry_run": false,
   "commit": false,
-  "scanned_accounts": 61,
-  "total_articles": 0,
-  "new_articles": 0,
+  "limit_accounts": 3,
+  "scanned_accounts": 3,
+  "total_articles": 15,
+  "new_articles": 15,
+  "extraction_summary": {
+    "total_articles_processed": 15,
+    "extracted_ok": 0,
+    "extracted_fail": 15,
+    "fail_reasons": {
+      "no_events_extracted": 15
+    }
+  },
   "extracted_event_drafts": 0,
   "imported": 0,
   "per_account": [
     {
       "account": "复旦天协",
-      "fetched": 0,
-      "new_articles": 0,
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
       "event_drafts": 0
     },
     {
       "account": "复旦剧社",
-      "fetched": 0,
-      "new_articles": 0,
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
       "event_drafts": 0
     },
     {
       "account": "复旦大学学生合唱团",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学团委学生艺术团",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦民乐团",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦吉他协会",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦学生舞蹈团",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦电影摄影",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦诗社",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学演讲与口才协会",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦模联FDU",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学足球协会",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦羽协",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦车协",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学登山探险协会",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦信息办",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学教务处",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学学生会",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦共青团",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学社团服务中心",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复小研",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦通识教育",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦就业",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学图书馆",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学体育教学部",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦文博",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学创新创业学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦团委青志",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦青年",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学艺术研究院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦招生",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦校友服务平台",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦国际",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学克卿书院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学任重书院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学志德书院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学腾飞书院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学希德书院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "书院在复旦",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦卿云歌",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦资助",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "园园在复旦",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "惠风钟文",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "萤窗诂籍",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦外文",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学公共卫生学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学大数据学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学文史研究院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦发展研究院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "旦旦情报局",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "九十九度",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "混旦",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学新闻学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学计算机科学技术学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学微电子学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学经济学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦管院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学哲学学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学基础医学院",
-      "fetched": 0,
-      "new_articles": 0,
-      "event_drafts": 0
-    },
-    {
-      "account": "复旦大学附属中山医院",
-      "fetched": 0,
-      "new_articles": 0,
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
       "event_drafts": 0
     }
   ],
   "event_drafts": [],
-  "warnings": [
-    "cn8n_client 未落地（曹昕宇 step 1）：No module named 'experiments.scrapers.cn8n_client'"
-  ]
+  "warnings": []
 }
