@@ -56,8 +56,10 @@ def submit_event_feedback(req: FeedbackEventRequest, db: Session = Depends(get_d
         "code": 0,
         "data": FeedbackEventData(
             feedback_id=feedback_id,
-            memory_created_ids=mem_result.get("created_memory_ids", []),
-            memory_updated_ids=mem_result.get("updated_memory_ids", []),
+            memory_candidate_ids=sorted(set(
+                mem_result.get("created_memory_ids", [])
+                + mem_result.get("updated_memory_ids", [])
+            )),
         ).model_dump(mode="json"),
         "message": "ok",
     }

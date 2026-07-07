@@ -30,19 +30,61 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 
 @router.post("/plan-day")
-def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
+def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):    
     t_start = time.perf_counter()
-
     user = db.query(User).first()
     if not user:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
-
+    runid = str(uuid.uuid4())
+    run = PlanRun(
+        id=runid,
+        user_id=user.id,
+        status="running",
+        request_text=req.request_text,
+        ended_at=None,
+        error_message=None,
+        date_scope=None,
+        intent_json=None,
+        stage="load_profile",
+        debug=None,
+        client_context=None,
+    )
+    db.add(run)
+    db.flush()
+    
     profile_raw = db.query(UserProfile).filter_by(user_id=user.id).first()
     if not profile_raw:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
+    profile = {
+        "preferred_campuses": profile_raw.preferred_campuses or [],
+        "interest_tags": profile_raw.interest_tags or [],
+        "activity_style_tags": profile_raw.activity_style_tags or [],
+        "available_time": profile_raw.available_time or "",
+        "campus": user.campus or "",
+        "profile_summary": profile_raw.profile_summary or "",
+    }
+    t_load_profile = time.perf_counter()  
 
-    t_load_profile = time.perf_counter()
+    run.stage = "parse_intent"
+    intent = parse_intent(
+        query=req.request_text,
+        profile=profile,
+        use_llm=True,
+        base_url=LLM_BASE_URL,
+        model=LLM_MODEL,
+        time_out=LLM_TIMEOUT,
+    )
+    run.intent_json = intent
+    run.stage = "read_memory"
+    t_before_memory = time.perf_counter()
+    memory_context: dict[str, Any] = {}
+    try:
+        memory_context = read_memory(user.id, db=db)
+    except Exception:
+        pass
+    t_after_memory = time.perf_counter()
 
+    run.stage = "search_events"
     events_raw = db.query(Event).all()
     events = []
     for event in events_raw:
@@ -61,37 +103,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             "source_name": event.source_name,
             "evidence_text": event.evidence_text,
         })
-
-    profile = {
-        "preferred_campuses": profile_raw.preferred_campuses or [],
-        "interest_tags": profile_raw.interest_tags or [],
-        "activity_style_tags": profile_raw.activity_style_tags or [],
-        "available_time": profile_raw.available_time or "",
-        "campus": user.campus or "",
-        "profile_summary": profile_raw.profile_summary or "",
-    }
-
-    t_before_memory = time.perf_counter()
-    memory_context: dict[str, Any] = {}
-    try:
-        memory_context = read_memory(user.id, db=db)
-    except Exception:
-        pass
-    t_after_memory = time.perf_counter()
-
-    runid = str(uuid.uuid4())
-    run = PlanRun(
-        id=runid,
-        user_id=user.id,
-        status="running",
-        request_text=req.request_text,
-        ended_at=None,
-        error_message=None,
-        debug=None,
-    )
-    db.add(run)
-    db.flush()
-
+    run.stage = "build_schedule"
     try:
         result = plan_day_funct(
             events=events,
@@ -113,7 +125,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         run.debug = None
         db.commit()
         return {"code": 500, "data": None, "message": f"生成失败：{str(e)}"}
-
+    run.stage = "save_plan"
     data = result.model_dump()
     inner = data.get("data") or {}
     plan_id = inner.get("plan_id") or str(uuid.uuid4())
@@ -140,6 +152,8 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             reason_text=item_raw.get("reason_text", ""),
             score=item_raw.get("score"),
             score_components=item_raw.get("score_components"),
+            matched_terms=,
+            matched_reasons=,
             display_order=item_raw.get("display_order", 0),
         )
         db.add(item)
@@ -166,7 +180,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "recent_plan_event_ids": memory_context.get("recent_plan_event_ids", []),
         "memory_item_count": len(memory_context.get("memory_items", [])),
     }
-
+    run.stage = "completed"
     run.status = "completed"
     run.ended_at = datetime.now(DEFAULT_TIMEZONE)
     run.debug = json.dumps(debug_raw, ensure_ascii=False)
@@ -176,7 +190,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
 
     return {
         "code": 0,
-        "data": PlanDayResponseData(run_id=run.id, status=run.status).model_dump(mode="json"),
+        "data": PlanDayResponseData(run_id=run.id, status=run.status, stage =run.stage, poll_after_ms=1000).model_dump(mode="json"),
         "message": "ok",
     }
 
@@ -267,19 +281,18 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
         "data": RunStatusData(
             run_id=run.id,
             status=run.status,
+            stage = run.stage,
             plan_id=plan.id if plan else None,
             title=plan.title if plan else None,
             summary=plan.summary if plan else None,
             date_scope=plan.date_scope if plan else None,
+            request_text=run.request_text,
+            memory_used=memory_used,
             items=items if items else None,
             started_at=run.started_at,
             ended_at=run.ended_at,
             error_message=run.error_message,
             debug=run.debug,
-            memory_used=memory_used,
-            stage=stage,
-            stage_message=stage_message_map.get(run.status, ""),
-            progress=1.0 if run.status in ("completed", "failed") else 0.5,
             cache_hit=cache_hit,
         ).model_dump(mode="json"),
         "message": "ok",

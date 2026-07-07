@@ -77,11 +77,14 @@ class PlanRun(Base):
     user_id = Column(String(36), ForeignKey("users.id"),  nullable=False)
     status = Column(String(20), default="queued")  # queued / running  / completed / failed
     request_text = Column(Text)
-    # date_scope = Column(String(20))
     started_at = Column(DateTime(timezone=True),  server_default=func.now())
     ended_at = Column(DateTime(timezone=True))
-    error_message = Column(Text)    #
+    error_message = Column(Text)
+    date_scope = Column(String(20))
+    intent_json = Column(JSON)
+    stage = Column(String)
     debug = Column(Text)
+    client_context = Column(JSON)
 
 class Plan(Base):
     __tablename__ = "plans"
@@ -105,6 +108,8 @@ class PlanItem(Base):
     reason_text = Column(Text)
     score = Column(Float)
     score_components = Column(JSON)
+    matched_terms = Column(JSON)
+    memory_reasons = Column(JSON)
     display_order = Column(Integer)
 
 
@@ -158,4 +163,21 @@ class MemoryAuditLog(Base):
     after_state = Column(JSON, nullable=True)
     actor = Column(Text, nullable=False, default="system")
     reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class EventQualitySnapshots(Base):
+    __tablename__ = "event_quality_snapshots"
+
+    id = Column(String(36), primary_key=True)
+    snapshot_date = Column(DateTime(timezone=True), server_default=func.now())
+    total_events = Column(Integer)
+    future_events = Column(Integer)
+    expired_events = Column(Integer)
+    missing_time_count = Column(Integer)
+    missing_location_count = Column(Integer)
+    missing_source_url_count = Column(Integer)
+    missing_evidence_count = Column(Integer)
+    visible_events = Column(Integer)
+    stale_events = Column(Integer)
+    metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

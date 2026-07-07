@@ -7,6 +7,7 @@ from schemas import (
     ImportUrlRequest, ImportUrlData,
     AdminEventItem, EventListData,
     DataHealthData,
+    CampusBreakdown, SourceBreakdownItem, QualitySummaryData,
 )
 from models import Source, RawDocument, Event
 import uuid
@@ -231,6 +232,108 @@ def get_data_health(db: Session = Depends(get_db)):
             last_collection_result=last_collection_result,
             is_healthy=len(alerts) == 0,
             alerts=alerts,
+        ).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.get("/events/quality-summary")
+def get_quality_summary(
+    now: str | None = None,
+    campus: str | None = None,
+    source_id: str | None = None,
+    db: Session = Depends(get_db),
+):
+    ref_now: datetime
+    if now:
+        try:
+            ref_now = datetime.fromisoformat(now)
+        except ValueError:
+            ref_now = datetime.now(timezone.utc)
+    else:
+        ref_now = datetime.now(timezone.utc)
+
+    events_query = db.query(Event)
+    if campus:
+        events_query = events_query.filter_by(campus=campus)
+    if source_id:
+        events_query = events_query.filter_by(source_id=source_id)
+
+    events = events_query.all()
+
+    def start_utc(e: Event) -> datetime | None:
+        return e.start_time if e.start_time else None
+
+    def end_utc(e: Event) -> datetime | None:
+        return e.end_time if e.end_time else None
+
+    total_events = len(events)
+    visible_events = sum(1 for e in events if e.is_user_visible is not False)
+    future_events = sum(1 for e in events if start_utc(e) and start_utc(e) >= ref_now)
+    expired_events = sum(1 for e in events if end_utc(e) and end_utc(e) < ref_now)
+    stale_events = sum(
+        1 for e in events
+        if e.updated_at and (ref_now - (e.updated_at.replace(tzinfo=None) if e.updated_at.tzinfo else e.updated_at.replace(tzinfo=timezone.utc))).days > 7
+    )
+    missing_time_count = sum(1 for e in events if not e.start_time or not e.end_time)
+    missing_location_count = sum(1 for e in events if not e.location)
+    missing_source_url_count = sum(1 for e in events if not e.source_url)
+    missing_evidence_count = sum(1 for e in events if not e.evidence_text)
+
+    # by_campus
+    campus_map: dict[str, dict[str, int]] = {}
+    for e in events:
+        c = e.campus or "未知"
+        if c not in campus_map:
+            campus_map[c] = {"future_events": 0, "expired_events": 0}
+        if start_utc(e) and start_utc(e) >= ref_now:
+            campus_map[c]["future_events"] += 1
+        if end_utc(e) and end_utc(e) < ref_now:
+            campus_map[c]["expired_events"] += 1
+    by_campus = [
+        CampusBreakdown(campus=c, future_events=v["future_events"], expired_events=v["expired_events"])
+        for c, v in sorted(campus_map.items())
+    ]
+
+    # by_source
+    all_source_ids = {e.source_id for e in events if e.source_id}
+    sources = db.query(Source).filter(Source.id.in_(all_source_ids)).all() if all_source_ids else []
+    source_name_map = {s.id: s.name for s in sources}
+
+    source_map: dict[str, dict[str, int]] = {}
+    for e in events:
+        sid = e.source_id or "unknown"
+        if sid not in source_map:
+            source_map[sid] = {"future_events": 0, "missing_evidence_count": 0}
+        if start_utc(e) and start_utc(e) >= ref_now:
+            source_map[sid]["future_events"] += 1
+        if not e.evidence_text:
+            source_map[sid]["missing_evidence_count"] += 1
+    by_source = [
+        SourceBreakdownItem(
+            source_id=sid,
+            source_name=source_name_map.get(sid, "未知来源"),
+            future_events=v["future_events"],
+            missing_evidence_count=v["missing_evidence_count"],
+        )
+        for sid, v in sorted(source_map.items())
+    ]
+
+    return {
+        "code": 0,
+        "data": QualitySummaryData(
+            total_events=total_events,
+            future_events=future_events,
+            expired_events=expired_events,
+            visible_events=visible_events,
+            stale_events=stale_events,
+            missing_time_count=missing_time_count,
+            missing_location_count=missing_location_count,
+            missing_source_url_count=missing_source_url_count,
+            missing_evidence_count=missing_evidence_count,
+            by_campus=by_campus,
+            by_source=by_source,
+            generated_at=datetime.now(timezone.utc),
         ).model_dump(mode="json"),
         "message": "ok",
     }

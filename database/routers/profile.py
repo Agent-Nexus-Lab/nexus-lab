@@ -101,6 +101,7 @@ def _to_profile_data(user, profile):
         available_time=profile.available_time if profile else None,
         activity_style_tags=profile.activity_style_tags if profile else None,
         profile_summary=profile.profile_summary if profile else None,
+        memory_summary = ???????????????????
         created_at=user.created_at,
         updated_at=profile.updated_at if profile else user.updated_at,
     )

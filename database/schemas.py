@@ -53,6 +53,8 @@ class PlanDayResponseData(BaseModel):
     """POST /api/agent/plan-day 响应 data（202 Accepted）"""
     run_id: str
     status: str  # "queued"
+    stage: str
+    poll_after_ms: int
 
 
 # ============================================================
@@ -115,6 +117,7 @@ class FeedbackEventRequest(BaseModel):
 class FeedbackEventData(BaseModel):
     """POST /api/feedback/event 响应 data"""
     feedback_id: str
+    memory_candidate_ids: list[str] = []
     message: str = "feedback saved"
 
 
@@ -263,6 +266,7 @@ class FeedbackEventRequest(BaseModel):
 class FeedbackEventData(BaseModel):
     """POST /api/feedback/event 响应 data"""
     feedback_id: str
+    memory_candidate_ids: list[str] = []
     message: str = "feedback saved"
 
 
@@ -338,6 +342,37 @@ class DataHealthData(BaseModel):
     last_collection_result: str
     is_healthy: bool
     alerts: list[str]
+
+
+class CampusBreakdown(BaseModel):
+    """quality-summary by_campus 条目"""
+    campus: str
+    future_events: int
+    expired_events: int
+
+
+class SourceBreakdownItem(BaseModel):
+    """quality-summary by_source 条目"""
+    source_id: str
+    source_name: str
+    future_events: int
+    missing_evidence_count: int
+
+
+class QualitySummaryData(BaseModel):
+    """GET /api/admin/events/quality-summary 响应 data"""
+    total_events: int
+    future_events: int
+    expired_events: int
+    visible_events: int
+    stale_events: int
+    missing_time_count: int
+    missing_location_count: int
+    missing_source_url_count: int
+    missing_evidence_count: int
+    by_campus: list[CampusBreakdown]
+    by_source: list[SourceBreakdownItem]
+    generated_at: datetime
 
 
 # ============================================================
