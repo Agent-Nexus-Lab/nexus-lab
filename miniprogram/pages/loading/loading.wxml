@@ -97,9 +97,14 @@
 
       <view class="collection-log-panel">
         <view class="debug-title">采集日志</view>
-        <view wx:for="{{dataHealth.collectionLogs}}" wx:key="id" class="collection-log-item">
-          <view class="collection-log-main">{{item.result}}</view>
-          <view class="collection-log-sub">{{item.source}} · {{item.timeText}}</view>
+        <view wx:for="{{dataHealth.collectionLogs}}" wx:key="id" class="collection-log-item {{item.isEmpty ? 'collection-log-empty' : ''}}">
+          <view class="collection-log-topline">
+            <view class="collection-log-main">{{item.batchText}}</view>
+            <view class="collection-log-status">{{item.result}}</view>
+          </view>
+          <view class="collection-log-sub">{{item.source}} · {{item.timeText}} · {{item.triggerText}}</view>
+          <view class="collection-log-stats">{{item.statsText}}</view>
+          <view wx:if="{{item.failureText}}" class="collection-log-failure">{{item.failureText}}</view>
         </view>
       </view>
     </view>

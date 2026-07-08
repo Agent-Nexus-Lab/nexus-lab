@@ -471,19 +471,40 @@ Page({
     if (!Array.isArray(logs) || logs.length === 0) {
       return [{
         id: 'empty',
-        timeText: '暂无',
+        isEmpty: true,
+        batchText: '暂无批次',
+        triggerText: '暂无触发记录',
         result: '暂无采集日志记录',
-        source: 'collection_logs 未返回'
+        source: 'collection_logs 未返回',
+        statsText: '等待真实采集链路写入后展示',
+        failureText: ''
       }]
     }
-    return logs.slice(0, 3).map((log, index) => ({
-      id: log.id || log.log_id || `${index}`,
-      timeText: this.formatDateTime(log.created_at || log.collection_time || log.time),
-      result: log.result || log.status || 'unknown',
-      source: log.source_name || log.source || log.account || '未知来源'
-    }))
+    return logs.slice(0, 3).map((log, index) => {
+      const fetched = log.fetched_count ?? log.fetched_articles ?? log.article_count ?? log.fetchedArticleCount
+      const extracted = log.extracted_count ?? log.extracted_events ?? log.event_draft_count ?? log.extractedEventCount
+      const imported = log.imported_count ?? log.inserted_count ?? log.upserted_count ?? log.importedEventCount
+      const triggerMethod = log.trigger_method || log.trigger || log.triggered_by || log.mode || '未知触发'
+      const source = log.source_name || log.source || log.account || log.source_url || '未知来源'
+      const failureText = log.failure_reason || log.error_message || log.error || log.failed_reason || ''
+      return {
+        id: log.batch_id || log.id || log.log_id || `${index}`,
+        isEmpty: false,
+        batchText: log.batch_id || log.id || log.log_id || `batch-${index + 1}`,
+        timeText: this.formatDateTime(log.triggered_at || log.started_at || log.created_at || log.collection_time || log.time),
+        triggerText: triggerMethod,
+        result: log.result || log.status || (failureText ? 'failed' : 'unknown'),
+        source,
+        statsText: `抓取 ${this.formatCount(fetched)} / 抽取 ${this.formatCount(extracted)} / 入库 ${this.formatCount(imported)}`,
+        failureText
+      }
+    })
   },
 
+  formatCount(value) {
+    if (value == null || value === '') return '-'
+    return String(value)
+  },
   formatDateTime(value) {
     if (!value) return '暂无记录'
     const date = new Date(value)

@@ -590,3 +590,42 @@
     transform: scaleY(1);
   }
 }
+
+.collection-log-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.collection-log-status {
+  flex: 0 0 auto;
+  padding: 5rpx 10rpx;
+  border-radius: 999rpx;
+  background: #eef6ff;
+  color: #1e40af;
+  font-size: 19rpx;
+  font-weight: 850;
+}
+
+.collection-log-stats {
+  margin-top: 6rpx;
+  color: #1e3a6d;
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+
+.collection-log-failure {
+  margin-top: 8rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 12rpx;
+  background: #fff1f1;
+  color: #991b1b;
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.collection-log-empty .collection-log-status {
+  background: #f1f5f9;
+  color: #64748b;
+}

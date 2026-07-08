@@ -190,3 +190,44 @@ GET /api/agent/runs/{run_id}
 If `/api/agent/stream-plan-day` returns HTTP 404/500, the WeChat base library does not support `onChunkReceived`, or the stream closes without a completed result, the loading page creates a normal run and continues polling. This keeps the formal demo stable while allowing real-time stage/message updates when the backend stream is ready.
 
 `pages/stream-demo/stream-demo` remains as a dev-only diagnostic page for testing arbitrary chunked endpoints.
+
+## 2026-07-08 Display Contract Addendum
+
+The second-week frontend display work adds tolerant rendering for collection and recommendation explanation fields.
+
+### Collection Logs
+
+`GET /api/admin/data-health` may include `collection_logs`. The loading page now accepts these field aliases:
+
+| UI Display | Field Aliases |
+|---|---|
+| Batch | `batch_id`, `id`, `log_id` |
+| Trigger time | `triggered_at`, `started_at`, `created_at`, `collection_time`, `time` |
+| Trigger method | `trigger_method`, `trigger`, `triggered_by`, `mode` |
+| Source | `source_name`, `source`, `account`, `source_url` |
+| Fetched articles | `fetched_count`, `fetched_articles`, `article_count`, `fetchedArticleCount` |
+| Extracted events | `extracted_count`, `extracted_events`, `event_draft_count`, `extractedEventCount` |
+| Imported events | `imported_count`, `inserted_count`, `upserted_count`, `importedEventCount` |
+| Failure reason | `failure_reason`, `error_message`, `error`, `failed_reason` |
+
+If `collection_logs` is missing or empty, the frontend renders `暂无采集日志记录` and does not fake a successful collection.
+
+### Result Explanations
+
+Result cards now preserve `source_name`, render `source_url` as a clickable source entry when it is an HTTP URL, and reserve visible slots for scoring explanations.
+
+Accepted optional fields:
+
+```text
+score_components, semantic_interest_match, interest_match, semantic_similarity,
+memory_reason, memory_boost, memory_penalty, repeat_penalty, penalty_reason,
+rejection_reason, score_reasons, reasons
+```
+
+Top-level result data may include `answer_composer` with:
+
+```text
+summary, recommended_items, tradeoffs, follow_up_question
+```
+
+If these fields are absent, the UI hides the composer/explanation panels and keeps the current card display unchanged.
