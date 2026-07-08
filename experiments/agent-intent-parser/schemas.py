@@ -66,14 +66,14 @@ class IntentParseOutput(BaseModel):
 
     hard_constraints: list[HardConstraint] = Field(
         default_factory=list,
-        description="由规则引擎从 query 中提取的硬约束（如不要XX、别XX）。"
-                    "LLM 不负责生成此字段，由规则补全。"
+        description="硬约束（如不要XX、别XX）。"
+                    "规则模式下由正则提取；LLM 模式下由模型从 query 中解析（含隐式意图）。"
     )
 
     soft_constraints: list[SoftConstraint] = Field(
         default_factory=list,
-        description="由规则引擎从 query 中提取的软偏好（如特别喜欢XX、最好XX）。"
-                    "LLM 不负责生成此字段，由规则补全。"
+        description="软偏好（如特别喜欢XX、最好XX）。"
+                    "规则模式下由正则提取；LLM 模式下由模型从 query 中解析（含隐式意图）。"
     )
 
     parsed_successfully: bool = True

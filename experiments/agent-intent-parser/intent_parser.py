@@ -90,6 +90,8 @@ def parse_intent(
     if use_llm:
         try:
             result = _parse_intent_with_llm(query, profile=profile, base_url=base_url, model=model, timeout=timeout)
+            # LLM 模式下，约束由 LLM 直接生成，不再追加规则引擎结果
+            return result
         except Exception as exc:
             logger.warning("LLM intent parsing failed, falling back to rules: %s", exc)
             result = _parse_intent_with_rules(query)
@@ -316,7 +318,7 @@ def _extract_soft_constraints(
 
 
 def _build_intent_system_prompt() -> str:
-    return """你是复旦大学校园日程助手的意图解析器。只从用户本次 query 中提取明确表达的需求。
+    return """你是复旦大学校园日程助手的意图解析器。从用户 query 中提取结构化意图，**包括显式表达和隐式偏好**。
 
 ## 输出 JSON 格式
 {
@@ -325,18 +327,47 @@ def _build_intent_system_prompt() -> str:
   "max_items": 4,
   "time_preference": {"morning": false, "afternoon": true, "evening": false, "weekend": false},
   "interest_tags": ["天文"],
-  "style_tags": ["轻松"]
+  "style_tags": ["轻松"],
+  "hard_constraints": [
+    {"field": "excluded_keywords", "operator": "contains", "value": "讲座"}
+  ],
+  "soft_constraints": [
+    {"field": "interest_tags", "weight": 1.5, "value": "天文"},
+    {"field": "style_tags", "weight": 0.5, "value": "体育"}
+  ]
 }
 
-## 规则
+## 基础字段规则
 1. date_scope: today / tomorrow / this_week，根据"今天/明天/这周/周末"判断，默认 today
 2. explicit_campuses: 仅提取用户明确说出的校区（邯郸/江湾/枫林/张江），没提到就是 []
 3. max_items: 用户说"2个/3个"就设对应值，没说就默认 4
 4. time_preference: 用户提到具体时段（上午/下午/晚上/周末）就设 true，没提到全 false
-5. interest_tags: 只提取用户明确提到的实体词（天文/AI/戏剧/讲座等），提取不到就是 []
-6. style_tags: 只提取用户明确说的风格词（轻松/互动/正式/实践/安静/热闹），提取不到就是 []
+5. interest_tags: 从 query 提取用户感兴趣的关键词（天文/AI/戏剧/讲座/工作坊/展览/体育/音乐/社交/职业/创业等），提取不到就是 []
+6. style_tags: 从 query 提取风格偏好（轻松/互动/正式/实践/安静/热闹），提取不到就是 []
 
-注意：hard_constraints 和 soft_constraints 由规则引擎单独生成，LLM 不需要输出这两个字段。
+## hard_constraints 规则（硬过滤）
+硬约束是用户**明确不想看到的**内容，匹配的活动应被直接排除。
+- 用户说"不要XX"、"别XX"、"不想XX"、"避免XX" → field="excluded_keywords", operator="contains"
+- 用户说"只去XX校区"、"必须在XX" → field="campus", operator="eq"
+- 用户说"换一个"、"换点别的" → field="excluded_keywords", value="_switch_request"（表示要换方向）
+- 示例: "不要创业路演" → {"field": "excluded_keywords", "operator": "contains", "value": "创业路演"}
+- 示例: "不想看太商业的" → {"field": "excluded_keywords", "operator": "contains", "value": "太商业"}
+
+## soft_constraints 规则（软偏好/排序影响）
+软偏好影响排序但不直接过滤。按用户表达的强烈程度设置 weight：
+- weight 1.5: 用户说"特别喜欢"、"更喜欢"、"更偏"、"超爱"、"尤其喜欢"
+- weight 1.2: 用户说"喜欢"、"想"、"最好"、"尽量"
+- weight 0.5: 用户说"不太喜欢"、"不太想"、"一般"、"无所谓"
+- 示例: "更喜欢 AI 展览" → {"field": "interest_tags", "weight": 1.5, "value": "AI展览"}
+
+## 隐式意图推断
+当用户表达模糊时，合理推断其意图并写入对应字段：
+- "最近有点无聊" → interest_tags: ["社交", "演出"]，style_tags: ["轻松"]
+- "不想太累但又想学点东西" → style_tags: ["轻松"]，interest_tags: ["学术", "讲座"]，hard_constraints: [排除需要大量体力的活动]
+- "想做点不一样的" → hard_constraints: [{"field": "excluded_keywords", "value": "_switch_request"}]
+- "随便看看" → 所有提取字段可留空
+
+注意：只推断合理的、上下文支持的意图。不确定时宁可留空。
 只返回 JSON，不要输出任何额外文字。"""
 
 
@@ -357,6 +388,12 @@ def _extract_intent_from_response(raw_response: dict[str, Any]) -> dict[str, Any
 
 def _validate_and_build(parsed: dict[str, Any], query: str) -> IntentParseOutput:
     time_pref = parsed.get("time_preference", {})
+    hard_raw = parsed.get("hard_constraints", [])
+    soft_raw = parsed.get("soft_constraints", [])
+
+    hard_constraints = _parse_hard_constraints_from_llm(hard_raw)
+    soft_constraints = _parse_soft_constraints_from_llm(soft_raw)
+
     return IntentParseOutput(
         request_text=query,
         date_scope=parsed.get("date_scope", "today"),
@@ -370,8 +407,54 @@ def _validate_and_build(parsed: dict[str, Any], query: str) -> IntentParseOutput
         ),
         interest_tags=parsed.get("interest_tags", []),
         style_tags=parsed.get("style_tags", []),
-        hard_constraints=[],
-        soft_constraints=[],
+        hard_constraints=hard_constraints,
+        soft_constraints=soft_constraints,
         parsed_successfully=True,
         parse_warnings=[],
     )
+
+
+def _parse_hard_constraints_from_llm(raw: Any) -> list[HardConstraint]:
+    """Parse hard_constraints from LLM output, with validation."""
+    if not isinstance(raw, list):
+        return []
+    constraints: list[HardConstraint] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        field = str(item.get("field", "")).strip()
+        operator = str(item.get("operator", "contains")).strip()
+        value = str(item.get("value", "")).strip()
+        if not field or not value or len(value) > 50:
+            continue
+        constraints.append(HardConstraint(
+            field=field,
+            operator=operator if operator in ("eq", "ne", "contains") else "contains",
+            value=value,
+        ))
+    return constraints
+
+
+def _parse_soft_constraints_from_llm(raw: Any) -> list[SoftConstraint]:
+    """Parse soft_constraints from LLM output, with validation."""
+    if not isinstance(raw, list):
+        return []
+    constraints: list[SoftConstraint] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        field = str(item.get("field", "")).strip()
+        try:
+            weight = float(item.get("weight", 1.0))
+        except (TypeError, ValueError):
+            weight = 1.0
+        weight = max(0.0, min(2.0, weight))
+        value = str(item.get("value", "")).strip()
+        if not field or not value or len(value) > 50:
+            continue
+        constraints.append(SoftConstraint(
+            field=field,
+            weight=weight,
+            value=value,
+        ))
+    return constraints
