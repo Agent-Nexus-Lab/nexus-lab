@@ -5,6 +5,7 @@
     "pages/loading/loading",
     "pages/result/result",
     "pages/history/history",
+    "pages/memory/memory",
     "pages/source/source",
     "pages/stream-demo/stream-demo"
   ],

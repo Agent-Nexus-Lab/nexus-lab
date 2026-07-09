@@ -231,3 +231,42 @@ summary, recommended_items, tradeoffs, follow_up_question
 ```
 
 If these fields are absent, the UI hides the composer/explanation panels and keeps the current card display unchanged.
+
+## 2026-07-09 Memory Summary Display
+
+The miniprogram now includes `pages/memory/memory` for the frontend part of the memory_summary acceptance task.
+
+### GET /api/memory
+
+The page calls:
+
+```text
+GET /api/memory?status=active&page=1&page_size=50
+```
+
+Accepted response shape:
+
+| Field | UI behavior |
+|---|---|
+| `data.items` | Active memory list. Missing or non-array values render as empty state |
+| `memory_id` | Used for delete action |
+| `memory_type` | Rendered as human-readable memory title; `memory_summary` is preferred as the summary card |
+| `memory_scope` | Rendered in the memory item subtitle |
+| `content` | Main memory text. Fallback: `暂无记忆内容` |
+| `structured_content.memory_strength` / `structured_content.strength` / `confidence` | Rendered as strength percent |
+| `structured_content.source_refs` / `source_ref` | Rendered as source summary |
+| `structured_content.expires_after_turns` / `expires_at` | Rendered as decay or expiry text |
+| `structured_content.cleanup_reason` | Rendered as cleanup/deletion explanation |
+| `updated_at` | Rendered as latest update time |
+
+If no `memory_summary` item exists yet, the page still displays the first active memory item as a temporary active-memory summary and clearly states that backend may still only return tag/event-level memory.
+
+### DELETE /api/memory/{memory_id}
+
+The page supports deleting an active memory item. On success it shows:
+
+```text
+已停止用于下一轮推荐理解
+```
+
+The frontend expects the backend to mark the memory as deleted/suppressed so it no longer participates in the next query rewrite. If the backend has not implemented suppression yet, the UI still records the user-facing success state returned by the API.

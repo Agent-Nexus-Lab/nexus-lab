@@ -294,6 +294,12 @@ Page({
     })
   },
 
+  goMemory() {
+    wx.navigateTo({
+      url: '/pages/memory/memory'
+    })
+  },
+
   goPlan() {
     wx.redirectTo({
       url: '/pages/plan/plan'
