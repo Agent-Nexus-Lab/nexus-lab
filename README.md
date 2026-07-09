@@ -2,6 +2,10 @@
 
 复旦校园日程 AI 助手 MVP 仓库。项目目标是从校园活动信息源中抽取结构化活动，结合用户画像、时间范围和偏好，生成可展示在微信小程序里的个性化活动日程。
 
+## Project Map
+
+![NexusLab 项目结构与 Agent 主链路](docs/poster/nexuslab_final_poster.png)
+
 ## Repository Structure
 
 ```text
