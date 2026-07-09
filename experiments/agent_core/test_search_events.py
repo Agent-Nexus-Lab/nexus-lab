@@ -33,7 +33,7 @@ from agent_core.query import (
     SearchResult,
     SoftPreferences,
 )
-from agent_core.scoring import score_and_sort
+from agent_core.scoring import score_and_sort, score_interest_match, _cosine_similarity
 from agent_core.search_events import query_for_plan_day, search_events
 
 TZ = timezone(timedelta(hours=8))
@@ -1313,6 +1313,100 @@ class MemoryScoringTest(unittest.TestCase):
                 _compute_display_memory_hash(c),
                 f"display hash mismatch for {c}",
             )
+
+
+class SemanticInterestMatchTest(unittest.TestCase):
+    """semantic interest_match：cosine 路径 + keyword fallback。"""
+
+    def test_cosine_similarity_basic(self) -> None:
+        # 平行向量 sim=1，正交 sim=0，反向 sim=-1
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [1, 0]), 1.0)
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [0, 1]), 0.0)
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [-1, 0]), -1.0)
+        # 退化输入
+        self.assertEqual(_cosine_similarity([], [1, 0]), 0.0)
+        self.assertEqual(_cosine_similarity([0, 0], [1, 0]), 0.0)
+
+    def test_semantic_path_when_embeddings_present(self) -> None:
+        event = make_event(event_id="e1", title="AI 讲座")
+        event["summary_embedding"] = [1.0, 0.0, 0.0]
+        prefs = SoftPreferences(
+            query_embedding=(1.0, 0.0, 0.0),
+            embedding_model="test-embed-v1",
+        )
+        score, matched, detail = score_interest_match(event, prefs)
+        self.assertAlmostEqual(score, 1.0)  # (1+1)/2
+        self.assertEqual(matched, [])
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "semantic")
+        self.assertAlmostEqual(detail["semantic_similarity"], 1.0)
+        self.assertAlmostEqual(detail["normalized_interest_match"], 1.0)
+        self.assertEqual(detail["embedding_model"], "test-embed-v1")
+        self.assertAlmostEqual(detail["score"], 1.0)
+
+    def test_semantic_normalization_clamps_to_01(self) -> None:
+        # 反向向量 raw_sim=-1 → normalized=0
+        event = make_event(event_id="e1", title="x")
+        event["summary_embedding"] = [1.0, 0.0]
+        prefs = SoftPreferences(query_embedding=(-1.0, 0.0))
+        score, _, detail = score_interest_match(event, prefs)
+        self.assertAlmostEqual(score, 0.0)
+        self.assertAlmostEqual(detail["semantic_similarity"], -1.0)
+
+    def test_keyword_fallback_when_no_query_embedding(self) -> None:
+        # event 有 summary_embedding 但 preferences 无 query_embedding → keyword fallback
+        event = make_event(event_id="e1", title="AI 大模型讲座", tags=["AI"])
+        event["summary_embedding"] = [1.0, 0.0]
+        prefs = SoftPreferences(interest_terms=("AI",))
+        score, matched, detail = score_interest_match(event, prefs)
+        self.assertIsNone(detail)  # keyword 路径 detail=None
+        self.assertIn("AI", matched)
+        self.assertGreater(score, 0.0)
+
+    def test_keyword_fallback_when_no_event_embedding(self) -> None:
+        # preferences 有 query_embedding 但 event 无 summary_embedding → keyword fallback
+        event = make_event(event_id="e1", title="AI 讲座", tags=["AI"])
+        prefs = SoftPreferences(interest_terms=("AI",), query_embedding=(1.0, 0.0))
+        score, matched, detail = score_interest_match(event, prefs)
+        self.assertIsNone(detail)
+        self.assertIn("AI", matched)
+
+    def test_semantic_components_shape_in_score_and_sort(self) -> None:
+        # 端到端：score_and_sort 的 components["interest_match"] 在语义模式下是 dict
+        events = [
+            make_event(event_id="e1", title="AI 讲座"),
+            make_event(event_id="e2", title="体育"),
+        ]
+        events[0]["summary_embedding"] = [1.0, 0.0]
+        events[1]["summary_embedding"] = [0.0, 1.0]
+        prefs = SoftPreferences(
+            query_embedding=(1.0, 0.0),
+            embedding_model="test-embed-v1",
+        )
+        results = score_and_sort(events, preferences=prefs, now=NOW)
+        e1 = next(r for r in results if r.event["event_id"] == "e1")
+        e2 = next(r for r in results if r.event["event_id"] == "e2")
+        im1 = e1.score_components["interest_match"]
+        im2 = e2.score_components["interest_match"]
+        self.assertIsInstance(im1, dict)
+        self.assertEqual(im1["method"], "semantic")
+        # e1 与 query 平行 → 归一化 1.0；e2 正交 → 0.5
+        self.assertAlmostEqual(im1["normalized_interest_match"], 1.0)
+        self.assertAlmostEqual(im2["normalized_interest_match"], 0.5)
+        self.assertGreater(e1.score, e2.score)
+
+    def test_keyword_path_unchanged_when_no_embeddings(self) -> None:
+        # 无任何 embedding → 原有 keyword 行为，interest_match 仍是 float，不回归
+        events = [
+            make_event(event_id="e1", title="AI 大模型讲座", tags=["AI", "讲座"]),
+            make_event(event_id="e2", title="体育比赛", tags=["体育"]),
+        ]
+        prefs = SoftPreferences(interest_terms=("AI", "大模型"))
+        results = score_and_sort(events, preferences=prefs, now=NOW)
+        e1 = next(r for r in results if r.event["event_id"] == "e1")
+        self.assertIsInstance(e1.score_components["interest_match"], float)
+        self.assertGreater(e1.score, e2_score := next(
+            r for r in results if r.event["event_id"] == "e2").score)
 
 
 if __name__ == "__main__":

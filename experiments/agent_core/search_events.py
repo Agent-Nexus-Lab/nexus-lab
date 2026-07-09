@@ -166,6 +166,9 @@ def _build_query(
         boost_liked_tags=memory.liked_tags,
         boost_liked_event_ids=memory.liked_event_ids,
         penalty_disliked_event_ids=memory.disliked_event_ids,
+        # Semantic interest_match hook（李颖哲 query rewrite 产出，今天留 None）
+        query_embedding=intent.query_embedding,
+        embedding_model=intent.embedding_model,
     )
 
     return SearchQuery(
