@@ -1,8 +1,14 @@
-# Nexus Lab
+<p align="center">
+  <img src="docs/NexusLab_logo_trimmed.png" alt="NexusLab" width="420">
+</p>
 
 复旦校园日程 AI 助手 MVP 仓库。项目目标是从校园活动信息源中抽取结构化活动，结合用户画像、时间范围和偏好，生成可展示在微信小程序里的个性化活动日程。
 
-## Repository Structure
+## 项目地图
+
+![NexusLab 项目结构与 Agent 主链路](docs/poster/nexuslab_final_poster.png)
+
+## 仓库结构
 
 ```text
 nexus-lab/
@@ -15,7 +21,7 @@ nexus-lab/
 
 当前主线中，`database/` 是带数据库的 FastAPI 服务；`backend/` 是 Agent 运行时服务层代码，不再承载旧数据库路由。
 
-## Environment
+## 环境配置
 
 复制环境变量模板并填写真实配置：
 
@@ -34,7 +40,7 @@ MAAS_MODEL=deepseek-v4-pro
 
 `.env` 已被 `.gitignore` 忽略，不要提交真实数据库密码或 MaaS API key。
 
-## Install
+## 安装
 
 安装全部本地开发依赖：
 
@@ -51,9 +57,9 @@ python -m pip install -r experiments/scrapers/requirements.txt
 python -m pip install -r experiments/weixin-scraper/requirements.txt
 ```
 
-## Run
+## 运行
 
-### Database API
+### 数据库 API
 
 ```powershell
 cd database
@@ -84,7 +90,7 @@ cd database
 python import_events.py
 ```
 
-### Miniprogram
+### 小程序
 
 用微信开发者工具打开：
 
@@ -105,7 +111,7 @@ miniprogram/README.md
 docs/previews/miniprogram-t0-preview.html
 ```
 
-### Agent Experiments
+### Agent 实验
 
 Agent 实验和数据流详见：
 
@@ -127,7 +133,7 @@ python -m unittest discover -s experiments/agent_plan_runtime
 python -m unittest discover -s experiments/agent-intent-parser
 ```
 
-## Verification
+## 验证
 
 合并或提交前建议至少运行：
 
@@ -146,7 +152,7 @@ $env:DATABASE_URL='sqlite:///:memory:'
 python -m alembic -c database/alembic.ini current
 ```
 
-## Notes
+## 注意事项
 
 - `experiments/agent_maas_cli/outputs/events.json` 是当前 Agent demo/runtime 使用的结构化事件样本。
 - `experiments/scrapers/` 是较新的微信抓取管道；`experiments/weixin-scraper/` 是旧抓取方案 fallback。
