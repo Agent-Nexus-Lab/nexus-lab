@@ -62,6 +62,8 @@ Page({
     errorMessage: '',
     failureDetails: [],
     rewriteNotice: '',
+    cacheHit: false,
+    cacheText: 'cache_hit: false',
     debugText: '',
     dataHealth: null,
     dataHealthError: '',
@@ -344,6 +346,8 @@ Page({
       progress: nextProgress,
       progressText: `${nextProgress}%`,
       rewriteNotice: this.extractRewriteNotice(runData.debug),
+      cacheHit,
+      cacheText: 'cache_hit: ' + (cacheHit ? 'true' : 'false'),
       debugText: this.formatDebug(runData.debug)
     })
   },
@@ -474,9 +478,9 @@ Page({
         isEmpty: true,
         batchText: '暂无批次',
         triggerText: '暂无触发记录',
-        result: '暂无采集日志记录',
-        source: 'collection_logs 未返回',
-        statsText: '等待真实采集链路写入后展示',
+        result: '暂无采集日志',
+        source: '暂无真实记录',
+        statsText: '等待真实采集链路写入后展示，不展示假 batch',
         failureText: ''
       }]
     }

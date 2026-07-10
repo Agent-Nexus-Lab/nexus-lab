@@ -223,6 +223,22 @@
   font-weight: 750;
 }
 
+
+.cache-caption {
+  display: table;
+  margin: 8rpx 0 0 auto;
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 19rpx;
+  font-weight: 750;
+}
+
+.cache-caption.cache-hit {
+  background: #ecfdf5;
+  color: #047857;
+}
 .step-list {
   display: grid;
   gap: 16rpx;

@@ -22,6 +22,7 @@
       <view class="progress-bar" style="width: {{progress}}%;"></view>
     </view>
     <view class="progress-caption">进度 {{progressText}}</view>
+    <view class="cache-caption {{cacheHit ? 'cache-hit' : ''}}">{{cacheText}}</view>
 
     <view class="step-list">
       <view

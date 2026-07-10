@@ -251,6 +251,30 @@
   font-weight: 800;
 }
 
+
+.matched-term-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.matched-term-label {
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.matched-term-chip {
+  padding: 6rpx 13rpx;
+  border: 1rpx solid #bfdbfe;
+  border-radius: 999rpx;
+  background: #f8fbff;
+  color: #1d4ed8;
+  font-size: 21rpx;
+  font-weight: 750;
+}
 .reason-box {
   margin-top: 18rpx;
   padding: 20rpx;

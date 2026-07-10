@@ -7,7 +7,7 @@ Page({
     deletedNotice: '',
     summaryCard: null,
     memories: [],
-    hasMemories: false,
+    hasSummary: false,
     queryRewriteStatus: '等待后端返回 memory_used / memory_summary 后确认',
     debugText: ''
   },
@@ -36,10 +36,10 @@ Page({
         loading: false,
         summaryCard,
         memories,
-        hasMemories: memories.length > 0,
+        hasSummary: Boolean(summaryCard),
         queryRewriteStatus: summaryCard
           ? '当前记忆会作为 active memory 进入下一轮推荐理解'
-          : '暂无 active memory_summary；后端可能仍只返回标签/事件级记忆',
+          : '暂无 active memory_summary，下一轮推荐暂不使用长期总结记忆',
         debugText: this.formatDebug(res.data)
       })
     } catch (error) {
@@ -48,7 +48,7 @@ Page({
         errorMessage: error.message || '偏好记忆读取失败',
         summaryCard: null,
         memories: [],
-        hasMemories: false,
+        hasSummary: false,
         queryRewriteStatus: '暂时无法确认是否进入下一轮 query rewrite',
         debugText: ''
       })
@@ -82,13 +82,7 @@ Page({
   pickSummaryCard(memories) {
     const summary = memories.find((item) => item.memory_type === 'memory_summary')
     if (summary) return summary
-    const first = memories[0]
-    if (!first) return null
-    return {
-      ...first,
-      title: '当前 active memory 摘要',
-      content: first.content
-    }
+    return null
   },
 
   formatMemoryTitle(item) {

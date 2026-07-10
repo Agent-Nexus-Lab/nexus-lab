@@ -52,9 +52,9 @@
     <button class="primary-button" bindtap="loadMemory">重新读取</button>
   </view>
 
-  <view wx:elif="{{!hasMemories}}" class="empty-state">
-    <view class="empty-title">暂无 active memory</view>
-    <view class="empty-text">可以先在结果页点击“喜欢”“不感兴趣”或“查看来源”，后端会逐步沉淀偏好记忆。</view>
+  <view wx:elif="{{!hasSummary}}" class="empty-state">
+    <view class="empty-title">暂无 memory_summary</view>
+    <view class="empty-text">后端还没有返回 memory_summary。可以继续生成日程或提交反馈，等待下一轮记忆总结生成。</view>
     <button class="primary-button" bindtap="goPlan">去生成日程</button>
   </view>
 
