@@ -58,6 +58,12 @@ Page({
     })
   },
 
+  goMemory() {
+    wx.navigateTo({
+      url: '/pages/memory/memory'
+    })
+  },
+
   async generatePlan() {
     const profilePayload = wx.getStorageSync(PROFILE_STORAGE_KEY) || null
     const planDayPayload = {

@@ -1,5 +1,5 @@
 {
-  "scenario": "cache 验收：同请求 miss→hit，dislike 后失效",
+  "scenario": "cache 验收：同请求 miss→hit，dislike 后失效（真实断言）",
   "pinned_now": "2026-07-09T12:00:00+08:00",
   "request_text": "这周末想看天文或戏剧活动",
   "date_scope": "this_week",
@@ -23,8 +23,8 @@
     ]
   },
   "scoring_memory_hash": {
-    "r1": "b1ef4689cac4",
-    "r2": "b1ef4689cac4",
+    "r1": "99914b932bd3",
+    "r2": "99914b932bd3",
     "r3": "d7a1ad35b5c5"
   },
   "hash_assertions": {
@@ -40,7 +40,11 @@
         "evt_ai"
       ],
       "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。",
-      "cache_hit_observed": null
+      "cache_hit": false,
+      "cache_type": "none",
+      "plan_result_cache_hit": false,
+      "redis_available": false,
+      "using_fallback": true
     },
     "r2": {
       "status": "completed",
@@ -50,7 +54,11 @@
         "evt_ai"
       ],
       "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。",
-      "cache_hit_observed": null
+      "cache_hit": true,
+      "cache_type": "plan_result",
+      "plan_result_cache_hit": true,
+      "redis_available": false,
+      "using_fallback": true
     },
     "r3": {
       "status": "completed",
@@ -60,23 +68,18 @@
         "evt_ai"
       ],
       "summary": "为你安排了 3 个活动，主要匹配 AI、天文、戏剧，地点集中在 邯郸。已根据你的反馈调整推荐方向。",
-      "cache_hit_observed": null
+      "cache_hit": false,
+      "cache_type": "none",
+      "plan_result_cache_hit": false,
+      "redis_available": false,
+      "using_fallback": true
     }
   },
-  "cache_expectations_7月4日": {
-    "r1_miss": {
-      "expected": false,
-      "observed": null
-    },
-    "r2_hit": {
-      "expected": true,
-      "observed": null
-    },
-    "r3_invalidated": {
-      "expected": false,
-      "observed": null
-    }
+  "assertions": {
+    "r1_miss": true,
+    "r2_hit_plan_result": true,
+    "r3_invalidated": true,
+    "r1_r2_same_selection": true
   },
-  "warnings": [],
-  "note": "cache_hit_observed 为 null 表示后端尚未写入 cache 标志（今天预期）。7月4日曹昕宇 cache 落地后重跑本脚本，三项 observed 应分别等于 expected。"
+  "failures": []
 }

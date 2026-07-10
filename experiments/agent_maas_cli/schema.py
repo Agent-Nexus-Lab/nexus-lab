@@ -8,6 +8,16 @@ TOP_LEVEL_FIELDS = ["source_name", "source_url", "events", "warnings"]
 EVENTS_FILE_FIELDS = ["events"]
 CAMPUS_VALUES = ["邯郸", "江湾", "枫林", "张江", "其他"]
 DEFAULT_CAMPUS = "邯郸"
+
+# 文章输入格式定义（Phase 2, 李颖哲）
+ARTICLE_INPUT_FIELDS = [
+    "source_platform",  # wechat / website / other
+    "source_name",      # 公众号名称 / 网站名称
+    "source_url",       # 原文链接
+    "title",            # 文章标题
+    "publish_time",     # 发布时间 ISO 8601
+    "text",             # 清洗后的正文
+]
 EVENT_FIELDS = [
     "title",
     "summary",
@@ -26,6 +36,60 @@ AGGREGATED_EVENT_FIELDS = [
     "source_url",
     *EVENT_FIELDS,
 ]
+
+# Collection V2 精简事件字段 (Phase 2, 李颖哲 7月7日)
+# organizer / tags / evidence_text / campus 不进入本周主 schema
+COLLECTION_EVENT_FIELDS = [
+    "title",
+    "summary",
+    "start_time",
+    "end_time",
+    "location",
+    "source_url",
+]
+
+COLLECTION_TOP_LEVEL_FIELDS = ["events", "warnings", "status"]
+
+
+def collection_tool_schema() -> dict[str, Any]:
+    """Return the function schema for Collection V2 (6-field events + rich summary)."""
+    event_properties = {
+        "title": {"type": ["string", "null"]},
+        "summary": {"type": ["string", "null"]},
+        "start_time": {"type": ["string", "null"]},
+        "end_time": {"type": ["string", "null"]},
+        "location": {"type": ["string", "null"]},
+        "source_url": {"type": ["string", "null"]},
+    }
+
+    return {
+        "type": "function",
+        "function": {
+            "name": "emit_collection_result",
+            "description": "Emit structured event drafts with rich semantic summary for collection pipeline.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": event_properties,
+                            "required": COLLECTION_EVENT_FIELDS,
+                            "additionalProperties": False,
+                        },
+                    },
+                    "warnings": {"type": "array", "items": {"type": "string"}},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok", "no_activity", "not_an_event", "text_too_short", "parse_error"],
+                    },
+                },
+                "required": COLLECTION_TOP_LEVEL_FIELDS,
+                "additionalProperties": False,
+            },
+        },
+    }
 
 
 def maas_tool_schema() -> dict[str, Any]:

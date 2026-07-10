@@ -1,0 +1,109 @@
+{
+  "scenario": "Memory ranking API 级证据：dislike 创业 + 天文刚推荐过",
+  "pinned_now": "2026-07-09T12:00:00+08:00",
+  "after_memory": {
+    "disliked_tags": [
+      "创业"
+    ],
+    "disliked_event_ids": [
+      "evt_chuangye"
+    ],
+    "recent_plan_event_ids": [
+      "evt_tianwen"
+    ]
+  },
+  "before_ranking": [
+    "evt_chuangye",
+    "evt_drama",
+    "evt_ai",
+    "evt_tianwen"
+  ],
+  "after_ranking": [
+    "evt_drama",
+    "evt_ai",
+    "evt_chuangye",
+    "evt_tianwen"
+  ],
+  "ranking_changed": true,
+  "dropped_due_to_disliked_penalty": [
+    {
+      "event_id": "evt_chuangye",
+      "matched": "创业",
+      "delta": -0.1,
+      "reason": "命中不感兴趣标签: 创业"
+    }
+  ],
+  "dropped_due_to_repeat_penalty": [
+    {
+      "event_id": "evt_tianwen",
+      "matched": "evt_tianwen",
+      "delta": -0.15,
+      "reason": "近期已推荐过活动 evt_tianwen"
+    }
+  ],
+  "score_components_before": {
+    "evt_chuangye": {
+      "score": 0.7702,
+      "memory_delta": 0,
+      "memory_details": []
+    },
+    "evt_drama": {
+      "score": 0.7673,
+      "memory_delta": 0,
+      "memory_details": []
+    },
+    "evt_ai": {
+      "score": 0.756,
+      "memory_delta": 0,
+      "memory_details": []
+    },
+    "evt_tianwen": {
+      "score": 0.6315,
+      "memory_delta": 0,
+      "memory_details": []
+    }
+  },
+  "score_components_after": {
+    "evt_drama": {
+      "score": 0.7673,
+      "memory_delta": 0,
+      "memory_details": []
+    },
+    "evt_ai": {
+      "score": 0.756,
+      "memory_delta": 0,
+      "memory_details": []
+    },
+    "evt_chuangye": {
+      "score": 0.6702,
+      "memory_delta": -0.1,
+      "memory_details": [
+        {
+          "type": "disliked_penalty",
+          "delta": -0.1,
+          "matched": "创业",
+          "matched_field": "title",
+          "source": "disliked_tags",
+          "reason": "命中不感兴趣标签: 创业"
+        }
+      ]
+    },
+    "evt_tianwen": {
+      "score": 0.4815,
+      "memory_delta": -0.15,
+      "memory_details": [
+        {
+          "type": "repeat_penalty",
+          "delta": -0.15,
+          "matched": "evt_tianwen",
+          "matched_field": "event_id",
+          "source": "recent_plan_event_ids",
+          "reason": "近期已推荐过活动 evt_tianwen"
+        }
+      ]
+    }
+  },
+  "summary_before": "为你安排了 4 个活动，主要匹配 AI、创业、天文，地点集中在 邯郸。",
+  "summary_after": "为你安排了 4 个活动，主要匹配 AI、创业、天文，地点集中在 邯郸。已根据你的反馈调整推荐方向。",
+  "failures": []
+}

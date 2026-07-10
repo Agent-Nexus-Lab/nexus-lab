@@ -60,7 +60,7 @@ Optional runtime fields:
 |---|---|
 | `data.stage` | Drives the Agent progress steps when present |
 | `data.stage_message` | Highest-priority loading copy. If present, the frontend displays it directly |
-| `data.progress` | Numeric progress. If present, the frontend uses it after clamping into a safe UI range |
+| `data.progress` | Numeric progress in `0.0 - 1.0`; the frontend converts it to percent for display and still tolerates legacy `0 - 100` values |
 | `data.cache_hit` | When `true`, loading displays `命中缓存，正在返回上次可复用结果` |
 | `data.debug` | Shown in the loading failure state and result page when present and `ENABLE_DEBUG_VIEW` is enabled |
 | `data.error_message` | Shown when the run enters `failed` |
@@ -93,6 +93,23 @@ debug.error_message
 debug.error
 debug.llm_rewrite.error
 ```
+
+If `debug.rejections` is an array, the loading page renders each rejection as a structured failure item. If `debug.llm_rewrite.error` or `debug.rewrite_error` is present together with `used_fallback=true`, the loading page renders it as copy fallback information instead of treating it as the whole plan-day failure reason.
+
+## GET /api/admin/data-health
+
+The loading page debug panel displays collection health using these fields:
+
+| Field | UI behavior |
+|---|---|
+| `total_events` | Total event count metric |
+| `future_events_7d` | Future 7-day event count metric |
+| `future_events_14d` | Future 14-day event count metric |
+| `last_collection_time` | Rendered as the latest collection timestamp |
+| `last_collection_result` | Rendered beside the latest timestamp |
+| `sources_breakdown` | Rendered as `source count` summary |
+| `alerts` | Rendered as warning chips/list |
+| `collection_logs` | Optional list. If absent or empty, frontend shows `暂无采集日志记录` |
 
 ## Completed Result Fields
 
@@ -173,3 +190,83 @@ GET /api/agent/runs/{run_id}
 If `/api/agent/stream-plan-day` returns HTTP 404/500, the WeChat base library does not support `onChunkReceived`, or the stream closes without a completed result, the loading page creates a normal run and continues polling. This keeps the formal demo stable while allowing real-time stage/message updates when the backend stream is ready.
 
 `pages/stream-demo/stream-demo` remains as a dev-only diagnostic page for testing arbitrary chunked endpoints.
+
+## 2026-07-08 Display Contract Addendum
+
+The second-week frontend display work adds tolerant rendering for collection and recommendation explanation fields.
+
+### Collection Logs
+
+`GET /api/admin/data-health` may include `collection_logs`. The loading page now accepts these field aliases:
+
+| UI Display | Field Aliases |
+|---|---|
+| Batch | `batch_id`, `id`, `log_id` |
+| Trigger time | `triggered_at`, `started_at`, `created_at`, `collection_time`, `time` |
+| Trigger method | `trigger_method`, `trigger`, `triggered_by`, `mode` |
+| Source | `source_name`, `source`, `account`, `source_url` |
+| Fetched articles | `fetched_count`, `fetched_articles`, `article_count`, `fetchedArticleCount` |
+| Extracted events | `extracted_count`, `extracted_events`, `event_draft_count`, `extractedEventCount` |
+| Imported events | `imported_count`, `inserted_count`, `upserted_count`, `importedEventCount` |
+| Failure reason | `failure_reason`, `error_message`, `error`, `failed_reason` |
+
+If `collection_logs` is missing or empty, the frontend renders `暂无采集日志记录` and does not fake a successful collection.
+
+### Result Explanations
+
+Result cards now preserve `source_name`, render `source_url` as a clickable source entry when it is an HTTP URL, and reserve visible slots for scoring explanations.
+
+Accepted optional fields:
+
+```text
+score_components, semantic_interest_match, interest_match, semantic_similarity,
+memory_reason, memory_boost, memory_penalty, repeat_penalty, penalty_reason,
+rejection_reason, score_reasons, reasons
+```
+
+Top-level result data may include `answer_composer` with:
+
+```text
+summary, recommended_items, tradeoffs, follow_up_question
+```
+
+If these fields are absent, the UI hides the composer/explanation panels and keeps the current card display unchanged.
+
+## 2026-07-09 Memory Summary Display
+
+The miniprogram now includes `pages/memory/memory` for the frontend part of the memory_summary acceptance task.
+
+### GET /api/memory
+
+The page calls:
+
+```text
+GET /api/memory?status=active&page=1&page_size=50
+```
+
+Accepted response shape:
+
+| Field | UI behavior |
+|---|---|
+| `data.items` | Active memory list. Missing or non-array values render as empty state |
+| `memory_id` | Used for delete action |
+| `memory_type` | Rendered as human-readable memory title; `memory_summary` is preferred as the summary card |
+| `memory_scope` | Rendered in the memory item subtitle |
+| `content` | Main memory text. Fallback: `暂无记忆内容` |
+| `structured_content.memory_strength` / `structured_content.strength` / `confidence` | Rendered as strength percent |
+| `structured_content.source_refs` / `source_ref` | Rendered as source summary |
+| `structured_content.expires_after_turns` / `expires_at` | Rendered as decay or expiry text |
+| `structured_content.cleanup_reason` | Rendered as cleanup/deletion explanation |
+| `updated_at` | Rendered as latest update time |
+
+If no `memory_summary` item exists yet, the page still displays the first active memory item as a temporary active-memory summary and clearly states that backend may still only return tag/event-level memory.
+
+### DELETE /api/memory/{memory_id}
+
+The page supports deleting an active memory item. On success it shows:
+
+```text
+已停止用于下一轮推荐理解
+```
+
+The frontend expects the backend to mark the memory as deleted/suppressed so it no longer participates in the next query rewrite. If the backend has not implemented suppression yet, the UI still records the user-facing success state returned by the API.

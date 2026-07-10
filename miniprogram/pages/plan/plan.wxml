@@ -2,7 +2,7 @@
   <view class="hero">
     <view class="eyebrow">日程生成</view>
     <view class="title">今天想怎么安排？</view>
-    <view class="subtitle">先完成前端输入闭环，点击生成后会在控制台打印请求数据。</view>
+    <view class="subtitle">输入一句自然语言需求，进入真实 runtime loading、轮询和结果页。</view>
   </view>
 
   <view class="panel">
@@ -34,6 +34,7 @@
     </view>
     <view wx:else class="hint">还没有保存偏好。可以先返回偏好页选择标签。</view>
     <button class="secondary-button" bindtap="goProfile">重新选择偏好</button>
+    <button class="secondary-button memory-button" bindtap="goMemory">查看偏好记忆</button>
   </view>
 
   <view class="panel">

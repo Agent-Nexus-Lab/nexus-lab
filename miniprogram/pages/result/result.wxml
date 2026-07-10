@@ -13,7 +13,27 @@
     <view class="request-card">{{result.request_text}}</view>
   </view>
 
-  <button class="history-button" bindtap="goHistory">查看历史规划</button>
+  <view class="quick-actions">
+    <button class="history-button" bindtap="goHistory">查看历史规划</button>
+    <button class="history-button" bindtap="goMemory">查看偏好记忆</button>
+  </view>
+
+  <view wx:if="{{composer.hasContent}}" class="panel composer-panel">
+    <view class="panel-head">
+      <view class="panel-title">推荐说明</view>
+      <view class="field-name">Agent 总结</view>
+    </view>
+    <view wx:if="{{composer.summary}}" class="composer-main">{{composer.summary}}</view>
+    <view wx:if="{{composer.recommendedItemsText}}" class="composer-row">
+      <view class="composer-label">推荐重点</view>
+      <view class="composer-value">{{composer.recommendedItemsText}}</view>
+    </view>
+    <view wx:if="{{composer.tradeoffsText}}" class="composer-row">
+      <view class="composer-label">取舍说明</view>
+      <view class="composer-value">{{composer.tradeoffsText}}</view>
+    </view>
+    <view wx:if="{{composer.followUpQuestion}}" class="composer-follow">{{composer.followUpQuestion}}</view>
+  </view>
 
   <view class="panel">
     <view class="panel-head">
@@ -69,6 +89,29 @@
 
       <view class="reason-box">{{item.reason_text}}</view>
 
+      <view wx:if="{{item.has_score_reasons}}" class="score-reason-grid">
+        <view
+          wx:for="{{item.score_reasons}}"
+          wx:key="id"
+          wx:for-item="reason"
+          class="score-reason-chip"
+        >
+          <text class="score-reason-label">{{reason.label}}</text>
+          <text class="score-reason-value">{{reason.value}}</text>
+        </view>
+      </view>
+
+      <view class="source-row">
+        <view class="source-label">来源</view>
+        <button
+          wx:if="{{item.has_source_url}}"
+          class="source-inline-link"
+          data-index="{{index}}"
+          bindtap="openSource"
+        >{{item.source_text}}</button>
+        <view wx:else class="source-inline-text">{{item.source_text}}</view>
+      </view>
+
       <view class="feedback-row">
         <button
           class="feedback-button {{item.feedback_type === 'like' ? 'active' : ''}}"
@@ -101,9 +144,6 @@
         </button>
       </view>
 
-      <view class="source-text" wx:if="{{!item.has_source_url}}">
-        来源：{{item.source_url}}
-      </view>
     </view>
   </view>
 

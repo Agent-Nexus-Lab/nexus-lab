@@ -27,6 +27,10 @@ class Intent:
     date_scope: str = "this_week"                   # today / tomorrow / this_week
     explicit_campuses: tuple[str, ...] = ()         # campuses mentioned in request text
     max_items: int = 4                              # desired number of results
+    # query rewrite 产出（李颖哲）：enriched_query 的 embedding，供 semantic interest_match。
+    # 今天无 query rewrite，留 None → score_interest_match fallback 到 keyword。
+    query_embedding: tuple[float, ...] | None = None
+    embedding_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -212,6 +216,11 @@ class SoftPreferences:
     boost_liked_tags: tuple[str, ...] = ()
     boost_liked_event_ids: tuple[str, ...] = ()
     penalty_disliked_event_ids: tuple[str, ...] = ()
+    # Semantic interest_match：query embedding 与 event.summary_embedding 的 cosine。
+    # 由 query rewrite 产出（李颖哲），曹昕宇入库时写 summary_embedding。
+    # 两者均存在时 score_interest_match 走语义路径，否则 fallback 到 keyword。
+    query_embedding: tuple[float, ...] | None = None
+    embedding_model: str | None = None
 
 
 @dataclass(frozen=True)

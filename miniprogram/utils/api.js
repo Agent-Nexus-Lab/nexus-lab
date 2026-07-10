@@ -65,6 +65,25 @@ function getDataHealth() {
   })
 }
 
+function getMemory({ status = 'active', memory_scope = '', page = 1, page_size = 20 } = {}) {
+  const params = [
+    'status=' + encodeURIComponent(status),
+    'page=' + encodeURIComponent(page),
+    'page_size=' + encodeURIComponent(page_size)
+  ]
+  if (memory_scope) params.push('memory_scope=' + encodeURIComponent(memory_scope))
+  return request({
+    url: '/memory?' + params.join('&'),
+    method: 'GET'
+  })
+}
+
+function deleteMemory(memoryId) {
+  return request({
+    url: '/memory/' + encodeURIComponent(memoryId),
+    method: 'DELETE'
+  })
+}
 function decodeChunk(data) {
   if (!data) return ''
   if (typeof data === 'string') return data
@@ -136,6 +155,8 @@ module.exports = {
   getRunStatus,
   feedbackEvent,
   getDataHealth,
+  getMemory,
+  deleteMemory,
   streamRuntimeDemo,
   streamPlanDay
 }

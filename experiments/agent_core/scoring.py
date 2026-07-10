@@ -42,23 +42,72 @@ WEIGHTS = {
 # ---------------------------------------------------------------------------
 
 
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Cosine similarity of two equal-length vectors; 0.0 on degenerate input."""
+    if not a or not b:
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    if na <= 0.0 or nb <= 0.0:
+        return 0.0
+    return dot / ((na ** 0.5) * (nb ** 0.5))
+
+
+def _scalar_component(v: Any) -> float:
+    """Weighted-sum 用：从 component 提取标量 score（float 或带 'score' 的 dict）。"""
+    if isinstance(v, dict):
+        return float(v.get("score", 0.0) or 0.0)
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def score_interest_match(
     event: dict[str, Any],
     preferences: SoftPreferences,
-) -> tuple[float, list[str]]:
+) -> tuple[float, list[str], dict[str, Any] | None]:
     """Score how well the event matches interest terms.
 
-    Returns (score 0..1, list of matched terms).
-    Mirrors runtime.py score_interest_match (line 498).
+    语义路径（当 event.summary_embedding 与 preferences.query_embedding 均存在）：
+        raw_sim = cosine(summary_embedding, query_embedding)
+        normalized = (raw_sim + 1) / 2  ∈ [0, 1]
+        返回 (normalized, [], detail_dict)，detail_dict 含 semantic_similarity /
+        normalized_interest_match / embedding_model / method="semantic" / score。
+    否则 fallback 到 keyword 别名子串匹配（原逻辑）。
+
+    Returns (score 0..1, matched_terms, detail_dict_or_None)。
     """
+    # --- 语义路径 ---
+    event_emb = event.get("summary_embedding")
+    query_emb = preferences.query_embedding
+    if (isinstance(event_emb, (list, tuple)) and event_emb
+            and isinstance(query_emb, (list, tuple)) and query_emb):
+        raw_sim = _cosine_similarity(list(event_emb), list(query_emb))
+        normalized = max(0.0, min(1.0, (raw_sim + 1.0) / 2.0))
+        detail = {
+            "score": normalized,
+            "semantic_similarity": raw_sim,
+            "normalized_interest_match": normalized,
+            "embedding_model": preferences.embedding_model,
+            "method": "semantic",
+        }
+        return normalized, [], detail
+
+    # --- keyword fallback ---
     targets = list(preferences.interest_terms)
     if not targets:
-        return 0.0, []
+        return 0.0, [], None
 
     haystack = event_text(event)
     matched = [term for term in targets if term_matches(term, haystack)]
     denominator = min(3, len(targets))
-    return min(1.0, len(matched) / denominator), matched
+    return min(1.0, len(matched) / denominator), matched, None
 
 
 def score_time_fit(
@@ -178,10 +227,10 @@ def score_and_sort(
             # Events without start_time get scored low but not rejected
             start_time = now
 
-        interest_match, matched_terms = score_interest_match(event, preferences)
+        interest_match, matched_terms, im_detail = score_interest_match(event, preferences)
 
         components = {
-            "interest_match": interest_match,
+            "interest_match": im_detail if im_detail is not None else interest_match,
             "time_fit": score_time_fit(start_time, preferences),
             "campus_fit": score_campus_fit(
                 event,
@@ -193,7 +242,7 @@ def score_and_sort(
             "freshness": score_freshness(start_time, now),
         }
 
-        total_score = sum(WEIGHTS[k] * components[k] for k in WEIGHTS)
+        total_score = sum(WEIGHTS[k] * _scalar_component(components[k]) for k in WEIGHTS)
 
         # --- Memory-based soft adjustments with explainability ---
         mem_adjust: dict[str, float] = {}

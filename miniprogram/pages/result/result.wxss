@@ -20,6 +20,17 @@
   font-weight: 900;
 }
 
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+}
+
+.quick-actions .history-button {
+  margin-bottom: 0;
+}
 .event-card {
   position: relative;
   margin-top: 20rpx;
@@ -380,5 +391,129 @@
   font-size: 20rpx;
   line-height: 1.55;
   white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.composer-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+}
+
+.composer-main {
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #eef6ff;
+  color: #1e3a6d;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+
+.composer-row {
+  display: grid;
+  grid-template-columns: 136rpx 1fr;
+  gap: 14rpx;
+  margin-top: 16rpx;
+  padding: 16rpx 18rpx;
+  border: 1rpx solid #dbe6f6;
+  border-radius: 16rpx;
+  background: #ffffff;
+}
+
+.composer-label {
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 850;
+}
+
+.composer-value {
+  color: #25324a;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.composer-follow {
+  margin-top: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 16rpx;
+  background: #f4fbf8;
+  color: #166547;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.score-reason-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 16rpx;
+}
+
+.score-reason-chip {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  max-width: 100%;
+  padding: 8rpx 12rpx;
+  border: 1rpx solid #dbe6f6;
+  border-radius: 999rpx;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.score-reason-label {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+
+.score-reason-value {
+  color: #1e40af;
+  font-size: 20rpx;
+  font-weight: 850;
+  word-break: break-all;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 16rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 16rpx;
+  background: #f8fbff;
+}
+
+.source-label {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 22rpx;
+  font-weight: 850;
+}
+
+.source-inline-link {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #1e40af;
+  font-size: 23rpx;
+  font-weight: 850;
+  line-height: 1.45;
+  text-align: left;
+  word-break: break-all;
+}
+
+.source-inline-link::after {
+  border: 0;
+}
+
+.source-inline-text {
+  flex: 1;
+  min-width: 0;
+  color: #7c8797;
+  font-size: 22rpx;
+  line-height: 1.45;
   word-break: break-all;
 }

@@ -375,6 +375,9 @@ def build_request_payload(
     user_payload = {
         "source_name": args.source_name,
         "source_url": args.source_url,
+        "source_platform": getattr(args, "source_platform", None),
+        "title": getattr(args, "title", None),
+        "publish_time": getattr(args, "publish_time", None),
         "reference_date": args.reference_date,
         "timezone": args.timezone,
         "source_text": source_text,
