@@ -69,7 +69,13 @@ Page({
     const planDayPayload = {
       request_text: this.data.request_text.trim(),
       date_scope: this.data.date_scope,
-      include_debug: api.ENABLE_DEBUG_VIEW
+      include_debug: api.ENABLE_DEBUG_VIEW,
+      client_context: {
+        client: 'miniprogram',
+        page: 'plan',
+        version: 't0-frontend',
+        platform: 'wechat'
+      }
     }
 
     console.log('profilePayload for POST /api/profile:', profilePayload)

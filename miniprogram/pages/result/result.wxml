@@ -87,6 +87,16 @@
         >{{tag}}</view>
       </view>
 
+      <view wx:if="{{item.has_matched_terms}}" class="matched-term-row">
+        <view class="matched-term-label">命中词</view>
+        <view
+          wx:for="{{item.matched_terms}}"
+          wx:key="*this"
+          wx:for-item="term"
+          class="matched-term-chip"
+        >{{term}}</view>
+      </view>
+
       <view class="reason-box">{{item.reason_text}}</view>
 
       <view wx:if="{{item.has_score_reasons}}" class="score-reason-grid">

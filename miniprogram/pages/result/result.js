@@ -55,6 +55,7 @@ Page({
           const eventId = item.event_id || item.id || ''
           const planItemId = item.plan_item_id || ''
           const scoreReasons = this.normalizeScoreReasons(item)
+          const matchedTerms = this.normalizeMatchedTerms(item)
           return {
             ...item,
             event_id: eventId,
@@ -78,6 +79,8 @@ Page({
             reason_text: item.reason_text || item.score_reason || item.explanation || '暂无推荐理由',
             score_reasons: scoreReasons,
             has_score_reasons: scoreReasons.length > 0,
+            matched_terms: matchedTerms,
+            has_matched_terms: matchedTerms.length > 0,
             display_order: item.display_order || 0,
             quality_score: item.quality_score == null ? (item.score == null ? '待评估' : item.score) : item.quality_score,
             time_text: this.formatTimeRange(item.start_time, item.end_time)
@@ -138,6 +141,24 @@ Page({
     return /^https?:\/\//i.test(String(value || ''))
   },
 
+
+  normalizeMatchedTerms(item) {
+    const terms = item.matched_terms || item.matchedTerms || item.match_terms || []
+    if (Array.isArray(terms)) {
+      return terms
+        .map((term) => {
+          if (!term) return ''
+          if (typeof term === 'string') return term
+          return term.term || term.keyword || term.label || term.name || ''
+        })
+        .filter(Boolean)
+        .slice(0, 8)
+    }
+    if (typeof terms === 'string') {
+      return terms.split(/[，,、\s]+/).filter(Boolean).slice(0, 8)
+    }
+    return []
+  },
   normalizeScoreReasons(item) {
     const reasons = []
     const pushReason = (label, value) => {
