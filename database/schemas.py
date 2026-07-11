@@ -35,6 +35,7 @@ class ProfileData(BaseModel):
     available_time: Optional[str] = None
     activity_style_tags: Optional[list[str]] = None
     profile_summary: Optional[str] = None
+    memory_summary: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -90,6 +91,7 @@ class RunStatusData(BaseModel):
     title: Optional[str] = None
     summary: Optional[str] = None
     date_scope: Optional[str] = None
+    request_text: Optional[str] = None
     items: Optional[list[RunItem]] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
@@ -100,6 +102,7 @@ class RunStatusData(BaseModel):
     stage_message: Optional[str] = None
     progress: Optional[float] = None  # 0.0 - 1.0
     cache_hit: Optional[bool] = None
+    timings_ms: Optional[dict] = None
 
 
 class FeedbackEventRequest(BaseModel):

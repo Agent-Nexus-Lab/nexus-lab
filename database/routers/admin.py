@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas import (
@@ -12,6 +12,7 @@ from schemas import (
 from models import Source, RawDocument, Event
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -32,6 +33,18 @@ def _source_bucket(event: Event, sources_by_id: dict[str, Source]) -> str:
     if event.source_name:
         return event.source_name
     return "unknown"
+
+
+def start_utc(event: Event) -> datetime | None:
+    if event.start_time is None:
+        return None
+    return _as_utc_naive(event.start_time)
+
+
+def end_utc(event: Event) -> datetime | None:
+    if event.end_time is None:
+        return None
+    return _as_utc_naive(event.end_time)
 
 
 @router.post("/sources")
@@ -154,6 +167,30 @@ def list_events(page: int = 1, page_size: int = 20, db: Session = Depends(get_db
     }
 
 
+@router.post("/import-events")
+def import_events(
+    drafts: list[dict[str, Any]] = Body(..., description="Event draft list"),
+    source_id: str | None = Body(None),
+    db: Session = Depends(get_db),
+):
+    """Batch import event drafts into the DB (upsert by source_url+title).
+
+    Mirrors the auto_collector --commit path but available via API.
+    Each draft needs at minimum a "title" field.
+    """
+    from import_events import import_many as _import_many
+
+    result = _import_many(drafts, db=db, source_id=source_id)
+    db.commit()
+
+    return {
+        "code": 0,
+        "data": result,
+        "message": f"imported={result['imported']}, updated={result['updated']}, "
+                   f"skipped={result['skipped']}, failed={result['failed']}",
+    }
+
+
 @router.get("/data-health")
 def get_data_health(db: Session = Depends(get_db)):
     now = _as_utc_naive(datetime.now(timezone.utc))
@@ -261,19 +298,15 @@ def get_quality_summary(
 
     events = events_query.all()
 
-    def start_utc(e: Event) -> datetime | None:
-        return e.start_time if e.start_time else None
-
-    def end_utc(e: Event) -> datetime | None:
-        return e.end_time if e.end_time else None
+    stale_days = 7
 
     total_events = len(events)
     visible_events = sum(1 for e in events if e.is_user_visible is not False)
-    future_events = sum(1 for e in events if start_utc(e) and start_utc(e) >= ref_now)
-    expired_events = sum(1 for e in events if end_utc(e) and end_utc(e) < ref_now)
+    future_events = sum(1 for e in events if e.start_time and e.start_time >= ref_now)
+    expired_events = sum(1 for e in events if e.end_time and e.end_time < ref_now)
     stale_events = sum(
         1 for e in events
-        if e.updated_at and (ref_now - (e.updated_at.replace(tzinfo=None) if e.updated_at.tzinfo else e.updated_at.replace(tzinfo=timezone.utc))).days > 7
+        if e.updated_at and (ref_now - e.updated_at).days > stale_days
     )
     missing_time_count = sum(1 for e in events if not e.start_time or not e.end_time)
     missing_location_count = sum(1 for e in events if not e.location)

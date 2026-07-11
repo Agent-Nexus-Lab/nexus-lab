@@ -2,13 +2,22 @@
 
 read_memory — aggregate feedback + history into structured Memory dict.
 update_memory_from_feedback — create/update memory_items from user feedback.
+reflect_and_store_memory_summary — LLM-powered memory reflection from recent runs.
+decay_memory_summary — apply per-round strength decay.
+suppress_memory_summary — user-requested suppression.
 """
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
+from experiments.agent_plan_runtime.memory_reflection import reflect_on_memory
 
 from sqlalchemy.orm import Session
 
@@ -20,11 +29,19 @@ from models import (
     PlanRun,
     UserEventFeedback,
     UserProfile,
+    Event,
 )
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEZONE = timezone(timedelta(hours=8))
 MEMORY_EXPIRY_DAYS = 30
 MAX_MEMORY_ITEMS = 20
+
+# Ensure memory_reflection module is importable
+_MR_DIR = Path(__file__).resolve().parents[1] / "experiments" / "agent_plan_runtime"
+if str(_MR_DIR) not in sys.path:
+    sys.path.insert(0, str(_MR_DIR))
 
 
 def read_memory(
@@ -47,6 +64,7 @@ def read_memory(
     liked_event_ids: list[str] = []
     disliked_event_ids: list[str] = []
     memory_items: list[dict[str, Any]] = []
+    memory_summary: str | None = None
 
     # 1. Active memory_items
     active = (
@@ -69,6 +87,10 @@ def read_memory(
             "confidence": m.confidence,
             "priority": m.priority,
         })
+
+        if m.memory_type == "memory_summary":
+            memory_summary = m.content
+            continue
 
         if m.memory_type in ("liked_tag", "positive_preference", "explicit_interest"):
             liked_tags.extend(sc.get("tags") or [])
@@ -130,6 +152,7 @@ def read_memory(
         "liked_event_ids": _dedup(liked_event_ids),
         "disliked_event_ids": _dedup(disliked_event_ids),
         "memory_items": memory_items,
+        "memory_summary": memory_summary,
     }
 
 
@@ -280,7 +303,7 @@ def _upsert_tag_memory(
     conf = confidence if confidence is not None else 0.5
     key = "negative_tags" if memory_type == "disliked_tag" else "tags"
     sc = {key: [tag], "evidence_count": 1}
-    content = f"用户{'喜欢' if 'liked' in memory_type else '不喜欢'}标签「{tag}」"
+    content = f"用户{'不喜欢' if 'disliked' in memory_type else '喜欢'}标签「{tag}」"
 
     db.add(MemoryItem(
         id=mem_id, user_id=user_id, memory_type=memory_type,
@@ -288,6 +311,7 @@ def _upsert_tag_memory(
         source_type="feedback", source_ref=source_ref,
         confidence=conf, priority=50, status="active", expires_at=expires_at,
     ))
+    db.flush()
     audit_ids.append(_write_audit(db, user_id, mem_id, "create", None,
                                   {"memory_type": memory_type, "structured_content": sc, "confidence": conf},
                                   f"feedback:{source_ref}"))
@@ -356,10 +380,11 @@ def _upsert_event_memory(
     db.add(MemoryItem(
         id=mem_id, user_id=user_id, memory_type=memory_type,
         memory_scope="short_term",
-        content=f"用户{'喜欢' if 'liked' in memory_type else '不喜欢'}活动 {event_id}",
+        content=f"用户{'不喜欢' if 'disliked' in memory_type else '喜欢'}活动 {event_id}",
         structured_content=sc, source_type="feedback", source_ref=source_ref,
         confidence=conf, priority=50, status="active", expires_at=expires_at,
     ))
+    db.flush()
     audit_ids.append(_write_audit(db, user_id, mem_id, "create", None,
                                   {"memory_type": memory_type, "structured_content": sc, "confidence": conf},
                                   f"feedback:{source_ref}"))
@@ -425,6 +450,7 @@ def _upsert_keyword_memory(
         structured_content=sc, source_type="feedback", source_ref=source_ref,
         confidence=0.5, priority=50, status="active", expires_at=expires_at,
     ))
+    db.flush()
     audit_ids.append(_write_audit(db, user_id, mem_id, "create", None,
                                   {"memory_type": "negative_keyword", "structured_content": sc},
                                   f"feedback:{source_ref}"))
@@ -447,7 +473,281 @@ def _write_audit(
         action=action, before_state=before, after_state=after,
         actor="system", reason=reason,
     ))
+    db.flush()
     return audit_id
+
+
+# ===========================================================================
+# Memory Summary — reflect + store + decay + suppress
+# ===========================================================================
+
+
+def reflect_and_store_memory_summary(
+    user_id: str,
+    *,
+    db: Session,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Gather last 3 runs with feedback → reflect_on_memory → store as memory_item.
+
+    Called after every 3 plan-day runs (or force=True for testing).
+    Returns the reflection result + stored memory_id.
+    """
+    now = datetime.now(DEFAULT_TIMEZONE)
+
+    # Collect last 3 runs with their plans
+    recent_runs = (
+        db.query(PlanRun)
+        .filter_by(user_id=user_id)
+        .order_by(PlanRun.started_at.desc())
+        .limit(3)
+        .all()
+    )
+
+    if len(recent_runs) < 3 and not force:
+        return {
+            "reflected": False,
+            "reason": f"only {len(recent_runs)} runs, need 3",
+            "memory_id": None,
+        }
+
+    rounds: list[dict[str, Any]] = []
+    source_refs: list[str] = []
+
+    for run in recent_runs:
+        plan = db.query(Plan).filter_by(run_id=run.id).first()
+        event_titles: list[str] = []
+        if plan:
+            items = db.query(PlanItem).filter_by(plan_id=plan.id).all()
+            for pi in items:
+                event = db.query(Event).filter_by(id=pi.event_id).first() if pi.event_id else None
+                if event:
+                    event_titles.append(event.title)
+
+        # Gather feedback for this run
+        feedbacks = (
+            db.query(UserEventFeedback)
+            .filter_by(run_id=run.id)
+            .all()
+        )
+        liked: list[str] = []
+        disliked: list[str] = []
+        for fb in feedbacks:
+            event = db.query(Event).filter_by(id=fb.event_id).first() if fb.event_id else None
+            title = event.title if event else fb.event_id
+            if fb.feedback_type == "like":
+                liked.append(title)
+            elif fb.feedback_type == "dislike":
+                disliked.append(title)
+
+        rounds.append({
+            "round": len(rounds) + 1,
+            "run_id": run.id,
+            "request_text": run.request_text or "",
+            "recommended_event_titles": event_titles,
+            "feedback": {"liked": liked, "disliked": disliked},
+        })
+        source_refs.append(run.id)
+
+    # Reverse to chronological order
+    rounds.reverse()
+
+    # Check existing memory_summary
+    existing = (
+        db.query(MemoryItem)
+        .filter_by(user_id=user_id, memory_type="memory_summary", status="active")
+        .order_by(MemoryItem.updated_at.desc())
+        .first()
+    )
+    existing_memory = None
+    if existing and existing.structured_content:
+        sc = existing.structured_content
+        if isinstance(sc, dict):
+            existing_memory = {
+                "memory_summary": existing.content,
+                "memory_strength": sc.get("memory_strength", 0.85),
+                "source_refs": sc.get("source_refs", []),
+            }
+
+    context = {
+        "session_id": str(uuid.uuid4()),
+        "rounds": rounds,
+        "existing_memory": existing_memory,
+    }
+
+    try:
+        result = reflect_on_memory(context)
+    except Exception as exc:
+        logger.warning("reflect_on_memory failed: %s", exc)
+        return {
+            "reflected": False,
+            "reason": f"reflect_on_memory error: {exc}",
+            "memory_id": None,
+        }
+
+    memory_summary_text = result.get("memory_summary", "")
+    if not memory_summary_text:
+        return {
+            "reflected": False,
+            "reason": "empty memory_summary returned",
+            "memory_id": None,
+        }
+
+    memory_strength = result.get("memory_strength", 0.85)
+    expires_after_turns = result.get("expires_after_turns", 6)
+    ref_source_refs = result.get("source_refs", source_refs)
+
+    # Store as memory_item
+    mem_id = str(uuid.uuid4())
+    expires_at = now + timedelta(days=MEMORY_EXPIRY_DAYS)
+    structured_content = {
+        "memory_strength": memory_strength,
+        "source_refs": ref_source_refs,
+        "expires_after_turns": expires_after_turns,
+        "prompt_version": result.get("prompt_version", ""),
+        "used_fallback": result.get("used_fallback", False),
+        "reflected_at": now.isoformat(),
+    }
+
+    memory_item = MemoryItem(
+        id=mem_id,
+        user_id=user_id,
+        memory_type="memory_summary",
+        memory_scope="long_term",
+        content=memory_summary_text,
+        structured_content=structured_content,
+        source_type="reflection",
+        source_ref=",".join(ref_source_refs),
+        confidence=memory_strength,
+        priority=70,
+        status="active",
+        expires_at=expires_at,
+    )
+    db.add(memory_item)
+    db.flush()
+
+    # Audit log
+    _write_audit(
+        db, user_id, mem_id, "create", None,
+        {"memory_type": "memory_summary", "content": memory_summary_text,
+         "structured_content": structured_content},
+        f"reflection:{len(rounds)}_rounds",
+    )
+
+    db.commit()
+
+    return {
+        "reflected": True,
+        "memory_id": mem_id,
+        "memory_summary": memory_summary_text,
+        "memory_strength": memory_strength,
+        "source_refs": ref_source_refs,
+        "used_fallback": result.get("used_fallback", False),
+    }
+
+
+def decay_memory_summary(
+    user_id: str,
+    *,
+    db: Session,
+) -> dict[str, Any]:
+    """Apply per-round strength decay to all active memory_summary items.
+
+    Called after each plan-day. Items below expiry threshold are marked expired.
+    Returns summary of what was decayed.
+    """
+    now = datetime.now(DEFAULT_TIMEZONE)
+
+    active = (
+        db.query(MemoryItem)
+        .filter_by(user_id=user_id, memory_type="memory_summary", status="active")
+        .all()
+    )
+
+    decayed: list[str] = []
+    expired: list[str] = []
+
+    for m in active:
+        sc = m.structured_content or {}
+        if not isinstance(sc, dict):
+            sc = {}
+
+        current_strength = sc.get("memory_strength", 0.85)
+        new_strength = round(current_strength * 0.85, 2)
+
+        before = {"memory_strength": current_strength, "status": m.status}
+
+        if new_strength < 0.15:
+            # Expire this memory
+            m.status = "expired"
+            m.updated_at = now
+            sc["memory_strength"] = new_strength
+            sc["cleanup_reason"] = "expired_below_threshold"
+            m.structured_content = sc
+            expired.append(m.id)
+        else:
+            sc["memory_strength"] = new_strength
+            m.structured_content = sc
+            m.updated_at = now
+            decayed.append(m.id)
+
+        _write_audit(
+            db, user_id, m.id, "decay", before,
+            {"memory_strength": new_strength, "status": m.status},
+            "post_plan_day_decay",
+        )
+
+    if decayed or expired:
+        db.commit()
+
+    return {
+        "decayed_ids": decayed,
+        "expired_ids": expired,
+        "decayed_count": len(decayed),
+        "expired_count": len(expired),
+    }
+
+
+def suppress_memory_summary(
+    memory_id: str,
+    *,
+    db: Session,
+) -> dict[str, Any]:
+    """Suppress a memory_summary (user requested deletion).
+
+    Sets status to "suppressed" — the item won't be read by read_memory
+    but won't trigger re-generation (unlike "deleted").
+    """
+    now = datetime.now(DEFAULT_TIMEZONE)
+
+    mem = db.query(MemoryItem).filter_by(id=memory_id).first()
+    if not mem:
+        return {"suppressed": False, "reason": "memory not found"}
+
+    before = {"status": mem.status, "memory_type": mem.memory_type}
+
+    mem.status = "suppressed"
+    mem.updated_at = now
+    mem.deleted_at = now
+
+    sc = dict(mem.structured_content or {})
+    sc["cleanup_reason"] = "user_requested"
+    sc["memory_strength"] = 0.0
+    mem.structured_content = sc
+
+    _write_audit(
+        db, mem.user_id, mem.id, "suppress", before,
+        {"status": "suppressed", "cleanup_reason": "user_requested"},
+        "user_deleted",
+    )
+
+    db.commit()
+
+    return {
+        "suppressed": True,
+        "memory_id": mem.id,
+        "previous_status": before["status"],
+    }
 
 
 def _dedup(items: list[str]) -> list[str]:

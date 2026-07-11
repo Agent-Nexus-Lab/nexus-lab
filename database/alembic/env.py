@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from alembic import context
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is required. Set it in .env or environment variables.")

@@ -5,6 +5,12 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from models import User, MemoryItem, MemoryAuditLog
 from schemas import MemoryItemData, MemoryListData, MemoryActionRequest, MemoryActionData
+import sys
+from pathlib import Path
+_parent_dir = str(Path(__file__).parent.parent)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+from memory_service import suppress_memory_summary
 
 DEFAULT_TIMEZONE = timezone(timedelta(hours=8))
 
@@ -149,6 +155,17 @@ def delete_memory(memory_id: str, db: Session = Depends(get_db)):
     mem = db.query(MemoryItem).filter_by(id=memory_id, user_id=user.id).first()
     if not mem:
         return {"code": 1002, "data": None, "message": "记忆不存在"}
+
+    # memory_summary → suppress (won't be read, won't re-trigger reflection)
+    if mem.memory_type == "memory_summary":
+        result = suppress_memory_summary(memory_id, db=db)
+        return {
+            "code": 0,
+            "data": MemoryActionData(
+                memory_id=mem.id, status=mem.status,
+            ).model_dump(mode="json"),
+            "message": "ok (suppressed)",
+        }
 
     now = datetime.now(DEFAULT_TIMEZONE)
     before = {"status": mem.status}

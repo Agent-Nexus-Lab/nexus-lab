@@ -8,6 +8,7 @@ from datetime import datetime
 import time
 from typing import Any
 import sys
+import hashlib
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from backend.plan_service import plan_day_service as plan_day_funct
@@ -15,11 +16,11 @@ from experiments.agent_plan_runtime.runtime import parse_now, DEFAULT_TIMEZONE
 from dotenv import load_dotenv
 import os
 import json
-
+from experiments.agent_intent_parser.intent_parser import parse_intent
 _parent_dir = str(Path(__file__).parent.parent)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
-from memory_service import read_memory
+from memory_service import read_memory, decay_memory_summary, reflect_and_store_memory_summary
 
 load_dotenv()
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
@@ -28,13 +29,37 @@ LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", 30.0))
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
+# Simple in-memory plan-day cache: key = (user_id, request_text, date_scope) hash
+# TTL = 5 minutes; stores the previous result for cache-hit detection
+_plan_cache: dict[str, dict[str, Any]] = {}
+_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _cache_key(user_id: str, request_text: str, date_scope: str) -> str:
+    raw = f"{user_id}::{request_text}::{date_scope}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
 
 @router.post("/plan-day")
-def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):    
+def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     t_start = time.perf_counter()
     user = db.query(User).first()
     if not user:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
+
+    # ---- Cache check ----
+    cache_key = _cache_key(user.id, req.request_text, req.date_scope)
+    cached = _plan_cache.get(cache_key)
+    cache_hit = False
+    cache_type: str | None = None
+    if cached:
+        elapsed = time.time() - cached["cached_at"]
+        if elapsed < _CACHE_TTL_SECONDS:
+            cache_hit = True
+            cache_type = "plan_result"
+        else:
+            del _plan_cache[cache_key]
+
     runid = str(uuid.uuid4())
     run = PlanRun(
         id=runid,
@@ -51,7 +76,39 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     )
     db.add(run)
     db.flush()
-    
+
+    # If cache hit, short-circuit with cached result
+    if cache_hit and cached:
+        t_profile = time.perf_counter()
+        run.stage = "completed"
+        run.status = "completed"
+        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
+
+        cached_debug = dict(cached.get("debug_raw") or {})
+        cached_debug["cache"] = {
+            "cache_hit": True,
+            "cache_type": "plan_result",
+            "cached_from_run_id": cached.get("run_id"),
+            "cache_key": cache_key,
+            "cache_age_seconds": round(time.time() - cached["cached_at"], 1),
+        }
+        cached_debug["timings_ms"] = {
+            "load_profile": round((t_profile - t_start) * 1000),
+            "cache_hit": True,
+        }
+        run.debug = json.dumps(cached_debug, ensure_ascii=False)
+        db.commit()
+        db.refresh(run)
+
+        return {
+            "code": 0,
+            "data": PlanDayResponseData(
+                run_id=run.id, status=run.status, stage=run.stage, poll_after_ms=500,
+            ).model_dump(mode="json"),
+            "message": "ok (cached)",
+        }
+
+    # ---- Normal flow ----
     profile_raw = db.query(UserProfile).filter_by(user_id=user.id).first()
     if not profile_raw:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
@@ -63,19 +120,21 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "campus": user.campus or "",
         "profile_summary": profile_raw.profile_summary or "",
     }
-    t_load_profile = time.perf_counter()  
+    t_load_profile = time.perf_counter()
 
     run.stage = "parse_intent"
+    db.flush()
     intent = parse_intent(
         query=req.request_text,
         profile=profile,
         use_llm=True,
         base_url=LLM_BASE_URL,
         model=LLM_MODEL,
-        time_out=LLM_TIMEOUT,
+        timeout=LLM_TIMEOUT,
     )
-    run.intent_json = intent
+    run.intent_json = intent.model_dump()
     run.stage = "read_memory"
+    db.flush()
     t_before_memory = time.perf_counter()
     memory_context: dict[str, Any] = {}
     try:
@@ -85,6 +144,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     t_after_memory = time.perf_counter()
 
     run.stage = "search_events"
+    db.flush()
     events_raw = db.query(Event).all()
     events = []
     for event in events_raw:
@@ -104,6 +164,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             "evidence_text": event.evidence_text,
         })
     run.stage = "build_schedule"
+    db.flush()
     try:
         result = plan_day_funct(
             events=events,
@@ -126,9 +187,10 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         db.commit()
         return {"code": 500, "data": None, "message": f"生成失败：{str(e)}"}
     run.stage = "save_plan"
+    db.flush()
     data = result.model_dump()
     inner = data.get("data") or {}
-    plan_id = inner.get("plan_id") or str(uuid.uuid4())
+    plan_id = str(uuid.uuid4())
 
     plan = Plan(
         id=plan_id,
@@ -152,8 +214,6 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             reason_text=item_raw.get("reason_text", ""),
             score=item_raw.get("score"),
             score_components=item_raw.get("score_components"),
-            matched_terms=,
-            matched_reasons=,
             display_order=item_raw.get("display_order", 0),
         )
         db.add(item)
@@ -167,9 +227,9 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "load_profile": round((t_load_profile - t_start) * 1000),
         "read_memory": round((t_after_memory - t_before_memory) * 1000),
     }
-    if isinstance(debug_raw, dict) and "timings_ms" in debug_raw:
-        timings_ms.update(debug_raw.pop("timings_ms"))
-    timings_ms["total"] = round((t_end - t_start) * 1000)
+    old_timings = debug_raw.pop("timings_ms", None)
+    if isinstance(old_timings, dict):
+        timings_ms.update(old_timings)
     debug_raw["timings_ms"] = timings_ms
 
     debug_raw["memory_used"] = {
@@ -180,6 +240,18 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "recent_plan_event_ids": memory_context.get("recent_plan_event_ids", []),
         "memory_item_count": len(memory_context.get("memory_items", [])),
     }
+    debug_raw["cache"] = {
+        "cache_hit": False,
+        "cache_type": None,
+    }
+
+    # Store in cache for next request
+    _plan_cache[cache_key] = {
+        "run_id": runid,
+        "debug_raw": dict(debug_raw),
+        "cached_at": time.time(),
+    }
+
     run.stage = "completed"
     run.status = "completed"
     run.ended_at = datetime.now(DEFAULT_TIMEZONE)
@@ -188,9 +260,26 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
 
+    # ---- Post-plan-day memory lifecycle ----
+    # 1. Decay existing memory_summary items
+    try:
+        decay_memory_summary(user.id, db=db)
+    except Exception:
+        pass
+
+    # 2. Reflect every 3 runs
+    try:
+        run_count = db.query(PlanRun).filter_by(user_id=user.id, status="completed").count()
+        if run_count % 3 == 0:
+            reflect_and_store_memory_summary(user.id, db=db)
+    except Exception:
+        pass
+
     return {
         "code": 0,
-        "data": PlanDayResponseData(run_id=run.id, status=run.status, stage =run.stage, poll_after_ms=1000).model_dump(mode="json"),
+        "data": PlanDayResponseData(
+            run_id=run.id, status=run.status, stage=run.stage, poll_after_ms=1000,
+        ).model_dump(mode="json"),
         "message": "ok",
     }
 
@@ -269,19 +358,49 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
             except (json.JSONDecodeError, TypeError):
                 pass
 
-    stage = "completed" if run.status == "completed" else run.status
-    stage_message_map = {
-        "running": "正在生成日程...",
+    stage = run.stage or ("completed" if run.status == "completed" else run.status)
+
+    # Resolve stage_message and progress from debug timings / stage
+    stage_messages: dict[str, str] = {
+        "load_profile": "加载用户画像...",
+        "parse_intent": "解析意图...",
+        "read_memory": "读取记忆...",
+        "search_events": "搜索活动...",
+        "build_schedule": "生成日程...",
+        "save_plan": "保存日程...",
         "completed": "日程已生成",
         "failed": run.error_message or "生成失败",
     }
+    stage_message = stage_messages.get(stage, "处理中...")
+
+    # progress heuristic: each stage is ~16%, with final stages weighted more
+    stage_progress: dict[str, float] = {
+        "load_profile": 0.10,
+        "parse_intent": 0.25,
+        "read_memory": 0.40,
+        "search_events": 0.55,
+        "build_schedule": 0.80,
+        "save_plan": 0.95,
+        "completed": 1.0,
+        "failed": 1.0,
+    }
+    progress = stage_progress.get(stage, 0.5)
+
+    # Extract timings_ms from debug
+    timings_ms = None
+    if run.debug:
+        try:
+            debug_data = json.loads(run.debug) if isinstance(run.debug, str) else run.debug
+            timings_ms = debug_data.get("timings_ms")
+        except (json.JSONDecodeError, TypeError):
+            pass
 
     return {
         "code": 0,
         "data": RunStatusData(
             run_id=run.id,
             status=run.status,
-            stage = run.stage,
+            stage=stage,
             plan_id=plan.id if plan else None,
             title=plan.title if plan else None,
             summary=plan.summary if plan else None,
@@ -294,6 +413,9 @@ def get_run_status(run_id: str, db: Session = Depends(get_db)):
             error_message=run.error_message,
             debug=run.debug,
             cache_hit=cache_hit,
+            stage_message=stage_message,
+            progress=progress,
+            timings_ms=timings_ms,
         ).model_dump(mode="json"),
         "message": "ok",
     }

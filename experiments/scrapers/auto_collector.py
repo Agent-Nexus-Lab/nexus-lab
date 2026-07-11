@@ -423,7 +423,8 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
     if commit and import_mod is not None and hasattr(import_mod, "import_many"):
         commit_target = "import_many"
         try:
-            result = import_mod.import_many(all_drafts)
+            import_fn = getattr(import_mod, "import_many_standalone", import_mod.import_many)
+            result = import_fn(all_drafts)
             if isinstance(result, dict):
                 imported = result.get("imported", 0)
                 updated = result.get("updated", 0)

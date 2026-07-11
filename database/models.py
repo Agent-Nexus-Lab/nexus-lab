@@ -108,8 +108,8 @@ class PlanItem(Base):
     reason_text = Column(Text)
     score = Column(Float)
     score_components = Column(JSON)
-    matched_terms = Column(JSON)
-    memory_reasons = Column(JSON)
+    # matched_terms = Column(JSON)
+    # memory_reasons = Column(JSON)
     display_order = Column(Integer)
 
 
@@ -126,7 +126,7 @@ class UserEventFeedback(Base):
     feedback_source = Column(Text, nullable=False)
     comment = Column(Text, nullable=True)
     weight = Column(Float, default=1.0)
-    metadata = Column(JSON, nullable=True)
+    feedback_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -179,5 +179,5 @@ class EventQualitySnapshots(Base):
     missing_evidence_count = Column(Integer)
     visible_events = Column(Integer)
     stale_events = Column(Integer)
-    metadata = Column(JSON)
+    snap_metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
