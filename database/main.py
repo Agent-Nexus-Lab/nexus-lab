@@ -19,6 +19,19 @@ app.include_router(admin.router)
 app.include_router(feedback.router)
 app.include_router(memory.router)
 
+
+@app.on_event("startup")
+def on_startup():
+    from scheduler import start_scheduler
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    from scheduler import shutdown_scheduler
+    shutdown_scheduler()
+
+
 @app.get("/")
 def health_check():
     return {"code": 0, "message": "service is running"}
