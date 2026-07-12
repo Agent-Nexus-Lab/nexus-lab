@@ -46,7 +46,7 @@ class RawDocument(Base):
     content_text = Column(Text)
     fetched_at = Column(DateTime(timezone=True), server_default=func.now())
     content_hash = Column(String(64))
-    status = Column(String(20), default="pending") 
+    status = Column(String(20), default="pending")
 
 class Event(Base):
     __tablename__ = "events"
@@ -61,6 +61,8 @@ class Event(Base):
     organizer = Column(String(100))
     source_id = Column(String(36), ForeignKey("sources.id"))
     source_url = Column(String(500))
+    source_name = Column(String(100))
+    evidence_text = Column(Text)
     tags = Column(JSON)
     quality_score = Column(Float, default=0.5)
     verification_status = Column(String(20), default="unverified")  #verified / unverified / rejected
@@ -75,10 +77,14 @@ class PlanRun(Base):
     user_id = Column(String(36), ForeignKey("users.id"),  nullable=False)
     status = Column(String(20), default="queued")  # queued / running  / completed / failed
     request_text = Column(Text)
-    # date_scope = Column(String(20))
     started_at = Column(DateTime(timezone=True),  server_default=func.now())
     ended_at = Column(DateTime(timezone=True))
-    error_message = Column(Text)    #
+    error_message = Column(Text)
+    date_scope = Column(String(20))
+    intent_json = Column(JSON)
+    stage = Column(String)
+    debug = Column(Text)
+    client_context = Column(JSON)
 
 class Plan(Base):
     __tablename__ = "plans"
@@ -100,4 +106,78 @@ class PlanItem(Base):
     start_time = Column(DateTime(timezone=True))
     end_time = Column(DateTime(timezone=True))
     reason_text = Column(Text)
+    score = Column(Float)
+    score_components = Column(JSON)
+    # matched_terms = Column(JSON)
+    # memory_reasons = Column(JSON)
     display_order = Column(Integer)
+
+
+class UserEventFeedback(Base):
+    __tablename__ = "user_event_feedback"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    event_id = Column(String(36), ForeignKey("events.id"), nullable=True)
+    plan_id = Column(String(36), ForeignKey("plans.id"), nullable=True)
+    plan_item_id = Column(String(36), ForeignKey("plan_items.id"), nullable=True)
+    run_id = Column(String(36), ForeignKey("plan_runs.id"), nullable=True)
+    feedback_type = Column(Text, nullable=False)
+    feedback_source = Column(Text, nullable=False)
+    comment = Column(Text, nullable=True)
+    weight = Column(Float, default=1.0)
+    feedback_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MemoryItem(Base):
+    __tablename__ = "memory_items"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    memory_type = Column(Text, nullable=False)
+    memory_scope = Column(Text, nullable=False, default="short_term")
+    content = Column(Text, nullable=False)
+    structured_content = Column(JSON, nullable=True)
+    source_type = Column(Text, nullable=False)
+    source_ref = Column(Text, nullable=True)
+    confidence = Column(Float, nullable=False, default=0.5)
+    priority = Column(Integer, nullable=False, default=50)
+    status = Column(Text, nullable=False, default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    last_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class MemoryAuditLog(Base):
+    __tablename__ = "memory_audit_log"
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    memory_item_id = Column(String(36), ForeignKey("memory_items.id"), nullable=True)
+    action = Column(Text, nullable=False)
+    before_state = Column(JSON, nullable=True)
+    after_state = Column(JSON, nullable=True)
+    actor = Column(Text, nullable=False, default="system")
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class EventQualitySnapshots(Base):
+    __tablename__ = "event_quality_snapshots"
+
+    id = Column(String(36), primary_key=True)
+    snapshot_date = Column(DateTime(timezone=True), server_default=func.now())
+    total_events = Column(Integer)
+    future_events = Column(Integer)
+    expired_events = Column(Integer)
+    missing_time_count = Column(Integer)
+    missing_location_count = Column(Integer)
+    missing_source_url_count = Column(Integer)
+    missing_evidence_count = Column(Integer)
+    visible_events = Column(Integer)
+    stale_events = Column(Integer)
+    snap_metadata = Column(JSON)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
