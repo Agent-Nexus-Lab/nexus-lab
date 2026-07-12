@@ -1,14 +1,9 @@
 FROM python:3.10-slim
 
 WORKDIR /app
-
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-
 COPY . .
+RUN pip install --no-cache-dir -r requirements-dev.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-ENV PYTHONPATH=/app
-
-WORKDIR /app/backend
-
+# 增加/app/database，routers就能直接导入
+ENV PYTHONPATH=/app:/app/database:/app/experiments:/app/backend
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
