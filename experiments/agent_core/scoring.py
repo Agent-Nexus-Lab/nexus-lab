@@ -86,28 +86,52 @@ def score_interest_match(
     # --- 语义路径 ---
     event_emb = event.get("summary_embedding")
     query_emb = preferences.query_embedding
-    if (isinstance(event_emb, (list, tuple)) and event_emb
-            and isinstance(query_emb, (list, tuple)) and query_emb):
-        raw_sim = _cosine_similarity(list(event_emb), list(query_emb))
-        normalized = max(0.0, min(1.0, (raw_sim + 1.0) / 2.0))
-        detail = {
-            "score": normalized,
-            "semantic_similarity": raw_sim,
-            "normalized_interest_match": normalized,
-            "embedding_model": preferences.embedding_model,
-            "method": "semantic",
-        }
-        return normalized, [], detail
+    have_event_emb = isinstance(event_emb, (list, tuple)) and bool(event_emb)
+    have_query_emb = isinstance(query_emb, (list, tuple)) and bool(query_emb)
+    fallback_reason: str | None = None
+    if have_event_emb and have_query_emb:
+        # embedding_model 一致性检查：双方都声明了模型且不一致 → fallback
+        event_model = event.get("embedding_model")
+        pref_model = preferences.embedding_model
+        if event_model and pref_model and event_model != pref_model:
+            fallback_reason = "embedding_model_mismatch"
+        else:
+            raw_sim = _cosine_similarity(list(event_emb), list(query_emb))
+            normalized = max(0.0, min(1.0, (raw_sim + 1.0) / 2.0))
+            detail = {
+                "score": normalized,
+                "semantic_similarity": raw_sim,
+                "normalized_interest_match": normalized,
+                "embedding_model": preferences.embedding_model,
+                "method": "semantic",
+            }
+            return normalized, [], detail
+    elif not have_event_emb and not have_query_emb:
+        fallback_reason = "both_embeddings_missing"
+    elif not have_event_emb:
+        fallback_reason = "summary_embedding_missing"
+    else:
+        fallback_reason = "query_embedding_missing"
 
     # --- keyword fallback ---
     targets = list(preferences.interest_terms)
     if not targets:
-        return 0.0, [], None
+        return 0.0, [], {
+            "method": "keyword_fallback",
+            "fallback_reason": fallback_reason or "no_interest_terms",
+            "score": 0.0,
+        }
 
     haystack = event_text(event)
     matched = [term for term in targets if term_matches(term, haystack)]
     denominator = min(3, len(targets))
-    return min(1.0, len(matched) / denominator), matched, None
+    score = min(1.0, len(matched) / denominator)
+    return score, matched, {
+        "method": "keyword_fallback",
+        "fallback_reason": fallback_reason,
+        "score": score,
+        "matched_terms": matched,
+    }
 
 
 def score_time_fit(

@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,8 +47,12 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _REPO_ROOT = _HERE.parent.parent
 DEFAULT_ACCOUNTS = _HERE / "account_list.json"
+ACCOUNT_CURSOR = _HERE / "account_cursor.json"
 EVENTS_JSON = _REPO_ROOT / "database" / "events.json"
 DEFAULT_LIMIT = 3  # 默认只扫前 3 个 enabled 账号，避免消耗 API 额度
+
+# 账号分类值域（用于 category_breakdown 统计）
+ACCOUNT_CATEGORIES = ("讲座", "文艺", "体育", "比赛", "就业", "志愿服务", "其他")
 
 for _p in (str(_HERE.parent), str(_REPO_ROOT)):
     if _p not in sys.path:
@@ -58,6 +63,18 @@ from experiments.scrapers.schema_mapper import (  # noqa: E402
     map_wechat_article_to_drafts,
     map_xiaohongshu_note_to_drafts,
 )
+from experiments.agent_core.error_classify import (  # noqa: E402
+    ErrorClass,
+    classify_error,
+    is_retryable,
+    is_terminal_content,
+)
+
+# 文章级重试：对可重试临时错误（timeout/rate_limited/provider_error）退避重试。
+# 注意：extract_article 内部已有 HTTP 层重试，此处是文章级分类重试，主要价值是
+# 不重试内容结论（not_an_event/no_activity/text_too_short）和认证失败。
+ARTICLE_MAX_RETRIES = 3
+ARTICLE_RETRY_BACKOFF = 1.5  # sleep = BACKOFF * (attempt + 1)
 
 
 def load_enabled_accounts(path: Path | None = None, limit: int = 0) -> list[dict]:
@@ -69,6 +86,77 @@ def load_enabled_accounts(path: Path | None = None, limit: int = 0) -> list[dict
     if limit > 0:
         enabled = enabled[:limit]
     return enabled
+
+
+def _read_cursor(cursor_path: Path) -> str | None:
+    """读取上次写入的 next_account_cursor（即本轮应开始的账号 id）。"""
+    try:
+        data = json.loads(cursor_path.read_text(encoding="utf-8"))
+        cid = data.get("cursor")
+        return cid if isinstance(cid, str) and cid else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_cursor(cursor_path: Path, next_cursor: str | None) -> None:
+    payload = {"cursor": next_cursor, "updated_at": datetime.now(timezone.utc).isoformat()}
+    cursor_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_enabled_accounts_rotating(
+    path: Path | None = None,
+    limit: int = 0,
+    cursor_path: Path | None = None,
+) -> tuple[list[dict], str | None, str | None]:
+    """环形轮换取 enabled 账号。
+
+    返回 (selected, account_cursor_start, next_account_cursor)：
+      - selected：本轮选中的账号列表（按环形顺序）
+      - account_cursor_start：本轮起始账号 id（即游标指向的账号）
+      - next_account_cursor：下轮应开始的账号 id（选中最后一个的下一个 enabled，环形）
+
+    游标语义：cursor 文件存的是"下轮应开始的账号 id"。本轮从该 id 开始取 limit 个。
+    """
+    p = path or DEFAULT_ACCOUNTS
+    cp = cursor_path or ACCOUNT_CURSOR
+    with open(p, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    accounts = data.get("accounts", []) if isinstance(data, dict) else []
+    all_enabled = [a for a in accounts if a.get("enabled") is True]
+    if not all_enabled:
+        return [], None, None
+
+    cursor_id = _read_cursor(cp)
+    # 找到起始索引
+    start_idx = 0
+    if cursor_id:
+        for i, a in enumerate(all_enabled):
+            if a.get("id") == cursor_id:
+                start_idx = i
+                break
+        # cursor 指向的账号若已禁用/删除，回退到 0
+
+    n = len(all_enabled)
+    take = limit if (limit and limit > 0) else n
+    take = min(take, n)
+    selected = [all_enabled[(start_idx + i) % n] for i in range(take)]
+
+    account_cursor_start = selected[0].get("id") if selected else None
+    # next_cursor = 选中最后一个的下一个 enabled（环形）
+    last_idx = (start_idx + take - 1) % n
+    next_idx = (last_idx + 1) % n
+    next_account_cursor = all_enabled[next_idx].get("id") if selected else None
+    return selected, account_cursor_start, next_account_cursor
+
+
+def category_breakdown_of(accounts: list[dict]) -> dict[str, int]:
+    bd = {c: 0 for c in ACCOUNT_CATEGORIES}
+    for a in accounts:
+        cat = a.get("category") or "其他"
+        if cat not in bd:
+            cat = "其他"
+        bd[cat] += 1
+    return bd
 
 
 SAMPLES_DIR = _HERE.parent / "agent_maas_cli" / "samples"
@@ -144,38 +232,64 @@ def collect_account(account: dict, *, dry_run: bool, cn8n_mod,
             "would_fetch": False, "articles": articles}
 
 
-def _get_article_text(article_url: str, article: dict, cn8n_mod) -> tuple[str | None, str]:
-    """获取文章正文，返回 (text, text_source)。
+def _text_quality(text: str | None, text_source: str) -> str:
+    """判定正文质量：full / partial / insufficient / none。
 
-    优先级：cn8n detail_text > cn8n digest > None。
-    text_source 为 "cn8n_detail" / "cn8n_digest" / "none"。
+    - none：无文本
+    - insufficient：< 100 字
+    - full：source ∈ {cn8n_detail, sample_fulltext} 且 ≥ 500 字
+    - partial：其余（摘要或短正文）
     """
-    # 1) try get_article_detail_text
-    if cn8n_mod is not None and hasattr(cn8n_mod, "get_article_detail_text"):
+    if text is None:
+        return "none"
+    n = len(text)
+    if n < 100:
+        return "insufficient"
+    if text_source in ("cn8n_detail", "sample_fulltext") and n >= 500:
+        return "full"
+    return "partial"
+
+
+def _get_article_text(article_url: str, article: dict, cn8n_mod, *,
+                      is_sample: bool = False) -> tuple[str | None, str, str]:
+    """获取文章正文，返回 (text, text_source, text_quality)。
+
+    优先级：cn8n detail_text > digest > None。
+    text_source ∈ {cn8n_detail, cn8n_digest, sample_fulltext, none}。
+    text_quality ∈ {full, partial, insufficient, none}。
+    """
+    # 1) try get_article_detail_text（样例模式跳过 cn8n）
+    if not is_sample and cn8n_mod is not None and hasattr(cn8n_mod, "get_article_detail_text"):
         try:
             text = cn8n_mod.get_article_detail_text(article_url)
             if text:
-                return text, "cn8n_detail"
+                t = text.strip()
+                return t, "cn8n_detail", _text_quality(t, "cn8n_detail")
         except NotImplementedError:
             pass
         except Exception:
             pass
-    # 2) fallback to digest
-    digest = article.get("digest", "").strip()
+    # 2) fallback to digest（样例模式的 digest 是本地全文）
+    digest = (article.get("digest") or "").strip()
     if digest:
-        return digest, "cn8n_digest"
-    return None, "none"
+        src = "sample_fulltext" if is_sample else "cn8n_digest"
+        return digest, src, _text_quality(digest, src)
+    return None, "none", "none"
 
 
 def extract_and_map(article: dict, *, cn8n_mod,
-                    warnings: list[str]) -> tuple[list[dict], bool, str]:
-    """单篇文章：取正文 → MaaS 提取 → mapper → (drafts, succeeded, reason)。
+                    warnings: list[str], is_sample: bool = False) -> tuple[list[dict], bool, str, dict]:
+    """单篇文章：取正文 → MaaS 提取 → mapper → (drafts, succeeded, reason, info)。
 
     Returns:
-        drafts: 6-field event drafts 列表
+        drafts: 6-field event drafts 列表（已附 text_source/text_quality）
         succeeded: True 如果成功产出至少 1 个 draft
         reason: 失败原因（成功时为空字符串）
+        info: {text_source, text_quality, review_items}
+            review_items: 证据不足的 draft（缺 title/start_time/location/source_url），
+                          不进 drafts，不调 LLM 补猜，由调用方汇入 review_queue。
     """
+    info: dict = {"text_source": "none", "text_quality": "none", "review_items": []}
     metadata = {
         "source_name": article.get("source_name") or article.get("account"),
         "source_url": article.get("source_url") or article.get("url"),
@@ -184,17 +298,45 @@ def extract_and_map(article: dict, *, cn8n_mod,
     }
     source_url = metadata["source_url"]
 
-    text, text_source = _get_article_text(source_url, article, cn8n_mod)
+    text, text_source, text_quality = _get_article_text(source_url, article, cn8n_mod, is_sample=is_sample)
+    info["text_source"] = text_source
+    info["text_quality"] = text_quality
     if text is None:
         warnings.append(f"无正文可用: {source_url or '?'}")
-        return [], False, "no_text"
+        return [], False, "no_text", info
+    # 证据不足：正文太短，不调 LLM 补猜
+    if text_quality == "insufficient":
+        return [], False, "insufficient_evidence", info
 
     # Collection V2 返回 dict {status, events, warnings, error, used_fallback}
-    try:
-        result = extract_article_to_events(text, metadata)
-    except Exception as e:  # noqa: BLE001
-        warnings.append(f"提取异常 {source_url}: {e}")
-        return [], False, f"extract_error: {e}"
+    # 文章级重试：对可重试临时错误退避重试，内容结论/认证失败不重试。
+    result = None
+    retry_count = 0
+    last_error: str | None = None
+    for attempt in range(ARTICLE_MAX_RETRIES + 1):
+        try:
+            result = extract_article_to_events(text, metadata)
+            break  # 调用本身没抛异常，退出重试循环
+        except Exception as e:  # noqa: BLE001
+            err = classify_error(e)
+            last_error = f"{err.value}: {e}"
+            if err == ErrorClass.AUTH_FAILED:
+                warnings.append(f"认证失败 {source_url}: {e}")
+                info["retry_count"] = attempt
+                info["last_error"] = last_error
+                info["auth_failed"] = True
+                return [], False, "authentication_failed", info
+            if is_retryable(err) and attempt < ARTICLE_MAX_RETRIES:
+                retry_count = attempt + 1
+                time.sleep(ARTICLE_RETRY_BACKOFF * (attempt + 1))
+                continue
+            warnings.append(f"提取异常 {source_url}: {e}")
+            info["retry_count"] = attempt
+            info["last_error"] = last_error
+            return [], False, f"extract_error: {err.value}", info
+    info["retry_count"] = retry_count
+    if last_error:
+        info["last_error"] = last_error
 
     if not isinstance(result, dict):
         # 兼容旧 list 返回（不应出现，但防御）
@@ -212,27 +354,47 @@ def extract_and_map(article: dict, *, cn8n_mod,
     # 只计入 fail_reasons，不进 warnings 当错误。
     if status == "parse_error":
         warnings.append(f"提取失败 {source_url}: {error or 'parse_error'}")
-        return [], False, f"extract_error: {error or 'parse_error'}"
+        return [], False, f"extract_error: {error or 'parse_error'}", info
     if status == "text_too_short":
-        return [], False, "text_too_short"
+        return [], False, "text_too_short", info
     if status == "not_an_event":
-        return [], False, "not_an_event"
+        return [], False, "not_an_event", info
     if not events:
         # ok 但无 events，或 no_activity
-        return [], False, "no_activity"
+        return [], False, "no_activity", info
 
     drafts, map_warnings = map_wechat_article_to_drafts(article, events)
     if map_warnings:
         warnings.extend(map_warnings)
     if not drafts:
-        return [], False, "mapper_produced_no_drafts"
+        return [], False, "mapper_produced_no_drafts", info
     # 把抽取侧 warnings + used_fallback 透传到外层 debug（非错误）
     if ext_warnings:
         warnings.extend(f"[extract] {w}" for w in ext_warnings)
     if used_fallback:
         warnings.append(f"[extract] used_fallback {source_url or '?'}")
 
-    return drafts, True, ""
+    # 证据边界：每个 draft 必须有 title/start_time/location/source_url，缺任一进 review_queue
+    kept: list[dict] = []
+    for d in drafts:
+        missing = [f for f in ("title", "start_time", "location", "source_url")
+                   if not d.get(f)]
+        if missing:
+            info["review_items"].append({
+                "source_url": source_url,
+                "title": d.get("title") or article.get("title"),
+                "missing_fields": missing,
+                "reason": "insufficient_evidence" if text_quality == "insufficient" else "needs_review",
+                "text_source": text_source,
+                "text_quality": text_quality,
+            })
+        else:
+            d["text_source"] = text_source
+            d["text_quality"] = text_quality
+            kept.append(d)
+    if not kept:
+        return [], False, "insufficient_evidence", info
+    return kept, True, "", info
 
 
 def dedupe_articles(articles: list[dict], seen_urls: set[str]) -> list[dict]:
@@ -358,6 +520,16 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
     extracted_fail = 0
     fail_reasons: dict[str, int] = {}
     per_account: list[dict] = []
+    # 账号轮换游标
+    account_cursor_start: str | None = None
+    next_account_cursor: str | None = None
+    scanned_account_ids: list[str] = []
+    scanned_account_names: list[str] = []
+    cat_breakdown: dict[str, int] = {}
+    # 文本质量与证据边界
+    text_quality_breakdown: dict[str, int] = {"full": 0, "partial": 0, "insufficient": 0, "none": 0}
+    review_queue: list[dict] = []
+    retry_summary = {"total_retried": 0, "max_retry_reached": 0, "auth_failures": 0}
 
     if samples:
         # 样例模式：读本地 5 篇全文文章，不走 cn8n
@@ -367,9 +539,17 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         account_drafts: list[dict] = []
         ok = fail = 0
         for art in new_articles:
-            drafts, succeeded, reason = extract_and_map(
-                art, cn8n_mod=cn8n_mod, warnings=warnings)
+            drafts, succeeded, reason, ainfo = extract_and_map(
+                art, cn8n_mod=cn8n_mod, warnings=warnings, is_sample=True)
             account_drafts.extend(drafts)
+            text_quality_breakdown[ainfo["text_quality"]] = text_quality_breakdown.get(ainfo["text_quality"], 0) + 1
+            review_queue.extend(ainfo["review_items"])
+            rc = ainfo.get("retry_count", 0)
+            if rc:
+                retry_summary["total_retried"] += 1
+                retry_summary["max_retry_reached"] = max(retry_summary["max_retry_reached"], rc)
+            if ainfo.get("auth_failed"):
+                retry_summary["auth_failures"] += 1
             if succeeded:
                 ok += 1
             else:
@@ -387,7 +567,17 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             "event_drafts": len(account_drafts),
         })
     else:
-        accounts = load_enabled_accounts(accounts_path, limit=limit)
+        accounts, account_cursor_start, next_account_cursor = load_enabled_accounts_rotating(
+            accounts_path, limit=limit)
+        scanned_account_ids = [a.get("id") for a in accounts if a.get("id")]
+        scanned_account_names = [a.get("name") for a in accounts if a.get("name")]
+        cat_breakdown = category_breakdown_of(accounts)
+        # 持久化游标（即使本轮无结果也推进，避免下次仍从同一位置）
+        if next_account_cursor:
+            try:
+                _write_cursor(ACCOUNT_CURSOR, next_account_cursor)
+            except OSError as e:  # noqa: BLE001
+                warnings.append(f"游标写入失败: {e}")
         for acc in accounts:
             res = collect_account(acc, dry_run=dry_run, cn8n_mod=cn8n_mod,
                                   warnings=warnings)
@@ -397,9 +587,17 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             account_drafts = []
             ok = fail = 0
             for art in new_articles:
-                drafts, succeeded, reason = extract_and_map(
+                drafts, succeeded, reason, ainfo = extract_and_map(
                     art, cn8n_mod=cn8n_mod, warnings=warnings)
                 account_drafts.extend(drafts)
+                text_quality_breakdown[ainfo["text_quality"]] = text_quality_breakdown.get(ainfo["text_quality"], 0) + 1
+                review_queue.extend(ainfo["review_items"])
+                rc = ainfo.get("retry_count", 0)
+                if rc:
+                    retry_summary["total_retried"] += 1
+                    retry_summary["max_retry_reached"] = max(retry_summary["max_retry_reached"], rc)
+                if ainfo.get("auth_failed"):
+                    retry_summary["auth_failures"] += 1
                 if succeeded:
                     ok += 1
                 else:
@@ -456,6 +654,11 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         "commit_target": commit_target,
         "limit_accounts": limit,
         "scanned_accounts": len(per_account),
+        "scanned_account_ids": scanned_account_ids,
+        "scanned_account_names": scanned_account_names,
+        "account_cursor_start": account_cursor_start,
+        "next_account_cursor": next_account_cursor,
+        "category_breakdown": cat_breakdown,
         "total_articles": total_articles,
         "new_articles": sum(p["new_articles"] for p in per_account),
         "extraction_summary": {
@@ -463,7 +666,10 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             "extracted_ok": extracted_ok,
             "extracted_fail": extracted_fail,
             "fail_reasons": fail_reasons,
+            "retry_summary": retry_summary,
         },
+        "text_quality_breakdown": text_quality_breakdown,
+        "review_queue": review_queue,
         "extracted_event_drafts": len(all_drafts),
         "commit_summary": {
             "fetched_count": total_articles,
@@ -505,8 +711,11 @@ def main() -> int:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     summary_keys = ("dry_run", "commit", "commit_json", "commit_target",
-                    "scanned_accounts", "total_articles", "new_articles",
-                    "extraction_summary", "extracted_event_drafts",
+                    "scanned_accounts", "scanned_account_ids", "scanned_account_names",
+                    "account_cursor_start", "next_account_cursor", "category_breakdown",
+                    "total_articles", "new_articles",
+                    "extraction_summary", "text_quality_breakdown",
+                    "extracted_event_drafts",
                     "commit_summary", "warnings")
     summary = {k: result[k] for k in summary_keys}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
