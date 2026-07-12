@@ -210,6 +210,51 @@ def _try_import_import_service() -> tuple[object | None, str | None]:
         return None, f"database.import_events 未落地: {e}"
 
 
+def _try_import_article_state() -> tuple[object | None, object | None, str | None]:
+    """导入昕宇提供的文章状态层（database.article_state）+ SessionLocal。
+
+    返回 (article_state_mod, session_local_factory, err)。未落地时 (None, None, err)，
+    调用方降级到无跨轮去重行为。
+    """
+    try:
+        import database.article_state as mod  # noqa: PLC0415
+        from database.database import SessionLocal  # noqa: PLC0415
+        for fn in ("is_article_processed", "mark_article_processing",
+                   "mark_article_completed", "mark_article_failed"):
+            if not hasattr(mod, fn):
+                return None, None, f"database.article_state 缺 {fn}"
+        return mod, SessionLocal, None
+    except ImportError as e:
+        return None, None, f"database.article_state 未落地: {e}"
+
+
+def _content_hash(text: str) -> str:
+    """与昕宇侧约定一致的 content_hash：sha256(text.strip().encode utf-8)。"""
+    import hashlib  # noqa: PLC0415
+    return hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+
+
+# 业务 reason → RawDocument skipped_* status 映射（terminal 内容结论，不重试）
+_REASON_TO_SKIPPED_STATUS = {
+    "not_an_event": "skipped_not_an_event",
+    "no_activity": "skipped_no_activity",
+    "text_too_short": "skipped_text_too_short",
+    "insufficient_evidence": "skipped_text_too_short",
+    "no_text": "skipped_text_too_short",
+}
+
+
+def _to_skipped_status(reason: str) -> str | None:
+    return _REASON_TO_SKIPPED_STATUS.get(reason)
+
+
+_SKIPPED_TO_REASON = {v: k for k, v in _REASON_TO_SKIPPED_STATUS.items()}
+
+
+def _skipped_to_reason(status: str) -> str:
+    return _SKIPPED_TO_REASON.get(status, "already_processed")
+
+
 def collect_account(account: dict, *, dry_run: bool, cn8n_mod,
                     warnings: list[str]) -> dict:
     if dry_run:
@@ -278,16 +323,19 @@ def _get_article_text(article_url: str, article: dict, cn8n_mod, *,
 
 
 def extract_and_map(article: dict, *, cn8n_mod,
-                    warnings: list[str], is_sample: bool = False) -> tuple[list[dict], bool, str, dict]:
+                    warnings: list[str], is_sample: bool = False,
+                    db=None, article_state=None) -> tuple[list[dict], bool, str, dict]:
     """单篇文章：取正文 → MaaS 提取 → mapper → (drafts, succeeded, reason, info)。
+
+    跨轮去重：当 db + article_state 可用时，调 LLM 前查 is_article_processed，
+    completed+hash 同 / skipped_* → 跳过；处理后 mark_article_completed/failed。
+    未落地时降级到单轮 seen_urls 去重。
 
     Returns:
         drafts: 6-field event drafts 列表（已附 text_source/text_quality）
         succeeded: True 如果成功产出至少 1 个 draft
         reason: 失败原因（成功时为空字符串）
-        info: {text_source, text_quality, review_items}
-            review_items: 证据不足的 draft（缺 title/start_time/location/source_url），
-                          不进 drafts，不调 LLM 补猜，由调用方汇入 review_queue。
+        info: {text_source, text_quality, review_items, retry_count?, last_error?, auth_failed?}
     """
     info: dict = {"text_source": "none", "text_quality": "none", "review_items": []}
     metadata = {
@@ -301,11 +349,74 @@ def extract_and_map(article: dict, *, cn8n_mod,
     text, text_source, text_quality = _get_article_text(source_url, article, cn8n_mod, is_sample=is_sample)
     info["text_source"] = text_source
     info["text_quality"] = text_quality
+
+    raw_document_id: str | None = None
+
+    def _mark_processing() -> None:
+        nonlocal raw_document_id
+        if not (db and article_state and source_url):
+            return
+        try:
+            pub = article.get("publish_time")
+            pub_dt = None
+            if pub:
+                try:
+                    pub_dt = datetime.fromisoformat(str(pub))
+                except (TypeError, ValueError):
+                    pub_dt = None
+            raw_document_id = article_state.mark_article_processing(
+                db, source_url, title=article.get("title") or "",
+                content_hash=content_hash, published_at=pub_dt)
+        except Exception as e:  # noqa: BLE001
+            warnings.append(f"mark_article_processing 失败 {source_url}: {e}")
+
+    def _mark_outcome(succeeded: bool, reason: str, retry_count: int) -> None:
+        if not (db and article_state and raw_document_id):
+            return
+        try:
+            if succeeded:
+                article_state.mark_article_completed(db, raw_document_id)
+            else:
+                skipped = _to_skipped_status(reason)
+                is_terminal = skipped is not None or reason in ("authentication_failed",)
+                article_state.mark_article_failed(
+                    db, raw_document_id, error=reason,
+                    retry_count=retry_count, is_terminal=is_terminal)
+            db.commit()
+        except Exception as e:  # noqa: BLE001
+            warnings.append(f"mark_outcome 失败 {source_url}: {e}")
+
     if text is None:
         warnings.append(f"无正文可用: {source_url or '?'}")
         return [], False, "no_text", info
+    content_hash = _content_hash(text)
+
+    # --- 跨轮去重检查 ---
+    if db and article_state and source_url:
+        try:
+            prev = article_state.is_article_processed(db, source_url, content_hash)
+        except Exception as e:  # noqa: BLE001
+            warnings.append(f"is_article_processed 失败 {source_url}: {e}")
+            prev = None
+        if isinstance(prev, dict):
+            prev_status = prev.get("status")
+            if prev_status == "completed" and prev.get("content_hash") == content_hash:
+                info["dedup"] = "already_processed"
+                return [], False, "already_processed", info
+            if prev_status and str(prev_status).startswith("skipped_"):
+                info["dedup"] = prev_status
+                return [], False, _skipped_to_reason(prev_status), info
+            if prev_status == "failed":
+                rc = int(prev.get("retry_count", 0) or 0)
+                if rc >= ARTICLE_MAX_RETRIES:
+                    info["dedup"] = "exhausted_retries"
+                    return [], False, "exhausted_retries", info
+                # 否则继续重试
+        _mark_processing()
+
     # 证据不足：正文太短，不调 LLM 补猜
     if text_quality == "insufficient":
+        _mark_outcome(False, "insufficient_evidence", 0)
         return [], False, "insufficient_evidence", info
 
     # Collection V2 返回 dict {status, events, warnings, error, used_fallback}
@@ -325,6 +436,7 @@ def extract_and_map(article: dict, *, cn8n_mod,
                 info["retry_count"] = attempt
                 info["last_error"] = last_error
                 info["auth_failed"] = True
+                _mark_outcome(False, "authentication_failed", attempt)
                 return [], False, "authentication_failed", info
             if is_retryable(err) and attempt < ARTICLE_MAX_RETRIES:
                 retry_count = attempt + 1
@@ -333,6 +445,7 @@ def extract_and_map(article: dict, *, cn8n_mod,
             warnings.append(f"提取异常 {source_url}: {e}")
             info["retry_count"] = attempt
             info["last_error"] = last_error
+            _mark_outcome(False, f"extract_error: {err.value}", attempt)
             return [], False, f"extract_error: {err.value}", info
     info["retry_count"] = retry_count
     if last_error:
@@ -354,19 +467,24 @@ def extract_and_map(article: dict, *, cn8n_mod,
     # 只计入 fail_reasons，不进 warnings 当错误。
     if status == "parse_error":
         warnings.append(f"提取失败 {source_url}: {error or 'parse_error'}")
+        _mark_outcome(False, f"extract_error: {error or 'parse_error'}", retry_count)
         return [], False, f"extract_error: {error or 'parse_error'}", info
     if status == "text_too_short":
+        _mark_outcome(False, "text_too_short", retry_count)
         return [], False, "text_too_short", info
     if status == "not_an_event":
+        _mark_outcome(False, "not_an_event", retry_count)
         return [], False, "not_an_event", info
     if not events:
         # ok 但无 events，或 no_activity
+        _mark_outcome(False, "no_activity", retry_count)
         return [], False, "no_activity", info
 
     drafts, map_warnings = map_wechat_article_to_drafts(article, events)
     if map_warnings:
         warnings.extend(map_warnings)
     if not drafts:
+        _mark_outcome(False, "mapper_produced_no_drafts", retry_count)
         return [], False, "mapper_produced_no_drafts", info
     # 把抽取侧 warnings + used_fallback 透传到外层 debug（非错误）
     if ext_warnings:
@@ -393,7 +511,9 @@ def extract_and_map(article: dict, *, cn8n_mod,
             d["text_quality"] = text_quality
             kept.append(d)
     if not kept:
+        _mark_outcome(False, "insufficient_evidence", retry_count)
         return [], False, "insufficient_evidence", info
+    _mark_outcome(True, "", retry_count)
     return kept, True, "", info
 
 
@@ -512,6 +632,17 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
     import_mod, import_err = _try_import_import_service()
     if import_err and commit:
         warnings.append(import_err)
+    # 跨轮去重：昕宇 article_state + SessionLocal（未落地则降级到单轮 seen_urls）
+    article_state_mod, session_local, article_state_err = _try_import_article_state()
+    if article_state_err:
+        warnings.append(article_state_err)
+    db = None
+    if article_state_mod is not None and session_local is not None:
+        try:
+            db = session_local()
+        except Exception as e:  # noqa: BLE001
+            warnings.append(f"DB session 创建失败，跨轮去重降级: {e}")
+            db = None
 
     seen_urls: set[str] = set()
     all_drafts: list[dict] = []
@@ -540,7 +671,8 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         ok = fail = 0
         for art in new_articles:
             drafts, succeeded, reason, ainfo = extract_and_map(
-                art, cn8n_mod=cn8n_mod, warnings=warnings, is_sample=True)
+                art, cn8n_mod=cn8n_mod, warnings=warnings, is_sample=True,
+                db=db, article_state=article_state_mod)
             account_drafts.extend(drafts)
             text_quality_breakdown[ainfo["text_quality"]] = text_quality_breakdown.get(ainfo["text_quality"], 0) + 1
             review_queue.extend(ainfo["review_items"])
@@ -588,7 +720,8 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             ok = fail = 0
             for art in new_articles:
                 drafts, succeeded, reason, ainfo = extract_and_map(
-                    art, cn8n_mod=cn8n_mod, warnings=warnings)
+                    art, cn8n_mod=cn8n_mod, warnings=warnings,
+                    db=db, article_state=article_state_mod)
                 account_drafts.extend(drafts)
                 text_quality_breakdown[ainfo["text_quality"]] = text_quality_breakdown.get(ainfo["text_quality"], 0) + 1
                 review_queue.extend(ainfo["review_items"])
@@ -646,6 +779,12 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         skipped = res["skipped"]
         failed = res["failed"]
         import_errors = res["errors"]
+
+    if db is not None:
+        try:
+            db.close()
+        except Exception:  # noqa: BLE001
+            pass
 
     return {
         "dry_run": dry_run,

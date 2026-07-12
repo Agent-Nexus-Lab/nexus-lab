@@ -407,6 +407,15 @@ def _search_and_score(
         request_text=request_text,
         date_scope=date_scope,
     )
+    # 生成 query_embedding（env-gated，未配置/失败返回 []，scoring 自动降级 keyword_fallback）
+    try:
+        from agent_core.embedding import generate_query_embedding
+        q_emb, emb_model = generate_query_embedding(request_text)
+        if q_emb:
+            intent.query_embedding = q_emb
+            intent.embedding_model = emb_model
+    except Exception:  # noqa: BLE001
+        pass
     prof = Profile.from_dict(profile)
     mem = Memory.from_dict(memory) if memory else None
     result = search_events(events, intent=intent, profile=prof, memory=mem, now=now)
