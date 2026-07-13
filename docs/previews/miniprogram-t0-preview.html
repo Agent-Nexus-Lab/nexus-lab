@@ -143,6 +143,7 @@
     }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
+  <link rel="stylesheet" href="./product-theme.css" />
 </head>
 <body>
   <main class="wrap">
@@ -170,7 +171,12 @@
         <button class="collapse-button" id="collapseButton" title="收起侧栏">‹</button>
       </div>
 
-      <button class="sidebar-action" id="newSessionButton">
+      <button class="sidebar-action" id="homeButton">
+        <span class="side-icon">⌂</span>
+        <span class="sidebar-text">产品首页</span>
+      </button>
+
+      <button class="sidebar-action primary-action" id="newSessionButton">
         <span class="side-icon">＋</span>
         <span class="sidebar-text">新日程</span>
       </button>
@@ -181,7 +187,7 @@
           <div class="rail-pill" id="railScreenLabel">偏好页</div>
         </div>
         <div class="flow-list">
-          <button class="flow-item active" data-jump="profileScreen"><span class="flow-index">1</span><span>偏好设置</span></button>
+          <button class="flow-item" data-jump="profileScreen"><span class="flow-index">1</span><span>偏好设置</span></button>
           <button class="flow-item" data-jump="planScreen"><span class="flow-index">2</span><span>日程输入</span></button>
           <button class="flow-item" data-jump="loadingScreen"><span class="flow-index">3</span><span>运行轮询</span></button>
           <button class="flow-item" data-jump="resultScreen"><span class="flow-index">4</span><span>结果/空状态</span></button>
@@ -215,7 +221,168 @@
       <div class="brand-subtitle">从偏好采集、自然语言输入，到真实接口轮询和结果兜底。</div>
     </section>
 
-    <section class="screen" id="profileScreen">
+    <section class="screen landing-screen" id="landingScreen">
+      <nav class="landing-nav reveal-on-view">
+        <div class="landing-logo-lockup">
+          <div class="landing-logo-mark">日</div>
+          <div>
+            <div class="landing-logo-name">校园日程助手</div>
+            <div class="landing-logo-sub">Campus Agent</div>
+          </div>
+        </div>
+        <button class="landing-nav-button" id="landingNavStartButton">进入工作台</button>
+      </nav>
+
+      <div class="landing-dots" aria-label="宣传页章节导航">
+        <button class="landing-dot active" data-slide="landingSlide1" aria-label="第一页"></button>
+        <button class="landing-dot" data-slide="landingSlide2" aria-label="第二页"></button>
+        <button class="landing-dot" data-slide="landingSlide3" aria-label="第三页"></button>
+        <button class="landing-dot" data-slide="landingSlide4" aria-label="第四页"></button>
+        <button class="landing-dot" data-slide="landingSlide5" aria-label="第五页"></button>
+        <button class="landing-dot" data-slide="landingSlide6" aria-label="第六页"></button>
+        <button class="landing-dot" data-slide="landingSlide7" aria-label="第七页"></button>
+      </div>
+
+      <section class="landing-slide landing-slide-hero" id="landingSlide1" data-dot-label="入口">
+        <div class="landing-copy reveal-on-view">
+          <div class="landing-badge">真实校园活动源已接入</div>
+          <h1 class="landing-title">把散落的校园活动，排进你的今天。</h1>
+          <div class="landing-lead">输入一句话，Agent 会理解你的偏好、检索未来可用活动、编排时间，并给出可以追溯来源的推荐结果。</div>
+          <div class="landing-actions">
+            <button class="button" id="landingStartButton">进入工作台</button>
+            <button class="button secondary" id="landingDemoButton">看完整流程</button>
+          </div>
+          <div class="landing-proof">
+            <span>公众号真实来源</span>
+            <span>偏好与记忆参与推荐</span>
+            <span>结果可反馈、可追溯</span>
+          </div>
+        </div>
+
+        <div class="agent-preview reveal-on-view" aria-label="校园日程助手产品界面预览">
+          <div class="agent-preview-bar">
+            <div class="agent-preview-dots"><i></i><i></i><i></i></div>
+            <span>校园日程助手 · 今日工作台</span>
+          </div>
+          <div class="agent-preview-body">
+            <div class="preview-mini-nav">
+              <div class="mini-brand">校园日程</div>
+              <div class="mini-nav-item active">今天</div>
+              <div class="mini-nav-item">搜索历史</div>
+              <div class="mini-nav-item">偏好记忆</div>
+              <div class="mini-nav-item">设置</div>
+            </div>
+            <div class="preview-mini-main">
+              <div class="mini-greeting">今天想怎么安排？</div>
+              <div class="mini-prompt"><span>今晚想参加一个轻松的 AI 活动</span><span class="mini-send">↗</span></div>
+              <div class="mini-stages">
+                <div class="mini-stage">理解需求</div>
+                <div class="mini-stage active">检索活动</div>
+                <div class="mini-stage">编排日程</div>
+                <div class="mini-stage">完成</div>
+              </div>
+              <div class="mini-events">
+                <div class="mini-event"><div class="mini-event-time">18:30 · 江湾</div><div class="mini-event-title">AI 创业圆桌：从想法到产品</div></div>
+                <div class="mini-event"><div class="mini-event-time">20:00 · 邯郸</div><div class="mini-event-title">轻量夜谈：校园里的技术与人</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-problem" id="landingSlide2" data-dot-label="价值">
+        <div class="landing-value-head reveal-on-view">
+          <div class="landing-section-label">WHY CAMPUS AGENT</div>
+          <div class="landing-section-title">它不是活动列表，而是一次可执行的选择。</div>
+          <div class="landing-lead">校园信息散在公众号、学院通知和社团推文里。这个 Agent 把它们收束成可检索活动库，再结合你的时间、校区、兴趣和反馈做编排。</div>
+        </div>
+        <div class="value-grid icon-value-grid">
+          <article class="value-item reveal-on-view"><div class="value-icon">⌘</div><div class="value-index">01 / 聚合</div><div class="value-title">校园信息不再散落</div><div class="value-copy">统一活动字段、来源链接和时间地点，让推荐来自真实活动源。</div></article>
+          <article class="value-item reveal-on-view"><div class="value-icon">↗</div><div class="value-index">02 / 编排</div><div class="value-title">一句话得到今日安排</div><div class="value-copy">综合空闲时间、跨校区成本和兴趣权重，输出能直接行动的日程。</div></article>
+          <article class="value-item reveal-on-view"><div class="value-icon">♡</div><div class="value-index">03 / 记忆</div><div class="value-title">反馈会改变下一轮</div><div class="value-copy">喜欢、不感兴趣和来源点击会进入记忆，让推荐越用越贴合你。</div></article>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-sources" id="landingSlide3" data-dot-label="来源">
+        <div class="reveal-on-view">
+          <div class="landing-section-label">REAL SOURCES</div>
+          <div class="landing-section-title">活动来自真实页面，而不是凭空生成。</div>
+          <div class="landing-lead">来源页、活动字段和抓取日志都会保留，让演示时可以解释“这张卡片从哪里来”。</div>
+        </div>
+        <div class="source-wall reveal-on-view" aria-label="真实来源与字段墙">
+          <article class="source-paper paper-a"><div class="paper-tag">公众号</div><h3>未来信息创新学院毕业照</h3><p>时间、地点、校区、主办方、来源链接</p></article>
+          <article class="source-paper paper-b"><div class="paper-tag">学院通知</div><h3>AI 讲座：大模型在产业中的应用</h3><p>event_id、tags、source_url、evidence_text</p></article>
+          <article class="source-paper paper-c"><div class="paper-tag">社团活动</div><h3>星途再望 · 天文主题定向</h3><p>未来可用活动、重复降权、score reason</p></article>
+          <div class="source-beam"></div>
+          <div class="field-chip field-chip-a">source_url</div>
+          <div class="field-chip field-chip-b">start_time</div>
+          <div class="field-chip field-chip-c">matched_terms</div>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-flow" id="landingSlide4" data-dot-label="过程">
+        <div class="flow-story">
+          <div class="reveal-on-view">
+            <div class="landing-section-label">AGENT RUNTIME</div>
+            <div class="landing-section-title">生成过程不再只剩一个转圈。</div>
+            <div class="landing-lead">Loading 页会对齐后端 runtime 的 stage、progress、cache_hit，让用户知道 Agent 正在做什么。</div>
+          </div>
+          <div class="runtime-board reveal-on-view">
+            <div class="runtime-track"><span></span></div>
+            <div class="story-steps">
+              <div class="story-step"><div class="story-number">1</div><div><div class="story-step-title">理解需求</div><div class="story-step-copy">识别日期、校区、主题、排除项与活动风格。</div></div></div>
+              <div class="story-step"><div class="story-number">2</div><div><div class="story-step-title">读取偏好与记忆</div><div class="story-step-copy">结合主动设置的标签和最近几轮反馈。</div></div></div>
+              <div class="story-step"><div class="story-number">3</div><div><div class="story-step-title">检索并编排</div><div class="story-step-copy">筛选未来可用活动，处理时间与跨校区成本。</div></div></div>
+              <div class="story-step"><div class="story-number">4</div><div><div class="story-step-title">给出可解释结果</div><div class="story-step-copy">展示推荐理由、匹配项、真实来源和反馈入口。</div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-results" id="landingSlide5" data-dot-label="结果">
+        <div class="reveal-on-view">
+          <div class="landing-section-label">RESULT CARDS</div>
+          <div class="landing-section-title">推荐结果要像真实产品一样可读、可点、可反馈。</div>
+          <div class="landing-lead">活动卡片展示时间、地点、校区、主办方、标签、推荐理由和来源链接，同时兼容空字段、items=null、failed 状态。</div>
+        </div>
+        <div class="result-showcase reveal-on-view">
+          <article class="showcase-card main-card"><div class="event-topline"><span>#1</span><span>质量分 0.86</span></div><h3>AI 创业沙龙：从实验室到产品</h3><p>小型圆桌讨论，适合对 AI 与创业都感兴趣的同学。</p><div class="showcase-meta">19:00 - 20:30 · 江湾校区 · 创新创业中心</div><div class="showcase-tags"><span>AI</span><span>创业</span><span>沙龙</span></div><div class="showcase-reason">同时匹配 AI 和创业兴趣，互动形式契合你的活动风格。</div></article>
+          <div class="feedback-panel"><button>喜欢</button><button>不感兴趣</button><button class="source-button">查看来源 ↗</button><div class="feedback-note">点击来源会保留 clicked_source 反馈入口</div></div>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-memory" id="landingSlide6" data-dot-label="记忆">
+        <div class="memory-copy reveal-on-view">
+          <div class="landing-section-label">MEMORY LOOP</div>
+          <div class="landing-section-title">越用越懂你，但每条记忆都能解释和删除。</div>
+          <div class="landing-lead">前端 memory 页面展示 memory_summary、memory_strength、来源与更新时间；删除后明确停止用于下一轮推荐理解。</div>
+        </div>
+        <div class="memory-loop reveal-on-view">
+          <div class="memory-node node-query">一句话需求</div>
+          <div class="memory-node node-result">推荐结果</div>
+          <div class="memory-node node-feedback">喜欢 / 不感兴趣</div>
+          <div class="memory-node node-memory">Memory Summary</div>
+          <div class="memory-core">0.85 衰减</div>
+        </div>
+      </section>
+
+      <section class="landing-slide landing-slide-console" id="landingSlide7" data-dot-label="进入">
+        <div class="landing-final-card reveal-on-view">
+          <div class="landing-section-label">READY FOR DEMO</div>
+          <div class="landing-cta-title">今晚，有什么值得去？</div>
+          <div class="landing-cta-copy">从这里进入项目控制台，完成偏好设置、真实接口轮询、结果页反馈和来源跳转的完整演示。</div>
+          <button class="button" id="landingCtaButton">进入产品控制台</button>
+        </div>
+        <div class="landing-console-shot reveal-on-view">
+          <div class="console-shot-top">工作台预览</div>
+          <div class="console-shot-row"><span>偏好设置</span><b>校区 / 兴趣 / 时间</b></div>
+          <div class="console-shot-row"><span>运行轮询</span><b>stage / progress / cache</b></div>
+          <div class="console-shot-row"><span>结果反馈</span><b>喜欢 / 不感兴趣 / 查看来源</b></div>
+          <div class="console-shot-row"><span>记忆页面</span><b>summary / strength / delete</b></div>
+        </div>
+      </section>
+    </section>
+    <section class="screen hidden" id="profileScreen">
       <div class="nav">偏好设置</div>
       <div class="page">
         <div class="hero"><div class="eyebrow">偏好设置</div><div class="title">先选几个常用条件</div><div class="subtitle">这些内容会作为后续活动检索和排序的基础条件。</div></div>
@@ -282,13 +449,19 @@
     const steps = ['正在理解需求', '正在检索活动', '正在编排日程', '正在整理结果']
     const messages = ['正在理解你的需求...', '正在检索校园活动...', '正在编排你的日程...', '正在整理推荐结果...']
     const stageIndex = { intent_parsing: 0, intent_parser: 0, understanding_request: 0, parse_intent: 0, load_profile: 0, load_memory: 0, search_events: 1, searching_events: 1, tool_service_boundary: 1, build_schedule: 2, arranging_schedule: 2, runtime_orchestration: 2, rewrite_plan: 3, save_plan: 3, saving_plan: 3, memory_feedback_loop: 3, feedback_loop: 3 }
-    const screenLabels = { profileScreen: '偏好页', planScreen: '日程页', loadingScreen: '轮询页', resultScreen: '结果页' }
+    const screenLabels = { landingScreen: '产品首页', profileScreen: '偏好页', planScreen: '日程页', loadingScreen: '轮询页', resultScreen: '结果页' }
     const runtimeState = { status: '待输入', stage: '未开始', runId: '-', items: '-', debug: '等待发起请求。' }
     function show(id) {
       document.querySelectorAll('.screen').forEach((screen) => screen.classList.add('hidden'))
       document.getElementById(id).classList.remove('hidden')
+      document.body.classList.toggle('landing-mode', id === 'landingScreen')
       document.getElementById('railScreenLabel').textContent = screenLabels[id] || '预览'
       document.querySelectorAll('.flow-item').forEach((item) => item.classList.toggle('active', item.dataset.jump === id))
+      const homeButton = document.getElementById('homeButton')
+      if (homeButton) homeButton.classList.toggle('active', id === 'landingScreen')
+      if (id === 'landingScreen') {
+        requestAnimationFrame(() => document.getElementById('landingSlide1').scrollIntoView({ block: 'start' }))
+      }
     }
     function updateRuntime(patch = {}) {
       Object.assign(runtimeState, patch)
@@ -420,6 +593,27 @@
       document.getElementById('collapseButton').textContent = collapsed ? '›' : '‹'
       document.getElementById('collapseButton').title = collapsed ? '展开侧栏' : '收起侧栏'
     })
+    document.getElementById('homeButton').addEventListener('click', () => show('landingScreen'))
+    document.getElementById('landingStartButton').addEventListener('click', () => show('profileScreen'))
+    document.getElementById('landingNavStartButton').addEventListener('click', () => show('profileScreen'))
+    document.getElementById('landingDemoButton').addEventListener('click', () => document.getElementById('landingSlide2').scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    document.getElementById('landingCtaButton').addEventListener('click', () => show('profileScreen'))
+    document.querySelectorAll('.landing-dot').forEach((dot) => {
+      dot.addEventListener('click', () => document.getElementById(dot.dataset.slide).scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    })
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add('in-view')
+      })
+    }, { threshold: 0.22 })
+    document.querySelectorAll('.reveal-on-view').forEach((item) => revealObserver.observe(item))
+    const slideObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        document.querySelectorAll('.landing-dot').forEach((dot) => dot.classList.toggle('active', dot.dataset.slide === entry.target.id))
+      })
+    }, { threshold: 0.55 })
+    document.querySelectorAll('.landing-slide').forEach((slide) => slideObserver.observe(slide))
     document.getElementById('newSessionButton').addEventListener('click', () => {
       document.getElementById('requestText').value = '今晚想安排点 AI 相关但别太累的活动'
       updateRuntime({ status: profilePayload ? '偏好已就绪' : '待输入', stage: profilePayload ? '等待输入需求' : '未开始', runId: '-', items: '-', debug: '新建一次日程生成。' })
@@ -676,6 +870,7 @@
     }
 
     updateRuntime()
+    show('landingScreen')
   </script>
 </body>
 </html>
