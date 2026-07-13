@@ -84,6 +84,34 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         run.status = "completed"
         run.ended_at = datetime.now(DEFAULT_TIMEZONE)
 
+        # Replay plan + items from cached data so GET /runs/{run_id} resolves correctly
+        cached_inner = cached.get("inner") or {}
+        plan_id = str(uuid.uuid4())
+        plan = Plan(
+            id=plan_id,
+            run_id=runid,
+            user_id=user.id,
+            title=cached_inner.get("title"),
+            date_scope=cached_inner.get("date_scope"),
+            summary=cached_inner.get("summary"),
+        )
+        db.add(plan)
+        db.flush()
+
+        for item_raw in (cached_inner.get("items") or []):
+            item = PlanItem(
+                id=str(uuid.uuid4()),
+                plan_id=plan_id,
+                event_id=item_raw.get("event_id"),
+                start_time=datetime.fromisoformat(item_raw["start_time"]),
+                end_time=datetime.fromisoformat(item_raw["end_time"]) if item_raw.get("end_time") else None,
+                reason_text=item_raw.get("reason_text", ""),
+                score=item_raw.get("score"),
+                score_components=item_raw.get("score_components"),
+                display_order=item_raw.get("display_order", 0),
+            )
+            db.add(item)
+
         cached_debug = dict(cached.get("debug_raw") or {})
         cached_debug["cache"] = {
             "cache_hit": True,
@@ -171,7 +199,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             profile=profile,
             request_text=req.request_text,
             date_scope=req.date_scope,
-            now=parse_now("2026-05-08T12:00:00+08:00"),
+            now=parse_now("2026-06-08T12:00:00+08:00"),
             include_debug=True,
             enable_llm_rewrite=True,
             llm_base_url=LLM_BASE_URL,
@@ -245,9 +273,15 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "cache_type": None,
     }
 
-    # Store in cache for next request
+    # Store in cache for next request (include full plan data for replay on cache hit)
     _plan_cache[cache_key] = {
         "run_id": runid,
+        "inner": {
+            "title": inner.get("title"),
+            "date_scope": inner.get("date_scope"),
+            "summary": inner.get("summary"),
+            "items": inner.get("items") or [],
+        },
         "debug_raw": dict(debug_raw),
         "cached_at": time.time(),
     }
