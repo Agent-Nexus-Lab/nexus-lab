@@ -4,6 +4,7 @@ from database import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     openid = Column(String(64), unique=True, nullable=False)
@@ -14,6 +15,7 @@ class User(Base):
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
+    __table_args__ = {"extend_existing": True}
 
     user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
     identity = Column(String(20))
@@ -27,6 +29,7 @@ class UserProfile(Base):
 
 class Source(Base):
     __tablename__ = "sources"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     name = Column(String(100), nullable=False)
@@ -38,6 +41,7 @@ class Source(Base):
 
 class RawDocument(Base):
     __tablename__ = "raw_documents"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     source_id = Column(String(36), ForeignKey("sources.id"))
@@ -50,6 +54,7 @@ class RawDocument(Base):
 
 class Event(Base):
     __tablename__ = "events"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     title = Column(String(200), nullable=False)
@@ -72,6 +77,7 @@ class Event(Base):
 
 class PlanRun(Base):
     __tablename__ = "plan_runs"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey("users.id"),  nullable=False)
@@ -88,6 +94,7 @@ class PlanRun(Base):
 
 class Plan(Base):
     __tablename__ = "plans"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     run_id = Column(String(36), ForeignKey("plan_runs.id"))
@@ -99,6 +106,7 @@ class Plan(Base):
 
 class PlanItem(Base):
     __tablename__ = "plan_items"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     plan_id = Column(String(36), ForeignKey("plans.id"), nullable=False)
@@ -108,13 +116,11 @@ class PlanItem(Base):
     reason_text = Column(Text)
     score = Column(Float)
     score_components = Column(JSON)
-    # matched_terms = Column(JSON)
-    # memory_reasons = Column(JSON)
     display_order = Column(Integer)
-
 
 class UserEventFeedback(Base):
     __tablename__ = "user_event_feedback"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
@@ -129,9 +135,9 @@ class UserEventFeedback(Base):
     feedback_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-
 class MemoryItem(Base):
     __tablename__ = "memory_items"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
@@ -151,9 +157,9 @@ class MemoryItem(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
-
 class MemoryAuditLog(Base):
     __tablename__ = "memory_audit_log"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
@@ -167,6 +173,7 @@ class MemoryAuditLog(Base):
 
 class EventQualitySnapshots(Base):
     __tablename__ = "event_quality_snapshots"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String(36), primary_key=True)
     snapshot_date = Column(DateTime(timezone=True), server_default=func.now())
