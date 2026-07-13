@@ -18,7 +18,7 @@ from .schemas import HardConstraint, IntentParseOutput, SoftConstraint, TimePref
 logger = logging.getLogger(__name__)
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 MAX_RETRIES = 1
 
 DATE_SCOPE_KEYWORDS: dict[str, list[str]] = {
