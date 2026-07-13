@@ -9,10 +9,29 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from query_rewrite import rewrite_query, _rule_based_rewrite, PROMPT_VERSION as RW_VERSION
-from answer_composer import compose_answer, _rule_based_compose, PROMPT_VERSION as AC_VERSION
+from answer_composer import (
+    compose_answer,
+    _rule_based_compose,
+    validate_composer_preserves_ranking,
+    PROMPT_VERSION as AC_VERSION,
+)
 
 
 SAMPLE_MEMORY = "用户对天文观测类活动有持续偏好，连续两轮选择了观星和观测活动。不喜欢过于学术或商业化的活动。偏好轻松、互动、实操型的活动形式。"
+
+# 契约必需字段（query_rewrite）
+QUERY_REWRITE_CONTRACT_FIELDS = {
+    "original_query", "enriched_query", "positive_terms", "negative_terms",
+    "time_hint", "location_hint", "top_k", "memory_used",
+    "prompt_version", "model", "used_fallback", "error",
+    "duration_ms", "retry_count",
+}
+# 契约必需字段（answer_composer）
+ANSWER_COMPOSER_CONTRACT_FIELDS = {
+    "summary", "recommended_items", "tradeoffs", "follow_up_question",
+    "prompt_version", "model", "used_fallback", "error",
+    "duration_ms", "retry_count",
+}
 
 
 class QueryRewriteTest(unittest.TestCase):
@@ -34,6 +53,12 @@ class QueryRewriteTest(unittest.TestCase):
         self.assertEqual(result["top_k"], 4)
         self.assertTrue(result["used_fallback"])
         self.assertEqual(result["prompt_version"], RW_VERSION)
+        # 新契约字段
+        self.assertEqual(result["original_query"], "今天下午有什么活动")
+        self.assertTrue(result["memory_used"])
+        self.assertEqual(result["model"], "deepseek-v4-pro")
+        self.assertIsInstance(result["duration_ms"], int)
+        self.assertIsInstance(result["retry_count"], int)
 
     def test_rewrite_no_memory(self):
         result = _rule_based_rewrite(
@@ -44,6 +69,7 @@ class QueryRewriteTest(unittest.TestCase):
         self.assertEqual(result["positive_terms"], [])
         self.assertEqual(result["negative_terms"], [])
         self.assertEqual(result["top_k"], 2)
+        self.assertFalse(result["memory_used"])
 
     def test_rewrite_evening(self):
         result = _rule_based_rewrite(
@@ -88,6 +114,37 @@ class QueryRewriteTest(unittest.TestCase):
         )
         self.assertTrue(result["used_fallback"])
         self.assertIn("天文", result["enriched_query"])
+        self.assertEqual(result["original_query"], "今天下午想看天文")
+
+    def test_rewrite_query_dict_memory_active(self):
+        """memory_summary 以 dict 形式传入，status=active 时被使用。"""
+        result = rewrite_query(
+            query="有什么活动",
+            memory_summary={"memory_summary": SAMPLE_MEMORY, "status": "active"},
+            profile={"interest_tags": ["天文"]},
+            api_key="",
+        )
+        self.assertTrue(result["memory_used"])
+        self.assertIn("天文", result["positive_terms"])
+
+    def test_rewrite_query_dict_memory_expired(self):
+        """memory_summary 以 dict 形式传入，status=expired 时不被使用。"""
+        result = rewrite_query(
+            query="有什么活动",
+            memory_summary={"memory_summary": SAMPLE_MEMORY, "status": "expired"},
+            profile={"interest_tags": ["天文"]},
+            api_key="",
+        )
+        self.assertFalse(result["memory_used"])
+
+    # ============================================================
+    # 契约字段完整性
+    # ============================================================
+
+    def test_query_rewrite_contract_fields(self):
+        result = rewrite_query(query="今天下午", memory_summary=SAMPLE_MEMORY, profile=None, api_key="")
+        missing = QUERY_REWRITE_CONTRACT_FIELDS - set(result.keys())
+        self.assertEqual(missing, set(), f"query_rewrite 缺少契约字段: {missing}")
 
     # ============================================================
     # 样例：memory_summary 确实影响了输出
@@ -131,13 +188,19 @@ class AnswerComposerTest(unittest.TestCase):
         )
         self.assertIn("3 个活动", result["summary"])
         self.assertIn("天文观测夜", result["summary"])
-        self.assertEqual(len(result["items"]), 3)
+        self.assertEqual(len(result["recommended_items"]), 3)
         self.assertIn("参考", result["memory_note"])
         # Items maintain original order
-        self.assertEqual(result["items"][0]["event_id"], "evt_1")
-        self.assertEqual(result["items"][1]["event_id"], "evt_2")
-        self.assertEqual(result["items"][2]["event_id"], "evt_3")
+        self.assertEqual(result["recommended_items"][0]["event_id"], "evt_1")
+        self.assertEqual(result["recommended_items"][1]["event_id"], "evt_2")
+        self.assertEqual(result["recommended_items"][2]["event_id"], "evt_3")
         self.assertTrue(result["used_fallback"])
+        # 新契约字段
+        self.assertIsInstance(result["tradeoffs"], list)
+        self.assertIsInstance(result["follow_up_question"], str)
+        self.assertEqual(result["model"], "deepseek-v4-pro")
+        self.assertIsInstance(result["duration_ms"], int)
+        self.assertIsInstance(result["retry_count"], int)
 
     def test_compose_no_memory(self):
         result = _rule_based_compose(
@@ -145,13 +208,13 @@ class AnswerComposerTest(unittest.TestCase):
             memory_summary=None,
             request_text="有什么活动",
         )
-        self.assertEqual(len(result["items"]), 2)
+        self.assertEqual(len(result["recommended_items"]), 2)
         self.assertEqual(result["memory_note"], "")
         self.assertNotIn("参考", result["summary"])
 
     def test_compose_empty_items(self):
         result = compose_answer([], memory_summary=SAMPLE_MEMORY, request_text="test", api_key="")
-        self.assertEqual(result["items"], [])
+        self.assertEqual(result["recommended_items"], [])
         self.assertIn("没有找到", result["summary"])
 
     def test_compose_preserves_order(self):
@@ -162,7 +225,7 @@ class AnswerComposerTest(unittest.TestCase):
             {"event_id": "m", "title": "Second", "score": 0.5, "reason_text": ""},
         ]
         result = _rule_based_compose(items, None, "")
-        self.assertEqual([r["event_id"] for r in result["items"]], ["z", "a", "m"])
+        self.assertEqual([r["event_id"] for r in result["recommended_items"]], ["z", "a", "m"])
 
     def test_compose_fallback_works(self):
         result = compose_answer(
@@ -172,7 +235,69 @@ class AnswerComposerTest(unittest.TestCase):
             api_key="",  # no API key
         )
         self.assertTrue(result["used_fallback"])
-        self.assertEqual(len(result["items"]), 1)
+        self.assertEqual(len(result["recommended_items"]), 1)
+
+    # ============================================================
+    # validate_composer_preserves_ranking
+    # ============================================================
+
+    def test_validate_preserves_ranking_ok(self):
+        """LLM 输出保持数量、event_id、顺序一致时通过校验。"""
+        composer_out = {
+            "recommended_items": [
+                {"event_id": "evt_1", "explanation": "..."},
+                {"event_id": "evt_2", "explanation": "..."},
+                {"event_id": "evt_3", "explanation": "..."},
+            ]
+        }
+        self.assertTrue(validate_composer_preserves_ranking(self.sample_items, composer_out))
+
+    def test_validate_detects_reordered(self):
+        """顺序被打乱时校验失败。"""
+        composer_out = {
+            "recommended_items": [
+                {"event_id": "evt_3", "explanation": "..."},
+                {"event_id": "evt_1", "explanation": "..."},
+                {"event_id": "evt_2", "explanation": "..."},
+            ]
+        }
+        self.assertFalse(validate_composer_preserves_ranking(self.sample_items, composer_out))
+
+    def test_validate_detects_added_event(self):
+        """LLM 增加了不存在的活动时校验失败。"""
+        composer_out = {
+            "recommended_items": [
+                {"event_id": "evt_1", "explanation": "..."},
+                {"event_id": "evt_2", "explanation": "..."},
+                {"event_id": "evt_3", "explanation": "..."},
+                {"event_id": "evt_99", "explanation": "数据库不存在的活动"},
+            ]
+        }
+        self.assertFalse(validate_composer_preserves_ranking(self.sample_items, composer_out))
+
+    def test_validate_detects_deleted_event(self):
+        """LLM 删除了算法选中的活动时校验失败。"""
+        composer_out = {
+            "recommended_items": [
+                {"event_id": "evt_1", "explanation": "..."},
+                {"event_id": "evt_2", "explanation": "..."},
+            ]
+        }
+        self.assertFalse(validate_composer_preserves_ranking(self.sample_items, composer_out))
+
+    def test_validate_rejects_non_list(self):
+        """recommended_items 不是列表时校验失败。"""
+        self.assertFalse(validate_composer_preserves_ranking(self.sample_items, {"recommended_items": "not a list"}))
+        self.assertFalse(validate_composer_preserves_ranking(self.sample_items, {}))
+
+    # ============================================================
+    # 契约字段完整性
+    # ============================================================
+
+    def test_answer_composer_contract_fields(self):
+        result = compose_answer(self.sample_items, memory_summary=SAMPLE_MEMORY, request_text="test", api_key="")
+        missing = ANSWER_COMPOSER_CONTRACT_FIELDS - set(result.keys())
+        self.assertEqual(missing, set(), f"answer_composer 缺少契约字段: {missing}")
 
     # ============================================================
     # 版本一致性
