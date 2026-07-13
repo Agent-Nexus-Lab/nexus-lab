@@ -11,9 +11,9 @@
   ],
   "window": {
     "navigationBarTitleText": "校园日程 AI 助手",
-    "navigationBarBackgroundColor": "#f7f9fc",
+    "navigationBarBackgroundColor": "#f4f6f0",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f7f9fc"
+    "backgroundColor": "#f4f6f0"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

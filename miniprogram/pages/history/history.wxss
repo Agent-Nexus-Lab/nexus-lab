@@ -6,7 +6,7 @@
 .history-card,
 .empty-state {
   padding: 26rpx 24rpx;
-  border: 1rpx solid #dce6f4;
+  border: 1rpx solid #d9dfd7;
   border-radius: 16rpx;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
   box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.045);
@@ -30,8 +30,8 @@
   flex: 0 0 auto;
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
-  background: #e9f2ff;
-  color: #1e40af;
+  background: #dff0e8;
+  color: #245f59;
   font-size: 20rpx;
   font-weight: 850;
 }
@@ -65,7 +65,7 @@
   margin-top: 24rpx;
   border: 0;
   border-radius: 16rpx;
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 58%, #0f766e 100%);
+  background: linear-gradient(135deg, #245f59 0%, #2f7f72 58%, #d69b35 100%);
   color: #fff;
   font-size: 27rpx;
   font-weight: 900;
