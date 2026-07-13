@@ -72,6 +72,12 @@ def upsert_event(
             if new_val and getattr(existing, field) != new_val:
                 setattr(existing, field, new_val)
                 updated_fields.append(field)
+        # 采集可靠性扩展字段（梓腾契约三）
+        for field in ("text_source", "text_quality", "category"):
+            new_val = event_dict.get(field)
+            if new_val and getattr(existing, field) != new_val:
+                setattr(existing, field, new_val)
+                updated_fields.append(field)
         if source_id and existing.source_id != source_id:
             existing.source_id = source_id
             updated_fields.append("source_id")
@@ -110,6 +116,9 @@ def upsert_event(
         quality_score=event_dict.get("quality_score", 0.5),
         verification_status="unverified",
         is_user_visible=True,
+        text_source=event_dict.get("text_source"),
+        text_quality=event_dict.get("text_quality"),
+        category=event_dict.get("category"),
     )
     db.add(event)
     db.flush()

@@ -51,6 +51,12 @@ class RawDocument(Base):
     fetched_at = Column(DateTime(timezone=True), server_default=func.now())
     content_hash = Column(String(64))
     status = Column(String(20), default="pending")
+    # 采集可靠性扩展（梓腾契约一）
+    source_url = Column(String(500))  # 与 Event.source_url 对齐的规范来源 URL
+    published_at = Column(DateTime(timezone=True))  # 文章发布时间
+    last_error = Column(Text)  # 最近失败原因（ErrorClass 名 + 消息截断）
+    retry_count = Column(Integer, default=0)
+    processed_at = Column(DateTime(timezone=True))  # 完成/跳过时间戳
 
 class Event(Base):
     __tablename__ = "events"
@@ -74,6 +80,13 @@ class Event(Base):
     is_user_visible = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True),  server_default=func.now(), onupdate=func.now())
+    # 采集可靠性扩展（梓腾契约三）
+    summary_embedding = Column(JSON)  # summary 向量，与查询向量同模型
+    enriched_query_embedding = Column(JSON)  # 入库时匹配用的查询向量（留痕）
+    embedding_model = Column(String(50))  # 生成 summary_embedding 所用模型名
+    text_source = Column(String(20))  # cn8n_detail / cn8n_digest / sample_fulltext / none
+    text_quality = Column(String(20))  # full / partial / insufficient / none
+    category = Column(String(20))  # 讲座 / 文艺 / 体育 / 比赛 / 就业 / 志愿服务 / 其他
 
 class PlanRun(Base):
     __tablename__ = "plan_runs"

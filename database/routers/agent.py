@@ -173,24 +173,9 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
 
     run.stage = "search_events"
     db.flush()
-    events_raw = db.query(Event).all()
-    events = []
-    for event in events_raw:
-        events.append({
-            "event_id": event.id,
-            "title": event.title,
-            "summary": event.summary,
-            "start_time": event.start_time.isoformat() if event.start_time else None,
-            "end_time": event.end_time.isoformat() if event.end_time else None,
-            "location": event.location,
-            "campus": event.campus,
-            "organizer": event.organizer,
-            "tags": event.tags,
-            "source_url": event.source_url,
-            "quality_score": event.quality_score,
-            "source_name": event.source_name,
-            "evidence_text": event.evidence_text,
-        })
+    # 切到 search_events_db：过滤可见 + 未拒绝，含 embedding 字段（采集可靠性契约四）
+    from database.search_events_db import search_events_db
+    events = search_events_db(db, limit=200)
     run.stage = "build_schedule"
     db.flush()
     try:
