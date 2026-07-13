@@ -6,7 +6,7 @@ from typing import Any
 
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 
 
 def rewrite_with_maas(

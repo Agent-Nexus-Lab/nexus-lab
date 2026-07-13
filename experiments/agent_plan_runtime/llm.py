@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 PROMPT_VERSION = "v1"
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.5
 

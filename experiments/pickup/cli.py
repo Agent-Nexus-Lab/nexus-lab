@@ -19,7 +19,7 @@ from schema import build_aggregated_event, build_error_response, maas_tool_schem
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
 DEFAULT_V2_BASE_URL = "https://api-ap-southeast-1.modelarts-maas.com/v2"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_TIMEZONE = "Asia/Shanghai"
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROMPT_PATH = SCRIPT_DIR / "prompt.md"

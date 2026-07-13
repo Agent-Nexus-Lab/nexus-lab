@@ -26,7 +26,7 @@ _PROMPT_PATH = _SCRIPT_DIR / "prompt_collection_v2.md"
 logger = logging.getLogger(__name__)
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_TIMEOUT_SECONDS = 60
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.5
@@ -48,7 +48,7 @@ def extract_article_to_events(
         article_text: 清洗后的文章正文。
         metadata: 文章元信息，至少包含 title / source_url / source_name / publish_time。
         base_url: MaaS API 地址，默认读 MAAS_BASE_URL 环境变量。
-        model: 模型名，默认 deepseek-v4-pro。
+        model: 模型名，默认 deepseek-v4-flash。
         api_key: API Key，默认读 MAAS_API_KEY 环境变量。
         timeout: 超时秒数，默认 60。
         reference_date: 参考日期（用于相对日期推算），默认今天。

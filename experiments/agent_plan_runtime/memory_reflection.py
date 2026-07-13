@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 # 与 llm.py 共享同一份 MaaS 配置
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_TIMEOUT_SECONDS = 30
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.0
@@ -129,7 +129,7 @@ def reflect_on_memory(
             "existing_memory": None | {"memory_summary": str, "memory_strength": float, ...},
         }
         base_url: MaaS API 地址，默认读环境变量。
-        model: 模型名，默认 deepseek-v4-pro。
+        model: 模型名，默认 deepseek-v4-flash。
         api_key: API Key，默认读 MAAS_API_KEY。
         timeout: 超时秒数。
 

@@ -262,7 +262,7 @@ def plan_day_service(
         now = datetime.now(_rt.DEFAULT_TIMEZONE)
 
     plan_cache, rewrite_cache_inst, cache_info = _get_cache_backend()
-    resolved_model = llm_model or os.getenv("LLM_MODEL") or os.getenv("MAAS_MODEL") or "deepseek-v4-pro"
+    resolved_model = llm_model or os.getenv("LLM_MODEL") or os.getenv("MAAS_MODEL") or "deepseek-v4-flash"
     profile_id = str(profile.get("campus", "")) + ":" + str(profile.get("profile_summary", ""))[:32]
 
     query_hash = PlanResultCache.compute_query_hash(request_text)
