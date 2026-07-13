@@ -17,7 +17,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from models import Event
+from .models import Event
 
 logger = logging.getLogger(__name__)
 
