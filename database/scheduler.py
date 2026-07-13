@@ -1,10 +1,3 @@
-"""APScheduler-based cron for auto_collector.
-
-Starts a BackgroundScheduler on FastAPI startup that runs auto_collector
-every hour (minute=7, jitter=30s) to fetch articles from enabled WeChat
-accounts, extract events via MaaS, and upsert into the DB.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -59,11 +52,11 @@ def start_scheduler() -> None:
     if _scheduler is not None:
         return
     _scheduler = BackgroundScheduler()
-    # Hourly at minute 7 (avoid :00 spike), with 30s jitter
+
     _scheduler.add_job(
         _collect_job,
         "cron",
-        minute="7",
+        minute="43",
         jitter=30,
         id="auto_collect_hourly",
     )
