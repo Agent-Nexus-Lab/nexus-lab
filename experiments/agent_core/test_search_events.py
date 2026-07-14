@@ -1359,7 +1359,10 @@ class SemanticInterestMatchTest(unittest.TestCase):
         event["summary_embedding"] = [1.0, 0.0]
         prefs = SoftPreferences(interest_terms=("AI",))
         score, matched, detail = score_interest_match(event, prefs)
-        self.assertIsNone(detail)  # keyword 路径 detail=None
+        # keyword 路径返回 detail dict（A4：fallback_reason 标注）
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "keyword_fallback")
+        self.assertEqual(detail["fallback_reason"], "query_embedding_missing")
         self.assertIn("AI", matched)
         self.assertGreater(score, 0.0)
 
@@ -1368,7 +1371,9 @@ class SemanticInterestMatchTest(unittest.TestCase):
         event = make_event(event_id="e1", title="AI 讲座", tags=["AI"])
         prefs = SoftPreferences(interest_terms=("AI",), query_embedding=(1.0, 0.0))
         score, matched, detail = score_interest_match(event, prefs)
-        self.assertIsNone(detail)
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "keyword_fallback")
+        self.assertEqual(detail["fallback_reason"], "summary_embedding_missing")
         self.assertIn("AI", matched)
 
     def test_semantic_components_shape_in_score_and_sort(self) -> None:
@@ -1396,7 +1401,7 @@ class SemanticInterestMatchTest(unittest.TestCase):
         self.assertGreater(e1.score, e2.score)
 
     def test_keyword_path_unchanged_when_no_embeddings(self) -> None:
-        # 无任何 embedding → 原有 keyword 行为，interest_match 仍是 float，不回归
+        # 无任何 embedding → keyword fallback，interest_match 是 dict（method=keyword_fallback），不回归
         events = [
             make_event(event_id="e1", title="AI 大模型讲座", tags=["AI", "讲座"]),
             make_event(event_id="e2", title="体育比赛", tags=["体育"]),
@@ -1404,7 +1409,10 @@ class SemanticInterestMatchTest(unittest.TestCase):
         prefs = SoftPreferences(interest_terms=("AI", "大模型"))
         results = score_and_sort(events, preferences=prefs, now=NOW)
         e1 = next(r for r in results if r.event["event_id"] == "e1")
-        self.assertIsInstance(e1.score_components["interest_match"], float)
+        im1 = e1.score_components["interest_match"]
+        self.assertIsInstance(im1, dict)
+        self.assertEqual(im1["method"], "keyword_fallback")
+        self.assertEqual(im1["fallback_reason"], "both_embeddings_missing")
         self.assertGreater(e1.score, e2_score := next(
             r for r in results if r.event["event_id"] == "e2").score)
 
