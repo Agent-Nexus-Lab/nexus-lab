@@ -18,14 +18,14 @@
 }
 
 .status-panel {
-  background: #fbfdff;
+  background: #fbfcfa;
 }
 
 .status-copy {
   padding: 18rpx 20rpx;
   border-radius: 16rpx;
-  background: #eef6ff;
-  color: #1e3a6d;
+  background: #e9f4ee;
+  color: #315b52;
   font-size: 25rpx;
   line-height: 1.55;
 }
@@ -47,8 +47,8 @@
 }
 
 .memory-strength.small {
-  background: #eef6ff;
-  color: #1e40af;
+  background: #e9f4ee;
+  color: #245f59;
   font-size: 20rpx;
 }
 
@@ -90,7 +90,7 @@
   padding: 38rpx 28rpx;
   border: 1rpx dashed #bfd0e7;
   border-radius: 16rpx;
-  background: #f8fbff;
+  background: #f7faf5;
   text-align: center;
 }
 
@@ -168,8 +168,8 @@
 }
 
 .debug-panel {
-  border-color: #dce6f4;
-  background: #f8fbff;
+  border-color: #d9dfd7;
+  background: #f7faf5;
 }
 
 .debug-text {
