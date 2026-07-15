@@ -3,27 +3,41 @@
 const API_BASE_URL = 'http://1.117.75.184:8000/api'
 const ENABLE_DEBUG_VIEW = true
 
-function request({ url, method = 'GET', data }) {
+function request({ url, method = 'GET', data, retries = 2 }) {
   return new Promise((resolve, reject) => {
-    wx.request({
-      url: `${API_BASE_URL}${url}`,
-      method,
-      data,
-      header: {
-        Authorization: 'Bearer dev-openid',
-        'content-type': 'application/json'
-      },
-      success(res) {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`HTTP ${res.statusCode}`))
-          return
+    const attempt = (remaining) => {
+      wx.request({
+        url: `${API_BASE_URL}${url}`,
+        method,
+        data,
+        header: {
+          Authorization: 'Bearer dev-openid',
+          'content-type': 'application/json'
+        },
+        success(res) {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(res.data)
+            return
+          }
+          if (remaining > 0 && (res.statusCode === 429 || res.statusCode >= 500)) {
+            setTimeout(() => attempt(remaining - 1), 400 * (retries - remaining + 1))
+            return
+          }
+          const message = res.data && res.data.message
+            ? res.data.message
+            : `HTTP ${res.statusCode}`
+          reject(new Error(message))
+        },
+        fail(error) {
+          if (remaining > 0) {
+            setTimeout(() => attempt(remaining - 1), 400 * (retries - remaining + 1))
+            return
+          }
+          reject(error)
         }
-        resolve(res.data)
-      },
-      fail(error) {
-        reject(error)
-      }
-    })
+      })
+    }
+    attempt(retries)
   })
 }
 
@@ -61,6 +75,13 @@ function feedbackEvent(feedbackPayload) {
 function getDataHealth() {
   return request({
     url: '/admin/data-health',
+    method: 'GET'
+  })
+}
+
+function getPlans({ page = 1, page_size = 20 } = {}) {
+  return request({
+    url: `/plans?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(page_size)}`,
     method: 'GET'
   })
 }
@@ -155,6 +176,7 @@ module.exports = {
   getRunStatus,
   feedbackEvent,
   getDataHealth,
+  getPlans,
   getMemory,
   deleteMemory,
   streamRuntimeDemo,

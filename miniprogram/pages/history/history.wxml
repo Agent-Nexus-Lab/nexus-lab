@@ -2,22 +2,32 @@
   <view class="hero">
     <view class="eyebrow">历史规划</view>
     <view class="title">最近生成的日程</view>
-    <view class="subtitle">这里先展示本地历史雏形，后续可替换为后端 plans 列表。</view>
+    <view class="subtitle">展示服务器保存的真实规划记录。</view>
   </view>
 
-  <view wx:if="{{!histories.length}}" class="empty-state">
+  <view wx:if="{{loading}}" class="empty-state">
+    <view class="empty-title">正在读取历史规划</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="empty-state warning-state">
+    <view class="empty-title">历史规划读取失败</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadHistory">重试</button>
+  </view>
+
+  <view wx:elif="{{!histories.length}}" class="empty-state">
     <view class="empty-title">暂无历史规划</view>
     <view class="empty-text">生成一次日程后，会先出现在这里。</view>
     <button class="primary-button" bindtap="goPlan">去生成日程</button>
   </view>
 
   <view wx:else class="history-list">
-    <view wx:for="{{histories}}" wx:key="run_id" class="history-card">
+    <view wx:for="{{histories}}" wx:key="plan_id" class="history-card">
       <view class="history-topline">
         <view class="history-title">{{item.title}}</view>
         <view class="history-status">{{item.status}}</view>
       </view>
-      <view class="history-summary">{{item.request_text}}</view>
+      <view class="history-summary">{{item.summary || '暂无摘要'}}</view>
       <view class="history-meta">
         <text>{{item.created_at_text}}</text>
         <text>{{item.date_scope_text}}</text>

@@ -39,7 +39,7 @@ def list_plans(page: int = 1, page_size: int = 20, db: Session = Depends(get_db)
         ))
     return {
         "code": 0,
-        "data": PlanListData(items=items, total=(total-1)//page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
+        "data": PlanListData(items=items, total=total, page=page, page_size=page_size).model_dump(mode="json"),
         "message": "ok",
     }
 
@@ -59,6 +59,7 @@ def get_plan(plan_id: str, db: Session = Depends(get_db)):
     for pi in plan_items:
         event = db.query(Event).filter_by(id=pi.event_id).first() if pi.event_id else None
         items.append(RunItem(
+            plan_item_id=pi.id,
             event_id=pi.event_id or "",
             title=event.title if event else "",
             summary=event.summary if event else None,
@@ -69,7 +70,10 @@ def get_plan(plan_id: str, db: Session = Depends(get_db)):
             organizer=event.organizer if event else None,
             tags=event.tags if event else None,
             source_url=event.source_url if event else None,
+            source_name=event.source_name if event else None,
             reason_text=pi.reason_text,
+            score=pi.score,
+            score_components=pi.score_components,
             display_order=pi.display_order or 0,
             quality_score=event.quality_score if event else None,
         ))
