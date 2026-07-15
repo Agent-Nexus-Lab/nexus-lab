@@ -636,7 +636,8 @@ def _commit_to_events_json(drafts: list[dict],
 
 def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         samples: bool = False, accounts_path: Path | None = None,
-        limit: int = DEFAULT_LIMIT) -> dict:
+        limit: int = DEFAULT_LIMIT,
+        source_ids: list[str] | None = None) -> dict:
     warnings: list[str] = []
 
     cn8n_mod, cn8n_err = _try_import_cn8n()
@@ -712,13 +713,22 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             "event_drafts": len(account_drafts),
         })
     else:
-        accounts, account_cursor_start, next_account_cursor = load_enabled_accounts_rotating(
-            accounts_path, limit=limit)
+        if source_ids:
+            requested = set(source_ids)
+            accounts = [
+                account for account in load_enabled_accounts(accounts_path, limit=0)
+                if account.get("id") in requested
+            ]
+            if limit > 0:
+                accounts = accounts[:limit]
+        else:
+            accounts, account_cursor_start, next_account_cursor = load_enabled_accounts_rotating(
+                accounts_path, limit=limit)
         scanned_account_ids = [a.get("id") for a in accounts if a.get("id")]
         scanned_account_names = [a.get("name") for a in accounts if a.get("name")]
         cat_breakdown = category_breakdown_of(accounts)
         # 持久化游标（即使本轮无结果也推进，避免下次仍从同一位置）
-        if next_account_cursor:
+        if next_account_cursor and not source_ids:
             try:
                 _write_cursor(ACCOUNT_CURSOR, next_account_cursor)
             except OSError as e:  # noqa: BLE001

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas import (
@@ -7,9 +7,16 @@ from schemas import (
     ImportUrlRequest, ImportUrlData,
     AdminEventItem, EventListData,
     DataHealthData,
+    CollectionRunRequest, CollectionRunData, CollectionRunListData,
     CampusBreakdown, SourceBreakdownItem, QualitySummaryData,
 )
-from models import Source, RawDocument, Event
+from models import Source, RawDocument, Event, CollectionRun
+from collection_service import (
+    collection_run_to_dict,
+    create_collection_run,
+    execute_collection_run,
+    get_collection_runs,
+)
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -191,6 +198,63 @@ def import_events(
     }
 
 
+@router.post("/collection-runs")
+def trigger_collection_run(
+    req: CollectionRunRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    run = create_collection_run(
+        db=db,
+        trigger_method="manual",
+        sources=req.sources,
+    )
+    background_tasks.add_task(
+        execute_collection_run,
+        run.batch_id,
+        source_ids=req.sources,
+        limit=req.limit,
+    )
+    return {
+        "code": 0,
+        "data": CollectionRunData(**collection_run_to_dict(run)).model_dump(mode="json"),
+        "message": "collection started",
+    }
+
+
+@router.get("/collection-runs")
+def list_collection_runs(
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db),
+):
+    total = db.query(CollectionRun).count()
+    runs = get_collection_runs(
+        db=db,
+        offset=(page - 1) * page_size,
+        limit=page_size,
+    )
+    data = CollectionRunListData(
+        items=[CollectionRunData(**collection_run_to_dict(run)) for run in runs],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": 0, "data": data.model_dump(mode="json"), "message": "ok"}
+
+
+@router.get("/collection-runs/{batch_id}")
+def get_collection_run(batch_id: str, db: Session = Depends(get_db)):
+    runs = get_collection_runs(db=db, batch_id=batch_id, limit=1)
+    if not runs:
+        raise HTTPException(404, "采集批次不存在")
+    return {
+        "code": 0,
+        "data": CollectionRunData(**collection_run_to_dict(runs[0])).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
 @router.get("/data-health")
 def get_data_health(db: Session = Depends(get_db)):
     now = _as_utc_naive(datetime.now(timezone.utc))
@@ -223,22 +287,10 @@ def get_data_health(db: Session = Depends(get_db)):
         and expired_cutoff <= _as_utc_naive(event.end_time) < now
     )
 
-    latest_source_time = max(
-        [source.last_crawled_at for source in sources if source.last_crawled_at],
-        default=None,
-    )
-    latest_doc = (
-        db.query(RawDocument)
-        .order_by(RawDocument.fetched_at.desc())
-        .first()
-    )
-    latest_doc_time = latest_doc.fetched_at if latest_doc and latest_doc.fetched_at else None
-
-    last_collection_time = max(
-        [value for value in [latest_source_time, latest_doc_time] if value],
-        default=None,
-    )
-    last_collection_result = latest_doc.status if latest_doc and latest_doc.status else "unknown"
+    recent_runs = get_collection_runs(db=db, limit=3)
+    latest_run = recent_runs[0] if recent_runs else None
+    last_collection_time = latest_run.finished_at or latest_run.triggered_at if latest_run else None
+    last_collection_result = latest_run.status if latest_run else "unknown"
 
     future_events_3d = count_before(future_3d)
     future_events_7d = count_before(future_7d)
@@ -269,6 +321,7 @@ def get_data_health(db: Session = Depends(get_db)):
             last_collection_result=last_collection_result,
             is_healthy=len(alerts) == 0,
             alerts=alerts,
+            collection_logs=[collection_run_to_dict(run) for run in recent_runs],
         ).model_dump(mode="json"),
         "message": "ok",
     }
