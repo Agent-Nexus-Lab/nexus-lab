@@ -8,7 +8,7 @@ results as the original inline logic in runtime.py lines 265-310.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from agent_core._runtime_compat import (
     event_text,
@@ -20,7 +20,7 @@ from agent_core._runtime_compat import (
 )
 from agent_core.query import HardConstraints
 
-FilterResult = tuple[bool, str | None]  # (passed, rejection_reason)
+FilterResult = tuple[bool, Optional[str]]  # (passed, rejection_reason)
 
 
 # ---------------------------------------------------------------------------

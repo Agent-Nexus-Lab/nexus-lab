@@ -6,3 +6,4 @@ pydantic==2.9.0
 python-dotenv==1.0.1
 alembic==1.13.3
 apscheduler==3.10.4
+redis==5.0.8
