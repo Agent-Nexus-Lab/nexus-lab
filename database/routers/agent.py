@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, get_demo_user
 from database.models import Event, Plan, PlanItem, PlanRun, User, UserProfile
 from database.plan_run_service import create_plan_run, execute_plan_run
 from schemas import PlanDayRequest, PlanDayResponseData, RunItem, RunStatusData
@@ -19,7 +19,7 @@ def plan_day(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if user is None:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
     if db.query(UserProfile).filter_by(user_id=user.id).first() is None:

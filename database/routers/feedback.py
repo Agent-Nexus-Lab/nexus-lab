@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, get_demo_user
 import uuid
 from schemas import (
     FeedbackEventRequest, FeedbackEventData,
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api", tags=["feedback"])
 
 @router.post("/feedback/event")
 def submit_event_feedback(req: FeedbackEventRequest, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 
@@ -67,7 +67,7 @@ def submit_event_feedback(req: FeedbackEventRequest, db: Session = Depends(get_d
 
 @router.post("/feedback/plan")
 def submit_plan_feedback(req: FeedbackPlanRequest, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 
