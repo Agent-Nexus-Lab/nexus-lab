@@ -2,10 +2,31 @@
 
 由李颖哲负责。每 3 轮 plan-day 后调用 LLM 压缩对话记忆为自然语言摘要。
 
+=== 输出字段 & 入库分工（给曹昕宇） ===
+
+reflect_on_memory 输出以下字段：
+
+┌──────────────────┬──────────┬──────────────────────────────────────┐
+│ 字段             │ 入库     │ 说明                                 │
+├──────────────────┼──────────┼──────────────────────────────────────┤
+│ memory_summary   │ ✅ 入库  │ 自然语言记忆摘要，存入 memory_items  │
+│ source_refs      │ ✅ 入库  │ 参与生成的 run_id 列表，用于溯源     │
+│ memory_strength  │ ✅ 入库  │ 记忆强度 0.0-1.0，每轮 ×0.85 衰减   │
+│ expires_after_turns │ ✅ 入库│ 过期轮数，超时标记 expired           │
+│ cleanup_reason   │ ✅ 入库  │ null/expired/user_requested          │
+│ prompt_version   │ ✅ 入库  │ 生成时使用的 prompt 版本号           │
+│ error            │ debug   │ LLM 调用失败时的错误信息              │
+│ used_fallback    │ debug   │ 是否使用了规则回退                   │
+└──────────────────┴──────────┴──────────────────────────────────────┘
+
+生命週期函数（由曹昕宇在后端调用）：
+- decay_memory_strength(m) → 每轮 plan-day 后调用
+- is_memory_expired(m) → 判断是否过期
+- suppress_memory(m) → 用户删除后调用
+
 Usage:
     from experiments.agent_plan_runtime.memory_reflection import reflect_on_memory
-
-    context = {
+    ...  context = {
         "session_id": "sess_001",
         "rounds": [
             {
