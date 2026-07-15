@@ -203,6 +203,8 @@ def _call_llm_reflection(
     user_payload = {
         "rounds": context.get("rounds", []),
         "existing_memory": context.get("existing_memory"),
+        "existing_memory_summary": context.get("existing_memory_summary"),
+        "source_refs": context.get("source_refs", []),
         "session_id": context.get("session_id"),
     }
 
