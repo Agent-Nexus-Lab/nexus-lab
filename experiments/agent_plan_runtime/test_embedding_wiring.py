@@ -22,7 +22,7 @@ class EmbeddingWiringTest(unittest.TestCase):
             items = []
             rejections = []
 
-        def fake_search(events, *, intent, profile, memory, now):
+        def fake_search(events, *, intent, profile, memory, now, include_debug=False):
             captured["intent"] = intent
             return SearchResult()
 

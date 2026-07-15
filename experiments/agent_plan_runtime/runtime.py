@@ -421,7 +421,14 @@ def _search_and_score(
     )
     prof = Profile.from_dict(profile)
     mem = Memory.from_dict(memory) if memory else None
-    result = search_events(events, intent=intent, profile=prof, memory=mem, now=now)
+    result = search_events(
+        events,
+        intent=intent,
+        profile=prof,
+        memory=mem,
+        now=now,
+        include_debug=True,
+    )
 
     # Copy agent-core rejections into the runtime debug rejections list
     for r in result.rejections:
