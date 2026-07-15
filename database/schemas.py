@@ -345,6 +345,36 @@ class DataHealthData(BaseModel):
     last_collection_result: str
     is_healthy: bool
     alerts: list[str]
+    collection_logs: list[dict] = Field(default_factory=list)
+
+
+class CollectionRunRequest(BaseModel):
+    sources: Optional[list[str]] = None
+    limit: int = Field(10, ge=1, le=100)
+
+
+class CollectionRunData(BaseModel):
+    batch_id: str
+    triggered_at: datetime
+    finished_at: Optional[datetime] = None
+    trigger_method: str
+    status: str
+    sources: list[str]
+    fetched_count: int
+    extracted_count: int
+    imported_count: int
+    updated_count: int
+    skipped_count: int
+    failed_count: int
+    failure_reason: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+class CollectionRunListData(BaseModel):
+    items: list[CollectionRunData]
+    total: int
+    page: int
+    page_size: int
 
 
 class CampusBreakdown(BaseModel):

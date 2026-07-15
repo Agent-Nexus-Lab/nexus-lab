@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -16,31 +15,17 @@ if str(_REPO_ROOT) not in sys.path:
 
 def _collect_job() -> None:
     """Hourly job: fetch articles → extract events → upsert into DB."""
-    from experiments.scrapers.auto_collector import run as collect_run
+    from database.collection_service import create_collection_run, execute_collection_run
+    from database.database import SessionLocal
 
-    started = datetime.now()
-    logger.info("[cron] auto_collector started at %s (limit=10)", started.isoformat())
+    db = SessionLocal()
     try:
-        result = collect_run(dry_run=False, commit=True, limit=10)
-        summary = result.get("commit_summary", {})
-        elapsed = (datetime.now() - started).total_seconds()
-        logger.info(
-            "[cron] done in %.1fs: fetched=%d extracted=%d imported=%d updated=%d skipped=%d failed=%d",
-            elapsed,
-            summary.get("fetched_count", 0),
-            summary.get("extracted_count", 0),
-            summary.get("imported_count", 0),
-            summary.get("updated_count", 0),
-            summary.get("skipped_count", 0),
-            summary.get("failed_count", 0),
-        )
-        warnings = result.get("warnings", [])
-        if warnings:
-            for w in warnings[:5]:  # log first 5 warnings only
-                logger.warning("[cron] %s", w)
-    except Exception:
-        logger.exception("[cron] auto_collector failed after %.1fs",
-                         (datetime.now() - started).total_seconds())
+        run = create_collection_run(db=db, trigger_method="cron")
+        batch_id = run.batch_id
+    finally:
+        db.close()
+    logger.info("[cron] starting collection batch %s", batch_id)
+    execute_collection_run(batch_id, limit=10)
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -61,7 +46,7 @@ def start_scheduler() -> None:
         id="auto_collect_hourly",
     )
     _scheduler.start()
-    logger.info("[cron] scheduler started, hourly at minute=7 ±30s")
+    logger.info("[cron] scheduler started, hourly at minute=43 ±30s")
 
 
 def shutdown_scheduler() -> None:

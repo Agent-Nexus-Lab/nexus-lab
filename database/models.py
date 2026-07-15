@@ -201,3 +201,23 @@ class EventQualitySnapshots(Base):
     stale_events = Column(Integer)
     snap_metadata = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CollectionRun(Base):
+    __tablename__ = "collection_runs"
+    __table_args__ = {"extend_existing": True}
+
+    batch_id = Column(String(36), primary_key=True)
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    finished_at = Column(DateTime(timezone=True))
+    trigger_method = Column(String(20), nullable=False)
+    status = Column(String(20), nullable=False, default="running")
+    sources = Column(JSON)
+    fetched_count = Column(Integer, nullable=False, default=0)
+    extracted_count = Column(Integer, nullable=False, default=0)
+    imported_count = Column(Integer, nullable=False, default=0)
+    updated_count = Column(Integer, nullable=False, default=0)
+    skipped_count = Column(Integer, nullable=False, default=0)
+    failed_count = Column(Integer, nullable=False, default=0)
+    failure_reason = Column(Text)
+    duration_ms = Column(Integer)
