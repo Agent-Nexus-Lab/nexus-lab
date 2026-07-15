@@ -20,7 +20,7 @@ from experiments.agent_intent_parser.intent_parser import parse_intent
 _parent_dir = str(Path(__file__).parent.parent)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
-from memory_service import read_memory, decay_memory_summary, reflect_and_store_memory_summary
+from memory_service import read_memory, reflect_and_store_memory_summary
 
 load_dotenv()
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
@@ -280,13 +280,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     db.refresh(run)
 
     # ---- Post-plan-day memory lifecycle ----
-    # 1. Decay existing memory_summary items
-    try:
-        decay_memory_summary(user.id, db=db)
-    except Exception:
-        pass
-
-    # 2. Reflect every 3 runs
+    # Reflect every 3 valid runs.
     try:
         run_count = db.query(PlanRun).filter_by(user_id=user.id, status="completed").count()
         if run_count % 3 == 0:

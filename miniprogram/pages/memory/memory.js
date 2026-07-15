@@ -61,19 +61,15 @@ Page({
       : {}
     const sourceRefs = structured.source_refs || structured.sourceRefs || item.source_ref || ''
     const sourceRefsText = Array.isArray(sourceRefs) ? sourceRefs.join('、') : String(sourceRefs || '暂无来源摘要')
-    const strength = structured.memory_strength != null
-      ? structured.memory_strength
-      : (structured.strength != null ? structured.strength : item.confidence)
     const cleanupReason = structured.cleanup_reason || structured.cleanupReason || '用户可随时删除；过期或负反馈会降低使用优先级'
     const expiresAfterTurns = structured.expires_after_turns || structured.expiresAfterTurns || ''
     return {
       ...item,
       title: this.formatMemoryTitle(item),
       content: item.content || '暂无记忆内容',
-      memory_strength_text: this.formatStrength(strength),
       source_refs_text: sourceRefsText,
       updated_at_text: this.formatDate(item.updated_at),
-      expires_text: expiresAfterTurns ? `${expiresAfterTurns} 轮后衰减` : this.formatExpires(item.expires_at),
+      expires_text: expiresAfterTurns ? `${expiresAfterTurns} 个有效轮次` : this.formatExpires(item.expires_at),
       cleanup_reason: cleanupReason,
       deleting: false
     }
@@ -97,12 +93,6 @@ Page({
       negative_preference: '负向偏好'
     }
     return names[item.memory_type] || item.memory_type || '偏好记忆'
-  },
-
-  formatStrength(value) {
-    const numeric = Number(value)
-    if (!Number.isFinite(numeric)) return '待评估'
-    return `${Math.round(Math.max(0, Math.min(numeric, 1)) * 100)}%`
   },
 
   formatExpires(value) {
