@@ -109,7 +109,7 @@ Page({
       wx.setStorageSync(PLAN_REQUEST_STORAGE_KEY, {
         profilePayload,
         planDayPayload,
-        stream_first: true,
+        stream_first: false,
         api_base_url: api.API_BASE_URL,
         created_at: new Date().toISOString()
       })

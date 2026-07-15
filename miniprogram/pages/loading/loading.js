@@ -1,6 +1,5 @@
 const PLAN_REQUEST_STORAGE_KEY = 'planDayRequest'
 const PLAN_RESULT_STORAGE_KEY = 'planRunResult'
-const PLAN_HISTORY_STORAGE_KEY = 'planHistoryDraft'
 
 const api = require('../../utils/api')
 
@@ -56,8 +55,8 @@ Page({
     runStatus: 'queued',
     statusLabel: '任务已入队',
     currentMessage: '正在理解你的需求...',
-    progress: 18,
-    progressText: '18%',
+    progress: 0,
+    progressText: '0%',
     activeStep: 0,
     errorMessage: '',
     failureDetails: [],
@@ -100,11 +99,6 @@ Page({
     this.loadDataHealth()
     if (hasRunId) {
       this.pollRunStatus()
-      return
-    }
-
-    if (this.request.stream_first !== false && typeof api.streamPlanDay === 'function') {
-      this.startStreamPlan()
       return
     }
 
@@ -154,8 +148,8 @@ Page({
       statusLabel: streamError ? '切换轮询' : '创建任务',
       currentMessage: streamError ? '实时通道暂不可用，正在切换稳定轮询...' : '正在创建生成任务...',
       activeStep: 0,
-      progress: 18,
-      progressText: '18%',
+      progress: 0,
+      progressText: '0%',
       debugText: this.formatDebug(fallbackDebug)
     })
 
@@ -373,37 +367,11 @@ Page({
     }
 
     wx.setStorageSync(PLAN_RESULT_STORAGE_KEY, result)
-    this.saveHistoryDraft(result)
-
     this.timer = setTimeout(() => {
       wx.redirectTo({
         url: '/pages/result/result'
       })
     }, 180)
-  },
-
-  saveHistoryDraft(result) {
-    const history = wx.getStorageSync(PLAN_HISTORY_STORAGE_KEY) || []
-    const items = Array.isArray(result.items) ? result.items : []
-    const planId = result.plan_id || result.id || ''
-    const runId = result.run_id || this.request.run_id || ''
-    const nextItem = {
-      plan_id: planId,
-      run_id: runId,
-      title: result.title || '暂无标题',
-      summary: result.summary || '',
-      date_scope: result.date_scope || '',
-      request_text: result.request_text || '',
-      item_count: items.length,
-      status: result.status || 'completed',
-      created_at: new Date().toISOString()
-    }
-    const filtered = history.filter((item) => {
-      if (planId && item.plan_id === planId) return false
-      if (runId && item.run_id === runId) return false
-      return true
-    })
-    wx.setStorageSync(PLAN_HISTORY_STORAGE_KEY, [nextItem, ...filtered].slice(0, 20))
   },
 
   failRun(message, debug) {
@@ -541,9 +509,7 @@ Page({
       const percent = progress >= 0 && progress <= 1 ? progress * 100 : progress
       return Math.round(Math.max(8, Math.min(percent, 96)))
     }
-    if (cacheHit) return 92
-    if (activeStep === -1) return 32
-    return Math.min(22 + activeStep * 17, 88)
+    return this.data.progress || 0
   },
 
   extractDebugReason(debug) {

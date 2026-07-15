@@ -302,6 +302,7 @@ Page({
     this.setData({ [`${path}.source_clicked`]: true })
     this.postFeedback(item, 'clicked_source').catch((error) => {
       console.warn('clicked_source 反馈提交失败:', error)
+      wx.showToast({ title: '来源点击反馈保存失败', icon: 'none' })
     })
 
     wx.navigateTo({

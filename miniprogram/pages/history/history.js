@@ -1,19 +1,40 @@
-const PLAN_HISTORY_STORAGE_KEY = 'planHistoryDraft'
+const api = require('../../utils/api')
 
 Page({
   data: {
-    histories: []
+    histories: [],
+    loading: false,
+    errorMessage: ''
   },
 
   onShow() {
-    const histories = wx.getStorageSync(PLAN_HISTORY_STORAGE_KEY) || []
-    this.setData({
-      histories: histories.map((item) => ({
-        ...item,
-        created_at_text: this.formatDate(item.created_at),
-        date_scope_text: this.formatDateScope(item.date_scope)
-      }))
-    })
+    this.loadHistory()
+  },
+
+  async loadHistory() {
+    this.setData({ loading: true, errorMessage: '' })
+    try {
+      const response = await api.getPlans({ page: 1, page_size: 20 })
+      if (!response || response.code !== 0 || !response.data) {
+        throw new Error((response && response.message) || '历史规划读取失败')
+      }
+      const items = Array.isArray(response.data.items) ? response.data.items : []
+      this.setData({
+        loading: false,
+        histories: items.map((item) => ({
+          ...item,
+          status: 'completed',
+          created_at_text: this.formatDate(item.created_at),
+          date_scope_text: this.formatDateScope(item.date_scope)
+        }))
+      })
+    } catch (error) {
+      this.setData({
+        loading: false,
+        histories: [],
+        errorMessage: error.message || '历史规划读取失败'
+      })
+    }
   },
 
   formatDate(value) {
@@ -28,17 +49,11 @@ Page({
   },
 
   formatDateScope(value) {
-    const map = {
-      today: '今天',
-      tomorrow: '明天',
-      this_week: '本周'
-    }
+    const map = { today: '今天', tomorrow: '明天', this_week: '本周' }
     return map[value] || value || '未指定'
   },
 
   goPlan() {
-    wx.redirectTo({
-      url: '/pages/plan/plan'
-    })
+    wx.redirectTo({ url: '/pages/plan/plan' })
   }
 })
