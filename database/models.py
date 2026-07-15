@@ -102,8 +102,13 @@ class PlanRun(Base):
     date_scope = Column(String(20))
     intent_json = Column(JSON)
     stage = Column(String)
+    stage_message = Column(Text)
+    progress = Column(Float, default=0.0)
     debug = Column(Text)
     client_context = Column(JSON)
+    cache_hit = Column(Boolean, default=False)
+    evidence_eligible = Column(Boolean, default=False)
+    request_fingerprint = Column(String(64))
 
 class Plan(Base):
     __tablename__ = "plans"

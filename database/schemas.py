@@ -48,6 +48,10 @@ class PlanDayRequest(BaseModel):
     """POST /api/agent/plan-day 请求体"""
     request_text: str = Field(..., max_length=500, description="用户自然语言需求描述")
     date_scope: str = Field(..., description="today / tomorrow / this_week")
+    reference_now: Optional[datetime] = Field(
+        None,
+        description="Explicit test/debug clock. Production requests should omit it.",
+    )
 
 
 class PlanDayResponseData(BaseModel):

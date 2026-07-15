@@ -20,7 +20,7 @@ from experiments.agent_plan_runtime.memory_reflection import reflect_on_memory
 
 from sqlalchemy.orm import Session
 
-from models import (
+from database.models import (
     MemoryAuditLog,
     MemoryItem,
     Plan,
@@ -477,8 +477,41 @@ def _write_audit(
 
 
 # ===========================================================================
-# Memory Summary — reflect + store + decay + suppress
+# Memory Summary — reflect, store, and suppress
 # ===========================================================================
+
+
+def should_reflect_memory_summary(user_id: str, *, db: Session) -> bool:
+    """Return true when three new evidence-eligible runs are available."""
+    runs = _eligible_unreflected_runs(user_id, db=db)
+    if len(runs) < 3:
+        return False
+    return not is_memory_suppressed([run.id for run in runs[:3]], user_id=user_id, db=db)
+
+
+def is_memory_suppressed(
+    source_refs: list[str],
+    *,
+    user_id: str,
+    db: Session,
+) -> bool:
+    """Prevent a deleted evidence batch from recreating the same summary."""
+    target = set(source_refs)
+    if not target:
+        return False
+    suppressed = (
+        db.query(MemoryItem)
+        .filter_by(user_id=user_id, memory_type="memory_summary", status="suppressed")
+        .all()
+    )
+    for item in suppressed:
+        structured = item.structured_content or {}
+        if not isinstance(structured, dict):
+            continue
+        evidence_ids = set(structured.get("evidence_run_ids") or [])
+        if evidence_ids == target:
+            return True
+    return False
 
 
 def reflect_and_store_memory_summary(
@@ -494,14 +527,7 @@ def reflect_and_store_memory_summary(
     """
     now = datetime.now(DEFAULT_TIMEZONE)
 
-    # Collect last 3 runs with their plans
-    recent_runs = (
-        db.query(PlanRun)
-        .filter_by(user_id=user_id)
-        .order_by(PlanRun.started_at.desc())
-        .limit(3)
-        .all()
-    )
+    recent_runs = _eligible_unreflected_runs(user_id, db=db)[:3]
 
     if len(recent_runs) < 3 and not force:
         return {
@@ -511,14 +537,25 @@ def reflect_and_store_memory_summary(
         }
 
     rounds: list[dict[str, Any]] = []
+    evidence_run_ids = [run.id for run in recent_runs]
+    if is_memory_suppressed(evidence_run_ids, user_id=user_id, db=db):
+        return {
+            "reflected": False,
+            "reason": "source_refs_suppressed",
+            "memory_id": None,
+        }
+
     source_refs: list[str] = []
 
     for run in recent_runs:
         plan = db.query(Plan).filter_by(run_id=run.id).first()
         event_titles: list[str] = []
+        recommended_event_ids: list[str] = []
         if plan:
             items = db.query(PlanItem).filter_by(plan_id=plan.id).all()
             for pi in items:
+                if pi.event_id:
+                    recommended_event_ids.append(pi.event_id)
                 event = db.query(Event).filter_by(id=pi.event_id).first() if pi.event_id else None
                 if event:
                     event_titles.append(event.title)
@@ -531,25 +568,36 @@ def reflect_and_store_memory_summary(
         )
         liked: list[str] = []
         disliked: list[str] = []
+        liked_event_ids: list[str] = []
+        disliked_event_ids: list[str] = []
         for fb in feedbacks:
             event = db.query(Event).filter_by(id=fb.event_id).first() if fb.event_id else None
             title = event.title if event else fb.event_id
             if fb.feedback_type == "like":
                 liked.append(title)
+                if fb.event_id:
+                    liked_event_ids.append(fb.event_id)
             elif fb.feedback_type == "dislike":
                 disliked.append(title)
+                if fb.event_id:
+                    disliked_event_ids.append(fb.event_id)
+            source_refs.append(fb.id)
 
         rounds.append({
             "round": len(rounds) + 1,
             "run_id": run.id,
             "request_text": run.request_text or "",
             "recommended_event_titles": event_titles,
+            "recommended_event_ids": recommended_event_ids,
+            "liked_event_ids": liked_event_ids,
+            "disliked_event_ids": disliked_event_ids,
             "feedback": {"liked": liked, "disliked": disliked},
         })
         source_refs.append(run.id)
-
-    # Reverse to chronological order
-    rounds.reverse()
+        source_refs.extend(recommended_event_ids)
+        source_refs.extend(liked_event_ids)
+        source_refs.extend(disliked_event_ids)
+    source_refs = _dedup(source_refs)
 
     # Check existing memory_summary
     existing = (
@@ -571,6 +619,8 @@ def reflect_and_store_memory_summary(
         "session_id": str(uuid.uuid4()),
         "rounds": rounds,
         "existing_memory": existing_memory,
+        "existing_memory_summary": existing.content if existing else None,
+        "source_refs": source_refs,
     }
 
     try:
@@ -592,13 +642,21 @@ def reflect_and_store_memory_summary(
         }
 
     expires_after_turns = result.get("expires_after_turns", 6)
-    ref_source_refs = result.get("source_refs", source_refs)
+    ref_source_refs = source_refs
+
+    if existing is not None:
+        old_structured = dict(existing.structured_content or {})
+        old_structured["cleanup_reason"] = "replaced_by_new_summary"
+        existing.structured_content = old_structured
+        existing.status = "expired"
+        existing.updated_at = now
 
     # Store as memory_item
     mem_id = str(uuid.uuid4())
     expires_at = now + timedelta(days=MEMORY_EXPIRY_DAYS)
     structured_content = {
         "source_refs": ref_source_refs,
+        "evidence_run_ids": evidence_run_ids,
         "expires_after_turns": expires_after_turns,
         "cleanup_reason": result.get("cleanup_reason"),
         "prompt_version": result.get("prompt_version", ""),
@@ -640,6 +698,27 @@ def reflect_and_store_memory_summary(
         "source_refs": ref_source_refs,
         "used_fallback": result.get("used_fallback", False),
     }
+
+
+def _eligible_unreflected_runs(user_id: str, *, db: Session) -> list[PlanRun]:
+    used_ids: set[str] = set()
+    summaries = (
+        db.query(MemoryItem)
+        .filter_by(user_id=user_id, memory_type="memory_summary")
+        .all()
+    )
+    for item in summaries:
+        structured = item.structured_content or {}
+        if isinstance(structured, dict):
+            used_ids.update(structured.get("evidence_run_ids") or [])
+
+    runs = (
+        db.query(PlanRun)
+        .filter_by(user_id=user_id, status="completed", evidence_eligible=True)
+        .order_by(PlanRun.started_at.asc())
+        .all()
+    )
+    return [run for run in runs if run.id not in used_ids]
 
 
 def suppress_memory_summary(
