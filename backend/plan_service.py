@@ -15,7 +15,7 @@ if str(_RUNTIME_DIR) not in sys.path:
 
 import experiments.agent_plan_runtime.runtime as _rt
 import experiments.agent_plan_runtime.llm as _llm
-from backend.cache_backend import InMemoryCache, RedisCache
+from backend.cache_backend import InMemoryCache, NoOpCache, RedisCache
 from backend.plan_cache import PlanResultCache
 from backend.rewrite_cache import RewriteCache
 from backend.schemas import (
@@ -50,11 +50,14 @@ def _get_cache_backend():
     if _plan_result_cache is not None:
         return _plan_result_cache, _rewrite_cache, _cache_backend_info
 
+    cache_enabled = os.getenv("CACHE_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
     redis_url = os.getenv("REDIS_URL", "")
     redis_available = False
     using_fallback = False
 
-    if redis_url:
+    if not cache_enabled:
+        backend = NoOpCache()
+    elif redis_url:
         redis_backend = RedisCache(redis_url)
         redis_available = redis_backend.available()
         using_fallback = redis_backend.using_fallback
@@ -65,6 +68,7 @@ def _get_cache_backend():
     _cache_backend_info = {
         "redis_available": redis_available,
         "using_fallback": using_fallback or not redis_url,
+        "cache_enabled": cache_enabled,
     }
     _plan_result_cache = PlanResultCache(backend)
     _rewrite_cache = RewriteCache(backend)
@@ -115,6 +119,7 @@ def _plan_day_to_response(result: dict[str, Any]) -> PlanDayResponse:
                 rewrite_cache_hit=raw_cache.get("rewrite_cache_hit", False),
                 redis_available=raw_cache.get("redis_available", False),
                 using_fallback=raw_cache.get("using_fallback", False),
+                cache_ttl_seconds=raw_cache.get("cache_ttl_seconds"),
             )
 
         raw_llm_rewrite = raw_debug.get("llm_rewrite")
@@ -257,6 +262,7 @@ def plan_day_service(
     llm_timeout: Optional[float] = None,
     memory: dict[str, Any] | None = None,
     use_search_events: bool = True,
+    user_id: str = "DEMO_USER_ID",
 ) -> PlanDayResponse:
     if now is None:
         now = datetime.now(_rt.DEFAULT_TIMEZONE)
@@ -264,12 +270,15 @@ def plan_day_service(
     plan_cache, rewrite_cache_inst, cache_info = _get_cache_backend()
     resolved_model = llm_model or os.getenv("LLM_MODEL") or os.getenv("MAAS_MODEL") or "deepseek-v4-flash"
     profile_id = str(profile.get("campus", "")) + ":" + str(profile.get("profile_summary", ""))[:32]
+    plan_ttl_seconds = int(os.getenv("PLAN_CACHE_TTL_SECONDS", "600"))
+    rewrite_ttl_seconds = int(os.getenv("REWRITE_CACHE_TTL_SECONDS", "3600"))
 
     query_hash = PlanResultCache.compute_query_hash(request_text)
     event_snapshot_hash = PlanResultCache.compute_event_snapshot_hash(events)
     scoring_mem_hash = _compute_scoring_memory_hash(memory)
 
     plan_cache_key = plan_cache.build_key(
+        user_id=user_id,
         profile_id=profile_id,
         query_hash=query_hash,
         date_scope=date_scope,
@@ -284,6 +293,7 @@ def plan_day_service(
         "rewrite_cache_hit": False,
         "redis_available": cache_info["redis_available"] if cache_info else False,
         "using_fallback": cache_info["using_fallback"] if cache_info else False,
+        "cache_ttl_seconds": None,
     }
     debug_llm_rewrite: dict[str, Any] = {
         "used_fallback": False,
@@ -299,6 +309,7 @@ def plan_day_service(
         debug_cache["cache_hit"] = True
         debug_cache["cache_type"] = "plan_result"
         debug_cache["plan_result_cache_hit"] = True
+        debug_cache["cache_ttl_seconds"] = plan_ttl_seconds
         result: dict[str, Any] = {"code": 0, "data": cached_result, "message": "ok"}
         if include_debug:
             data = result.setdefault("data", {})
@@ -329,6 +340,9 @@ def plan_day_service(
         display_mem_hash = _compute_display_memory_hash(memory)
 
         rewrite_key = rewrite_cache_inst.build_key(
+            user_id=user_id,
+            query_hash=query_hash,
+            date_scope=date_scope,
             plan_items_hash=plan_items_hash,
             display_memory_hash=display_mem_hash,
             prompt_version=_llm.PROMPT_VERSION,
@@ -340,6 +354,7 @@ def plan_day_service(
             debug_cache["cache_hit"] = True
             debug_cache["cache_type"] = "rewrite"
             debug_cache["rewrite_cache_hit"] = True
+            debug_cache["cache_ttl_seconds"] = rewrite_ttl_seconds
             _patch_rewrite(result, cached_rewrite)
         else:
             t_rewrite_start = time.perf_counter()
@@ -350,7 +365,7 @@ def plan_day_service(
                     model=llm_model,
                     timeout=llm_timeout,
                 )
-                rewrite_cache_inst.set(rewrite_key, rewrite_output)
+                rewrite_cache_inst.set(rewrite_key, rewrite_output, ttl_seconds=rewrite_ttl_seconds)
                 _patch_rewrite(result, rewrite_output)
             except Exception as exc:
                 debug_llm_rewrite["used_fallback"] = True
@@ -366,7 +381,7 @@ def plan_day_service(
 
     # 4. Cache the final result in plan_result_cache
     final_data = result.get("data") if isinstance(result.get("data"), dict) else {}
-    plan_cache.set(plan_cache_key, dict(final_data))
+    plan_cache.set(plan_cache_key, dict(final_data), ttl_seconds=plan_ttl_seconds)
 
     # 5. Attach cache + llm_rewrite debug
     if include_debug:

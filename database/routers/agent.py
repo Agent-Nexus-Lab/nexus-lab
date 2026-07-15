@@ -8,7 +8,6 @@ from datetime import datetime
 import time
 from typing import Any
 import sys
-import hashlib
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from backend.plan_service import plan_day_service as plan_day_funct
@@ -29,36 +28,12 @@ LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", 30.0))
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
-# Simple in-memory plan-day cache: key = (user_id, request_text, date_scope) hash
-# TTL = 5 minutes; stores the previous result for cache-hit detection
-_plan_cache: dict[str, dict[str, Any]] = {}
-_CACHE_TTL_SECONDS = 300  # 5 minutes
-
-
-def _cache_key(user_id: str, request_text: str, date_scope: str) -> str:
-    raw = f"{user_id}::{request_text}::{date_scope}"
-    return hashlib.sha256(raw.encode()).hexdigest()
-
-
 @router.post("/plan-day")
 def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     t_start = time.perf_counter()
     user = db.query(User).first()
     if not user:
         return {"code": 1001, "data": None, "message": "用户画像未创建"}
-
-    # ---- Cache check ----
-    cache_key = _cache_key(user.id, req.request_text, req.date_scope)
-    cached = _plan_cache.get(cache_key)
-    cache_hit = False
-    cache_type: str | None = None
-    if cached:
-        elapsed = time.time() - cached["cached_at"]
-        if elapsed < _CACHE_TTL_SECONDS:
-            cache_hit = True
-            cache_type = "plan_result"
-        else:
-            del _plan_cache[cache_key]
 
     runid = str(uuid.uuid4())
     run = PlanRun(
@@ -76,65 +51,6 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
     )
     db.add(run)
     db.flush()
-
-    # If cache hit, short-circuit with cached result
-    if cache_hit and cached:
-        t_profile = time.perf_counter()
-        run.stage = "completed"
-        run.status = "completed"
-        run.ended_at = datetime.now(DEFAULT_TIMEZONE)
-
-        # Replay plan + items from cached data so GET /runs/{run_id} resolves correctly
-        cached_inner = cached.get("inner") or {}
-        plan_id = str(uuid.uuid4())
-        plan = Plan(
-            id=plan_id,
-            run_id=runid,
-            user_id=user.id,
-            title=cached_inner.get("title"),
-            date_scope=cached_inner.get("date_scope"),
-            summary=cached_inner.get("summary"),
-        )
-        db.add(plan)
-        db.flush()
-
-        for item_raw in (cached_inner.get("items") or []):
-            item = PlanItem(
-                id=str(uuid.uuid4()),
-                plan_id=plan_id,
-                event_id=item_raw.get("event_id"),
-                start_time=datetime.fromisoformat(item_raw["start_time"]),
-                end_time=datetime.fromisoformat(item_raw["end_time"]) if item_raw.get("end_time") else None,
-                reason_text=item_raw.get("reason_text", ""),
-                score=item_raw.get("score"),
-                score_components=item_raw.get("score_components"),
-                display_order=item_raw.get("display_order", 0),
-            )
-            db.add(item)
-
-        cached_debug = dict(cached.get("debug_raw") or {})
-        cached_debug["cache"] = {
-            "cache_hit": True,
-            "cache_type": "plan_result",
-            "cached_from_run_id": cached.get("run_id"),
-            "cache_key": cache_key,
-            "cache_age_seconds": round(time.time() - cached["cached_at"], 1),
-        }
-        cached_debug["timings_ms"] = {
-            "load_profile": round((t_profile - t_start) * 1000),
-            "cache_hit": True,
-        }
-        run.debug = json.dumps(cached_debug, ensure_ascii=False)
-        db.commit()
-        db.refresh(run)
-
-        return {
-            "code": 0,
-            "data": PlanDayResponseData(
-                run_id=run.id, status=run.status, stage=run.stage, poll_after_ms=500,
-            ).model_dump(mode="json"),
-            "message": "ok (cached)",
-        }
 
     # ---- Normal flow ----
     profile_raw = db.query(UserProfile).filter_by(user_id=user.id).first()
@@ -191,6 +107,7 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
             llm_model=LLM_MODEL,
             llm_timeout=LLM_TIMEOUT,
             memory=memory_context,
+            user_id=user.id,
         )
     except Exception as e:
         run.status = "failed"
@@ -253,24 +170,6 @@ def plan_day(req: PlanDayRequest, db: Session = Depends(get_db)):
         "recent_plan_event_ids": memory_context.get("recent_plan_event_ids", []),
         "memory_item_count": len(memory_context.get("memory_items", [])),
     }
-    debug_raw["cache"] = {
-        "cache_hit": False,
-        "cache_type": None,
-    }
-
-    # Store in cache for next request (include full plan data for replay on cache hit)
-    _plan_cache[cache_key] = {
-        "run_id": runid,
-        "inner": {
-            "title": inner.get("title"),
-            "date_scope": inner.get("date_scope"),
-            "summary": inner.get("summary"),
-            "items": inner.get("items") or [],
-        },
-        "debug_raw": dict(debug_raw),
-        "cached_at": time.time(),
-    }
-
     run.stage = "completed"
     run.status = "completed"
     run.ended_at = datetime.now(DEFAULT_TIMEZONE)
