@@ -403,19 +403,22 @@ def _search_and_score(
     from agent_core.search_events import search_events
     from agent_core.query import Intent, Profile, Memory
 
-    intent = Intent(
-        request_text=request_text,
-        date_scope=date_scope,
-    )
-    # 生成 query_embedding（env-gated，未配置/失败返回 []，scoring 自动降级 keyword_fallback）
+    query_embedding: tuple[float, ...] | None = None
+    embedding_model: str | None = None
     try:
         from agent_core.embedding import generate_query_embedding
         q_emb, emb_model = generate_query_embedding(request_text)
         if q_emb:
-            intent.query_embedding = q_emb
-            intent.embedding_model = emb_model
+            query_embedding = tuple(q_emb)
+            embedding_model = emb_model
     except Exception:  # noqa: BLE001
         pass
+    intent = Intent(
+        request_text=request_text,
+        date_scope=date_scope,
+        query_embedding=query_embedding,
+        embedding_model=embedding_model,
+    )
     prof = Profile.from_dict(profile)
     mem = Memory.from_dict(memory) if memory else None
     result = search_events(events, intent=intent, profile=prof, memory=mem, now=now)

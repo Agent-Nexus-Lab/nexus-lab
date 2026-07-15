@@ -78,6 +78,7 @@ def mark_article_processing(
     title: str | None,
     content_hash: str,
     published_at: datetime | None = None,
+    source_id: str | None = None,
 ) -> str:
     """创建或更新 RawDocument，置 status=processing，返回 raw_document_id。
 
@@ -93,12 +94,19 @@ def mark_article_processing(
         doc = db.query(RawDocument).filter(RawDocument.url == source_url).first()
 
     if doc is not None:
+        content_changed = doc.content_hash != content_hash
         doc.title = title or doc.title
         doc.content_hash = content_hash
+        if source_id is not None:
+            doc.source_id = source_id
         if published_at is not None:
             doc.published_at = published_at
         doc.status = "processing"
         doc.fetched_at = now
+        if content_changed:
+            doc.retry_count = 0
+            doc.last_error = None
+            doc.processed_at = None
         db.flush()
         return doc.id
 
@@ -108,6 +116,7 @@ def mark_article_processing(
         source_url=source_url,
         url=source_url,  # 兼容旧字段
         title=title,
+        source_id=source_id,
         content_hash=content_hash,
         published_at=published_at,
         status="processing",
@@ -126,6 +135,7 @@ def mark_article_completed(db: Session, raw_document_id: str) -> None:
         logger.warning("mark_article_completed: raw_document %s not found", raw_document_id)
         return
     doc.status = "completed"
+    doc.last_error = None
     doc.processed_at = datetime.now(DEFAULT_TIMEZONE)
     db.flush()
 

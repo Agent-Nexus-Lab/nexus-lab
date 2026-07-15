@@ -273,6 +273,8 @@ def collect_account(account: dict, *, dry_run: bool, cn8n_mod,
     for a in articles:
         if not a.get("source_name"):
             a["source_name"] = acc_name
+        if not a.get("source_id"):
+            a["source_id"] = account.get("id")
     return {"account": account.get("name"), "account_id": account.get("id"),
             "would_fetch": False, "articles": articles}
 
@@ -349,6 +351,7 @@ def extract_and_map(article: dict, *, cn8n_mod,
     text, text_source, text_quality = _get_article_text(source_url, article, cn8n_mod, is_sample=is_sample)
     info["text_source"] = text_source
     info["text_quality"] = text_quality
+    content_hash = _content_hash(text or "")
 
     raw_document_id: str | None = None
 
@@ -366,7 +369,8 @@ def extract_and_map(article: dict, *, cn8n_mod,
                     pub_dt = None
             raw_document_id = article_state.mark_article_processing(
                 db, source_url, title=article.get("title") or "",
-                content_hash=content_hash, published_at=pub_dt)
+                content_hash=content_hash, published_at=pub_dt,
+                source_id=article.get("source_id"))
         except Exception as e:  # noqa: BLE001
             warnings.append(f"mark_article_processing 失败 {source_url}: {e}")
 
@@ -384,18 +388,21 @@ def extract_and_map(article: dict, *, cn8n_mod,
                     retry_count=retry_count, is_terminal=is_terminal)
             db.commit()
         except Exception as e:  # noqa: BLE001
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
             warnings.append(f"mark_outcome 失败 {source_url}: {e}")
-
-    if text is None:
-        warnings.append(f"无正文可用: {source_url or '?'}")
-        return [], False, "no_text", info
-    content_hash = _content_hash(text)
 
     # --- 跨轮去重检查 ---
     if db and article_state and source_url:
         try:
             prev = article_state.is_article_processed(db, source_url, content_hash)
         except Exception as e:  # noqa: BLE001
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
             warnings.append(f"is_article_processed 失败 {source_url}: {e}")
             prev = None
         if isinstance(prev, dict):
@@ -403,7 +410,8 @@ def extract_and_map(article: dict, *, cn8n_mod,
             if prev_status == "completed" and prev.get("content_hash") == content_hash:
                 info["dedup"] = "already_processed"
                 return [], False, "already_processed", info
-            if prev_status and str(prev_status).startswith("skipped_"):
+            if (prev_status and str(prev_status).startswith("skipped_")
+                    and prev.get("content_hash") == content_hash):
                 info["dedup"] = prev_status
                 return [], False, _skipped_to_reason(prev_status), info
             if prev_status == "failed":
@@ -413,6 +421,11 @@ def extract_and_map(article: dict, *, cn8n_mod,
                     return [], False, "exhausted_retries", info
                 # 否则继续重试
         _mark_processing()
+
+    if text is None:
+        warnings.append(f"无正文可用: {source_url or '?'}")
+        _mark_outcome(False, "no_text", 0)
+        return [], False, "no_text", info
 
     # 证据不足：正文太短，不调 LLM 补猜
     if text_quality == "insufficient":

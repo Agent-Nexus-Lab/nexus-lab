@@ -33,7 +33,7 @@ def submit_event_feedback(req: FeedbackEventRequest, db: Session = Depends(get_d
         feedback_type=req.feedback_type,
         feedback_source=req.feedback_source,
         comment=req.comment,
-        metadata=req.metadata,
+        feedback_metadata=req.metadata,
     )
     db.add(feedback)
     db.flush()
@@ -86,7 +86,7 @@ def submit_plan_feedback(req: FeedbackPlanRequest, db: Session = Depends(get_db)
         feedback_type=req.feedback_type,
         feedback_source="history_page",
         comment=req.comment,
-        metadata=req.metadata,
+        feedback_metadata=req.metadata,
     )
     db.add(feedback)
     db.commit()
