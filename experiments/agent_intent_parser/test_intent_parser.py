@@ -9,7 +9,11 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from intent_parser import parse_intent, to_agent_intent, to_agent_intent_extended
+from experiments.agent_intent_parser.intent_parser import (
+    parse_intent,
+    to_agent_intent,
+    to_agent_intent_extended,
+)
 from schemas import IntentParseOutput
 
 

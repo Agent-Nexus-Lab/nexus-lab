@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import uuid
@@ -48,6 +49,7 @@ _HERE = Path(__file__).resolve().parent
 _REPO_ROOT = _HERE.parent.parent
 DEFAULT_ACCOUNTS = _HERE / "account_list.json"
 ACCOUNT_CURSOR = _HERE / "account_cursor.json"
+ACCOUNT_CURSOR_KEY = "collection:account_cursor"
 EVENTS_JSON = _REPO_ROOT / "database" / "events.json"
 DEFAULT_LIMIT = 3  # 默认只扫前 3 个 enabled 账号，避免消耗 API 额度
 
@@ -90,6 +92,18 @@ def load_enabled_accounts(path: Path | None = None, limit: int = 0) -> list[dict
 
 def _read_cursor(cursor_path: Path) -> str | None:
     """读取上次写入的 next_account_cursor（即本轮应开始的账号 id）。"""
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        try:
+            import redis
+
+            raw = redis.Redis.from_url(redis_url, socket_connect_timeout=3).get(ACCOUNT_CURSOR_KEY)
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8")
+            if isinstance(raw, str) and raw:
+                return raw
+        except Exception:  # noqa: BLE001
+            pass
     try:
         data = json.loads(cursor_path.read_text(encoding="utf-8"))
         cid = data.get("cursor")
@@ -99,6 +113,17 @@ def _read_cursor(cursor_path: Path) -> str | None:
 
 
 def _write_cursor(cursor_path: Path, next_cursor: str | None) -> None:
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url and next_cursor:
+        try:
+            import redis
+
+            redis.Redis.from_url(redis_url, socket_connect_timeout=3).set(
+                ACCOUNT_CURSOR_KEY, next_cursor
+            )
+            return
+        except Exception:  # noqa: BLE001
+            pass
     payload = {"cursor": next_cursor, "updated_at": datetime.now(timezone.utc).isoformat()}
     cursor_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 

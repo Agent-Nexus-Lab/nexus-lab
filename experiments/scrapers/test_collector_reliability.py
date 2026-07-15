@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import unittest
+import json
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from experiments.scrapers import auto_collector
@@ -112,6 +115,29 @@ class CollectorReliabilityTest(unittest.TestCase):
         self.assertEqual(len(state.processing), 1)
         self.assertEqual(state.failed[0][1]["error"], "no_text")
         self.assertTrue(state.failed[0][1]["is_terminal"])
+
+    def test_account_cursor_rotates_across_runs(self):
+        accounts = {
+            "accounts": [
+                {"id": "a1", "name": "One", "enabled": True},
+                {"id": "a2", "name": "Two", "enabled": True},
+                {"id": "a3", "name": "Three", "enabled": True},
+            ]
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            accounts_path = root / "accounts.json"
+            cursor_path = root / "cursor.json"
+            accounts_path.write_text(json.dumps(accounts), encoding="utf-8")
+            first, _, next_cursor = auto_collector.load_enabled_accounts_rotating(
+                accounts_path, limit=1, cursor_path=cursor_path
+            )
+            auto_collector._write_cursor(cursor_path, next_cursor)
+            second, _, _ = auto_collector.load_enabled_accounts_rotating(
+                accounts_path, limit=1, cursor_path=cursor_path
+            )
+        self.assertEqual(first[0]["id"], "a1")
+        self.assertEqual(second[0]["id"], "a2")
 
 
 if __name__ == "__main__":
