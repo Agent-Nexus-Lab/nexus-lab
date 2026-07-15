@@ -8,6 +8,8 @@ from typing import Any, Optional
 
 from backend.cache_backend import CacheBackend, InMemoryCache
 
+CACHE_VERSION = "v1"
+
 
 def _hash_str(s: str) -> str:
     return hashlib.md5(s.encode()).hexdigest()[:12]
@@ -30,6 +32,9 @@ class RewriteCache:
     def build_key(
         self,
         *,
+        user_id: str,
+        query_hash: str,
+        date_scope: str,
         plan_items_hash: str,
         display_memory_hash: str,
         prompt_version: str,
@@ -37,6 +42,10 @@ class RewriteCache:
     ) -> str:
         raw = json.dumps(
             {
+                "v": CACHE_VERSION,
+                "uid": user_id,
+                "qh": query_hash,
+                "ds": date_scope,
                 "pih": plan_items_hash,
                 "dmh": display_memory_hash,
                 "pv": prompt_version,

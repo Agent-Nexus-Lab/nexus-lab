@@ -101,6 +101,7 @@ class CacheInfo(BaseModel):
     rewrite_cache_hit: bool = False
     redis_available: bool = False
     using_fallback: bool = False
+    cache_ttl_seconds: Optional[int] = None
 
 
 class LlmRewriteInfo(BaseModel):

@@ -44,6 +44,7 @@ class PlanResultCache:
     def build_key(
         self,
         *,
+        user_id: str,
         profile_id: str,
         query_hash: str,
         date_scope: str,
@@ -53,6 +54,7 @@ class PlanResultCache:
         raw = json.dumps(
             {
                 "v": CACHE_VERSION,
+                "uid": user_id,
                 "pid": profile_id,
                 "qh": query_hash,
                 "ds": date_scope,

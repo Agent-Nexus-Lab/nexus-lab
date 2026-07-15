@@ -62,6 +62,22 @@ class InMemoryCache(CacheBackend):
         return True
 
 
+class NoOpCache(CacheBackend):
+    """Disabled cache backend."""
+
+    def get(self, key: str) -> Optional[dict[str, Any]]:
+        return None
+
+    def set(self, key: str, value: dict[str, Any], ttl_seconds: int = 3600) -> None:
+        return None
+
+    def delete(self, key: str) -> None:
+        return None
+
+    def available(self) -> bool:
+        return False
+
+
 class RedisCache(CacheBackend):
     """Redis-backed cache. Falls back to InMemoryCache if unavailable."""
 
@@ -79,7 +95,7 @@ class RedisCache(CacheBackend):
             self._client = redis.Redis.from_url(self._redis_url, socket_connect_timeout=3)
             self._client.ping()
             self._redis_available = True
-            logger.info("Redis cache connected: %s", self._redis_url)
+            logger.info("Redis cache connected")
         except Exception as exc:
             self._redis_available = False
             self._init_error = str(exc)
@@ -115,7 +131,7 @@ class RedisCache(CacheBackend):
         self._fallback.delete(key)
 
     def available(self) -> bool:
-        return self._redis_available or self._fallback.available()
+        return self._redis_available
 
     @property
     def using_fallback(self) -> bool:
