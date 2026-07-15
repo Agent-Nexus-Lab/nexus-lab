@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, get_demo_user
 import uuid
 from datetime import datetime, timezone, timedelta
 from models import User, MemoryItem, MemoryAuditLog
@@ -25,7 +25,7 @@ def get_memory(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 
@@ -71,7 +71,7 @@ def get_memory(
 
 @router.post("/memory/{memory_id}/confirm")
 def confirm_memory(memory_id: str, req: MemoryActionRequest = MemoryActionRequest(), db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 
@@ -111,7 +111,7 @@ def confirm_memory(memory_id: str, req: MemoryActionRequest = MemoryActionReques
 
 @router.post("/memory/{memory_id}/reject")
 def reject_memory(memory_id: str, req: MemoryActionRequest = MemoryActionRequest(), db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 
@@ -148,7 +148,7 @@ def reject_memory(memory_id: str, req: MemoryActionRequest = MemoryActionRequest
 
 @router.delete("/memory/{memory_id}")
 def delete_memory(memory_id: str, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {"code": 1001, "data": None, "message": "用户不存在"}
 

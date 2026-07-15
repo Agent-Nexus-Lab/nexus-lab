@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, get_demo_user
 from schemas import ProfileRequest, ProfileData
 from models import User, UserProfile, MemoryItem
 import uuid
@@ -66,7 +66,7 @@ def create_profile(req: ProfileRequest, db: Session = Depends(get_db)):
 
 @router.get("/profile")
 def get_profile(db: Session = Depends(get_db)):
-    user = db.query(User).first()    # MVP 先用第一条，后续加鉴权
+    user = get_demo_user(db)  # MVP 先用固定用户，后续加鉴权
     if not user:
         return {"code": 0, "data": None, "message": "ok"}
     profile = db.query(UserProfile).filter_by(user_id=user.id).first()
@@ -75,7 +75,7 @@ def get_profile(db: Session = Depends(get_db)):
 
 @router.put("/profile")
 def update_profile(req: ProfileRequest, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         raise HTTPException(400, "画像未创建")
     profile = db.query(UserProfile).filter_by(user_id=user.id).first()

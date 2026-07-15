@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, get_demo_user
 from schemas import PlanListItem, PlanListData, PlanDetailData, RunItem
 from models import User, Plan, PlanItem, Event
 from datetime import datetime
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api", tags=["plans"])
 
 @router.get("/plans")
 def list_plans(page: int = 1, page_size: int = 20, db: Session = Depends(get_db)):
-    user = db.query(User).first()
+    user = get_demo_user(db)
     if not user:
         return {
             "code": 0,
