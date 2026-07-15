@@ -3,7 +3,6 @@
 read_memory — aggregate feedback + history into structured Memory dict.
 update_memory_from_feedback — create/update memory_items from user feedback.
 reflect_and_store_memory_summary — LLM-powered memory reflection from recent runs.
-decay_memory_summary — apply per-round strength decay.
 suppress_memory_summary — user-requested suppression.
 """
 
@@ -565,7 +564,6 @@ def reflect_and_store_memory_summary(
         if isinstance(sc, dict):
             existing_memory = {
                 "memory_summary": existing.content,
-                "memory_strength": sc.get("memory_strength", 0.85),
                 "source_refs": sc.get("source_refs", []),
             }
 
@@ -593,7 +591,6 @@ def reflect_and_store_memory_summary(
             "memory_id": None,
         }
 
-    memory_strength = result.get("memory_strength", 0.85)
     expires_after_turns = result.get("expires_after_turns", 6)
     ref_source_refs = result.get("source_refs", source_refs)
 
@@ -601,12 +598,12 @@ def reflect_and_store_memory_summary(
     mem_id = str(uuid.uuid4())
     expires_at = now + timedelta(days=MEMORY_EXPIRY_DAYS)
     structured_content = {
-        "memory_strength": memory_strength,
         "source_refs": ref_source_refs,
         "expires_after_turns": expires_after_turns,
+        "cleanup_reason": result.get("cleanup_reason"),
         "prompt_version": result.get("prompt_version", ""),
         "used_fallback": result.get("used_fallback", False),
-        "reflected_at": now.isoformat(),
+        "last_refreshed_at": now.isoformat(),
     }
 
     memory_item = MemoryItem(
@@ -618,7 +615,7 @@ def reflect_and_store_memory_summary(
         structured_content=structured_content,
         source_type="reflection",
         source_ref=",".join(ref_source_refs),
-        confidence=memory_strength,
+        confidence=0.5,
         priority=70,
         status="active",
         expires_at=expires_at,
@@ -640,71 +637,8 @@ def reflect_and_store_memory_summary(
         "reflected": True,
         "memory_id": mem_id,
         "memory_summary": memory_summary_text,
-        "memory_strength": memory_strength,
         "source_refs": ref_source_refs,
         "used_fallback": result.get("used_fallback", False),
-    }
-
-
-def decay_memory_summary(
-    user_id: str,
-    *,
-    db: Session,
-) -> dict[str, Any]:
-    """Apply per-round strength decay to all active memory_summary items.
-
-    Called after each plan-day. Items below expiry threshold are marked expired.
-    Returns summary of what was decayed.
-    """
-    now = datetime.now(DEFAULT_TIMEZONE)
-
-    active = (
-        db.query(MemoryItem)
-        .filter_by(user_id=user_id, memory_type="memory_summary", status="active")
-        .all()
-    )
-
-    decayed: list[str] = []
-    expired: list[str] = []
-
-    for m in active:
-        sc = m.structured_content or {}
-        if not isinstance(sc, dict):
-            sc = {}
-
-        current_strength = sc.get("memory_strength", 0.85)
-        new_strength = round(current_strength * 0.85, 2)
-
-        before = {"memory_strength": current_strength, "status": m.status}
-
-        if new_strength < 0.15:
-            # Expire this memory
-            m.status = "expired"
-            m.updated_at = now
-            sc["memory_strength"] = new_strength
-            sc["cleanup_reason"] = "expired_below_threshold"
-            m.structured_content = sc
-            expired.append(m.id)
-        else:
-            sc["memory_strength"] = new_strength
-            m.structured_content = sc
-            m.updated_at = now
-            decayed.append(m.id)
-
-        _write_audit(
-            db, user_id, m.id, "decay", before,
-            {"memory_strength": new_strength, "status": m.status},
-            "post_plan_day_decay",
-        )
-
-    if decayed or expired:
-        db.commit()
-
-    return {
-        "decayed_ids": decayed,
-        "expired_ids": expired,
-        "decayed_count": len(decayed),
-        "expired_count": len(expired),
     }
 
 
@@ -732,7 +666,6 @@ def suppress_memory_summary(
 
     sc = dict(mem.structured_content or {})
     sc["cleanup_reason"] = "user_requested"
-    sc["memory_strength"] = 0.0
     mem.structured_content = sc
 
     _write_audit(

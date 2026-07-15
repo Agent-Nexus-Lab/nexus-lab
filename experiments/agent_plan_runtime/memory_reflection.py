@@ -11,7 +11,6 @@ reflect_on_memory 输出以下字段：
 ├──────────────────┼──────────┼──────────────────────────────────────┤
 │ memory_summary   │ ✅ 入库  │ 自然语言记忆摘要，存入 memory_items  │
 │ source_refs      │ ✅ 入库  │ 参与生成的 run_id 列表，用于溯源     │
-│ memory_strength  │ ✅ 入库  │ 记忆强度 0.0-1.0，每轮 ×0.85 衰减   │
 │ expires_after_turns │ ✅ 入库│ 过期轮数，超时标记 expired           │
 │ cleanup_reason   │ ✅ 入库  │ null/expired/user_requested          │
 │ prompt_version   │ ✅ 入库  │ 生成时使用的 prompt 版本号           │
@@ -19,9 +18,8 @@ reflect_on_memory 输出以下字段：
 │ used_fallback    │ debug   │ 是否使用了规则回退                   │
 └──────────────────┴──────────┴──────────────────────────────────────┘
 
-生命週期函数（由曹昕宇在后端调用）：
-- decay_memory_strength(m) → 每轮 plan-day 后调用
-- is_memory_expired(m) → 判断是否过期
+生命週期函数（由后端调用）：
+- is_memory_expired(m) → 根据 cleanup_reason 判断是否过期
 - suppress_memory(m) → 用户删除后调用
 
 Usage:
@@ -44,7 +42,6 @@ Usage:
     # => {
     #   "memory_summary": "...",
     #   "source_refs": ["run_001", "run_002"],
-    #   "memory_strength": 0.85,
     #   "expires_after_turns": 6,
     #   "cleanup_reason": None,
     # }
@@ -67,10 +64,6 @@ DEFAULT_TIMEOUT_SECONDS = 30
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.0
 
-# 衰减配置
-MEMORY_STRENGTH_DECAY = 0.85          # 每轮 plan-day 后 ×0.85
-MEMORY_EXPIRY_THRESHOLD = 0.15        # 低于此值时标记 expired
-MEMORY_DEFAULT_STRENGTH = 0.85        # 新生成的 memory_summary 初始强度
 MEMORY_DEFAULT_EXPIRES_AFTER = 6      # 默认 6 轮后过期
 
 # Prompt 版本
@@ -93,7 +86,6 @@ _MEMORY_REFLECTION_SYSTEM_PROMPT = """你是复旦大学校园日程助手的记
 {
   "memory_summary": "一段 50-150 字的自然语言记忆摘要",
   "source_refs": ["run_id_1", "run_id_2"],
-  "memory_strength": 0.85,
   "expires_after_turns": 6,
   "cleanup_reason": null
 }
@@ -112,14 +104,8 @@ _MEMORY_REFLECTION_SYSTEM_PROMPT = """你是复旦大学校园日程助手的记
 - "用户对天文学和摄影类活动有明显偏好，连续两轮都选择了天文相关活动。对纯理论讲座不太感兴趣。偏好轻松互动的活动形式。"
 - "用户偏好实践类活动（如工作坊、动手实验），不喜欢商业路演类活动。对邯郸校区活动有地理位置偏好。"
 
-## memory_strength 规则
-- 新生成的记忆，如果有 ≥2 条有效反馈（liked 或 disliked 不为空），设为 0.85
-- 如果只有 1 条反馈，设为 0.60
-- 如果 3 轮都没有反馈，设为 0.30
-
 ## expires_after_turns 规则
 - 默认 6 轮后过期
-- 如果记忆强度低（<0.5），设为 3 轮
 
 ## source_refs 规则
 - 列出参与生成此 memory 的 run_id 列表（从输入 rounds 中获取）
@@ -147,7 +133,7 @@ def reflect_on_memory(
             "rounds": [{"round": int, "request_text": str,
                         "recommended_event_titles": [str],
                         "feedback": {"liked": [str], "disliked": [str]}}],
-            "existing_memory": None | {"memory_summary": str, "memory_strength": float, ...},
+            "existing_memory": None | {"memory_summary": str, ...},
         }
         base_url: MaaS API 地址，默认读环境变量。
         model: 模型名，默认 deepseek-v4-flash。
@@ -158,7 +144,6 @@ def reflect_on_memory(
         {
             "memory_summary": str,
             "source_refs": [str],
-            "memory_strength": float,
             "expires_after_turns": int,
             "cleanup_reason": None | str,
             "error": None | str,
@@ -290,14 +275,10 @@ def _rule_based_reflection(context: dict[str, Any], reason: str = "") -> dict[st
     if not parts:
         parts.append("用户尚未表达明确偏好")
 
-    strength = 0.85 if len(all_liked) + len(all_disliked) >= 2 else 0.60 if len(all_liked) + len(all_disliked) == 1 else 0.30
-    expires = 6 if strength >= 0.5 else 3
-
     return {
         "memory_summary": "；".join(parts) + "。",
         "source_refs": source_refs,
-        "memory_strength": round(strength, 2),
-        "expires_after_turns": expires,
+        "expires_after_turns": MEMORY_DEFAULT_EXPIRES_AFTER,
         "cleanup_reason": None,
         "error": reason if reason else None,
         "used_fallback": True,
@@ -324,12 +305,6 @@ def _normalize_reflection(parsed: dict[str, Any], context: dict[str, Any]) -> di
     memory_summary = str(parsed.get("memory_summary", "")).strip()
     source_refs = parsed.get("source_refs") if isinstance(parsed.get("source_refs"), list) else []
     try:
-        memory_strength = float(parsed.get("memory_strength", MEMORY_DEFAULT_STRENGTH))
-    except (TypeError, ValueError):
-        memory_strength = MEMORY_DEFAULT_STRENGTH
-    memory_strength = max(0.0, min(1.0, memory_strength))
-
-    try:
         expires_after_turns = int(parsed.get("expires_after_turns", MEMORY_DEFAULT_EXPIRES_AFTER))
     except (TypeError, ValueError):
         expires_after_turns = MEMORY_DEFAULT_EXPIRES_AFTER
@@ -340,7 +315,6 @@ def _normalize_reflection(parsed: dict[str, Any], context: dict[str, Any]) -> di
     return {
         "memory_summary": memory_summary,
         "source_refs": [str(r) for r in source_refs],
-        "memory_strength": round(memory_strength, 2),
         "expires_after_turns": expires_after_turns,
         "cleanup_reason": cleanup_reason,
         "error": None,
@@ -353,7 +327,6 @@ def _empty_reflection(status: str, reason: str) -> dict[str, Any]:
     return {
         "memory_summary": "",
         "source_refs": [],
-        "memory_strength": 0.0,
         "expires_after_turns": 1,
         "cleanup_reason": status,
         "error": reason,
@@ -362,37 +335,16 @@ def _empty_reflection(status: str, reason: str) -> dict[str, Any]:
     }
 
 
-def decay_memory_strength(memory: dict[str, Any]) -> dict[str, Any]:
-    """Apply per-round decay to memory strength.
-
-    Called after each plan-day. Returns updated memory dict.
-    """
-    current = memory.get("memory_strength", 0.0)
-    new_strength = round(current * MEMORY_STRENGTH_DECAY, 2)
-    result = dict(memory)
-    result["memory_strength"] = new_strength
-    if new_strength < MEMORY_EXPIRY_THRESHOLD and not result.get("cleanup_reason"):
-        result["cleanup_reason"] = "expired_below_threshold"
-    return result
-
-
 def is_memory_expired(memory: dict[str, Any]) -> bool:
-    """Check if memory should no longer be used.
-
-    user_requested is handled separately — frontend controls display,
-    backend suppresses re-generation.
-    """
+    """Check whether cleanup metadata marks the memory expired."""
     cleanup = memory.get("cleanup_reason")
     if cleanup and cleanup != "user_requested":
         return True
-    if cleanup == "user_requested":
-        return False  # user-suppressed, but not auto-expired
-    return memory.get("memory_strength", 0.0) < MEMORY_EXPIRY_THRESHOLD
+    return False
 
 
 def suppress_memory(memory: dict[str, Any]) -> dict[str, Any]:
     """Mark memory as suppressed (user deleted)."""
     result = dict(memory)
     result["cleanup_reason"] = "user_requested"
-    result["memory_strength"] = 0.0
     return result

@@ -18,7 +18,6 @@
   <view wx:if="{{summaryCard}}" class="panel memory-summary-card">
     <view class="panel-head">
       <view class="panel-title">{{summaryCard.title}}</view>
-      <view class="memory-strength">{{summaryCard.memory_strength_text}}</view>
     </view>
     <view class="memory-content">{{summaryCard.content}}</view>
     <view class="memory-meta-grid">
@@ -31,7 +30,7 @@
         <view class="memory-meta-value">{{summaryCard.updated_at_text}}</view>
       </view>
       <view class="memory-meta-row">
-        <view class="memory-meta-label">衰减规则</view>
+        <view class="memory-meta-label">有效轮次</view>
         <view class="memory-meta-value">{{summaryCard.expires_text}}</view>
       </view>
       <view class="memory-meta-row">
@@ -69,7 +68,6 @@
           <view class="memory-item-title">{{item.title}}</view>
           <view class="memory-item-sub">{{item.memory_scope}} · {{item.source_type}}</view>
         </view>
-        <view class="memory-strength small">{{item.memory_strength_text}}</view>
       </view>
       <view class="memory-item-content">{{item.content}}</view>
       <view class="memory-item-meta">更新 {{item.updated_at_text}} · {{item.expires_text}}</view>

@@ -62,7 +62,6 @@ SAMPLE_3_ROUNDS = {
 EXPECTED_REFLECTION_LLM = {
     "memory_summary": "用户对天文观测类活动有持续偏好，连续两轮选择了观星和观测活动。不喜欢过于学术或商业化的活动（如AI天文摄影、创业路演）。第三轮开始探索实践类活动（工作坊），对邯郸校区有地理位置偏好。偏好轻松、互动、实操型的活动形式。",
     "source_refs": ["run_a1b2c3d4", "run_e5f6g7h8", "run_i9j0k1l2"],
-    "memory_strength": 0.85,
     "expires_after_turns": 6,
     "cleanup_reason": None,
     "error": None,
@@ -74,7 +73,6 @@ EXPECTED_REFLECTION_LLM = {
 EXPECTED_REFLECTION_RULE = {
     "memory_summary": "用户对「校园观星——夏季星空指南、天文协会观测夜——木星观测、Python数据分析入门工作坊」等活动感兴趣；不喜欢「AI时代的天文摄影、创新创业项目路演」类活动。",
     "source_refs": ["run_a1b2c3d4", "run_e5f6g7h8", "run_i9j0k1l2"],
-    "memory_strength": 0.85,
     "expires_after_turns": 6,
     "cleanup_reason": None,
     "error": None,
@@ -114,12 +112,11 @@ SAMPLE_3_ROUNDS_NO_FEEDBACK = {
     "existing_memory": None,
 }
 
-# 预期输出（无反馈 → 低强度）
+# 预期输出（无反馈）
 EXPECTED_NO_FEEDBACK = {
     "memory_summary": "用户尚未表达明确偏好。",
     "source_refs": ["run_x1", "run_x2", "run_x3"],
-    "memory_strength": 0.30,
-    "expires_after_turns": 3,
+    "expires_after_turns": 6,
     "cleanup_reason": None,
     "error": None,
     "used_fallback": True,
@@ -127,23 +124,13 @@ EXPECTED_NO_FEEDBACK = {
 }
 
 # ============================================================
-# 衰减测试
+# 生命周期测试
 # ============================================================
 
 SAMPLE_MEMORY_FOR_DECAY = {
     "memory_summary": "测试记忆",
     "source_refs": ["run_1"],
-    "memory_strength": 0.85,
     "expires_after_turns": 6,
     "cleanup_reason": None,
     "prompt_version": "2026-07-08-v1",
 }
-
-# 1 轮衰减: 0.85 * 0.85 = 0.72
-DECAY_1_ROUND_EXPECTED = 0.72
-# 2 轮衰减: 0.72 * 0.85 = 0.61
-DECAY_2_ROUND_EXPECTED = 0.61
-# 连续衰减到低于阈值 (0.15)
-# 0.85 -> 0.72 -> 0.61 -> 0.52 -> 0.44 -> 0.38 -> 0.32 -> 0.27 -> 0.23 -> 0.20 -> 0.17 -> 0.14
-# 需要 ~11 轮衰减到低于 0.15
-DECAY_ROUNDS_UNTIL_EXPIRED = 11
