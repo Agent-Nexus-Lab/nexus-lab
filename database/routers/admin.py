@@ -327,6 +327,7 @@ def get_data_health(db: Session = Depends(get_db)):
     }
 
 
+# ========== 已修复时区报错的接口 ==========
 @router.get("/events/quality-summary")
 def get_quality_summary(
     now: str | None = None,
@@ -343,6 +344,9 @@ def get_quality_summary(
     else:
         ref_now = datetime.now(timezone.utc)
 
+    # 【核心修复】统一转为无时区UTC时间，和start_utc/end_utc完全匹配
+    ref_now = _as_utc_naive(ref_now)
+
     events_query = db.query(Event)
     if campus:
         events_query = events_query.filter_by(campus=campus)
@@ -355,11 +359,20 @@ def get_quality_summary(
 
     total_events = len(events)
     visible_events = sum(1 for e in events if e.is_user_visible is not False)
-    future_events = sum(1 for e in events if e.start_time and e.start_time >= ref_now)
-    expired_events = sum(1 for e in events if e.end_time and e.end_time < ref_now)
+    future_events = 0
+    expired_events = 0
+
+    for e in events:
+        st = start_utc(e)
+        et = end_utc(e)
+        if st and st >= ref_now:
+            future_events += 1
+        if et and et < ref_now:
+            expired_events += 1
+
     stale_events = sum(
         1 for e in events
-        if e.updated_at and (ref_now - e.updated_at).days > stale_days
+        if e.updated_at and (ref_now - _as_utc_naive(e.updated_at)).days > stale_days
     )
     missing_time_count = sum(1 for e in events if not e.start_time or not e.end_time)
     missing_location_count = sum(1 for e in events if not e.location)
@@ -372,9 +385,11 @@ def get_quality_summary(
         c = e.campus or "未知"
         if c not in campus_map:
             campus_map[c] = {"future_events": 0, "expired_events": 0}
-        if start_utc(e) and start_utc(e) >= ref_now:
+        st = start_utc(e)
+        et = end_utc(e)
+        if st and st >= ref_now:
             campus_map[c]["future_events"] += 1
-        if end_utc(e) and end_utc(e) < ref_now:
+        if et and et < ref_now:
             campus_map[c]["expired_events"] += 1
     by_campus = [
         CampusBreakdown(campus=c, future_events=v["future_events"], expired_events=v["expired_events"])
@@ -391,7 +406,8 @@ def get_quality_summary(
         sid = e.source_id or "unknown"
         if sid not in source_map:
             source_map[sid] = {"future_events": 0, "missing_evidence_count": 0}
-        if start_utc(e) and start_utc(e) >= ref_now:
+        st = start_utc(e)
+        if st and st >= ref_now:
             source_map[sid]["future_events"] += 1
         if not e.evidence_text:
             source_map[sid]["missing_evidence_count"] += 1
