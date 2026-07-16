@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""cn8n API 客户端：微信公众号 + 小红书搜索。
+"""cn8n API 客户端：微信公众号文章正文 + 小红书搜索。
 
 API key 从环境变量 CN8N_API_KEY 读取。
 Base URL: http://api.cn8n.com
@@ -8,7 +8,7 @@ Base URL: http://api.cn8n.com
 已实现：
   - get_wechat_history(account, page)    → 公众号历史文章（分页）
   - get_wechat_today(account)            → 公众号今日文章
-  - get_article_detail_text(article_url) → 文章详情正文（待 cn8n 补充文档）
+  - get_article_detail_text(article_url) → 文章详情正文（HTML 转纯文本）
   - search_wechat_articles(keyword, page)→ 搜索公众号文章（待 cn8n 补充文档）
   - search_xiaohongshu(keyword, page)    → 小红书搜索笔记
 """
@@ -21,6 +21,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+from bs4 import BeautifulSoup
 
 # 自动加载项目根目录的 .env
 try:
@@ -76,10 +78,15 @@ def _post(path: str, body: dict[str, Any], timeout: int = TIMEOUT) -> dict[str, 
                 result: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             body_text = e.read().decode("utf-8", errors="replace")
+            if e.code in {408, 429, 500, 502, 503, 504} and attempt < MAX_RETRIES:
+                last_err = e
+                time.sleep(1.0 * (attempt + 1))
+                continue
             raise Cn8nError(
                 f"cn8n HTTP {e.code}: {body_text[:300]}",
                 code=str(e.code),
                 cn8n_message=body_text[:300],
+                retryable=e.code in {408, 429, 500, 502, 503, 504},
             ) from e
         except (urllib.error.URLError, OSError, TimeoutError) as e:
             last_err = e
@@ -163,8 +170,9 @@ def get_wechat_today(account: str) -> list[dict[str, Any]]:
 def get_article_detail_text(article_url: str) -> str:
     """获取微信公众号文章正文内容。
 
-    当前 cn8n 文档未提供文章正文提取接口（read_zan 只返回阅读/点赞数）。
-    此函数为 auto_collector.extract_and_map() 预留，待 cn8n 补充文档后实现。
+    cn8n 的 article_html 接口返回完整文章 HTML；这里在采集边界统一转成
+    纯文本，避免把 HTML 标签直接交给 MaaS。正文接口失败时由
+    auto_collector 继续按现有契约回退到 digest。
 
     Args:
         article_url: 文章链接。
@@ -172,10 +180,25 @@ def get_article_detail_text(article_url: str) -> str:
     Returns:
         文章正文纯文本。
     """
-    raise NotImplementedError(
-        "cn8n 文章正文接口待文档补充。已知文档覆盖 read_zan（阅读/点赞），"
-        "无正文提取端点。请确认 cn8n 是否已上线文章正文提取功能。"
-    )
+    result = _post("/p4/fbmain/monitor/v3/article_html", {"url": article_url})
+    data = result.get("data", {})
+    payload = data.get("result", {}) if isinstance(data, dict) else {}
+    html = payload.get("html", "") if isinstance(payload, dict) else ""
+    if not isinstance(html, str) or not html.strip():
+        raise Cn8nError("cn8n article_html 响应不含正文 html")
+
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup.find_all(["script", "style", "noscript", "svg"]):
+        tag.decompose()
+    candidates = [soup.select_one("#js_content"), soup.select_one("article"), soup.body, soup]
+    for content in candidates:
+        if content is None:
+            continue
+        text = content.get_text(separator="\n", strip=True)
+        text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+        if text:
+            return text
+    return ""
 
 
 def search_wechat_articles(keyword: str, page: int = 1) -> list[dict[str, Any]]:
