@@ -139,6 +139,35 @@ class CollectorReliabilityTest(unittest.TestCase):
         self.assertEqual(first[0]["id"], "a1")
         self.assertEqual(second[0]["id"], "a2")
 
+    def test_collect_account_only_keeps_latest_two_articles(self):
+        class FakeCn8n:
+            @staticmethod
+            def get_wechat_history(account, page=1):
+                return [{"title": str(i), "url": f"https://example.com/{i}"} for i in range(5)]
+
+        result = auto_collector.collect_account(
+            {"id": "account-1", "name": "Source"},
+            dry_run=False,
+            cn8n_mod=FakeCn8n,
+            warnings=[],
+        )
+
+        self.assertEqual(len(result["articles"]), 2)
+
+    def test_filter_unprocessed_articles_skips_completed_before_fetching_body(self):
+        articles = [
+            {"url": "https://example.com/old"},
+            {"url": "https://example.com/new"},
+        ]
+        state = FakeArticleState({"status": "completed", "content_hash": "hash"})
+
+        pending, skipped = auto_collector.filter_unprocessed_articles(
+            articles, db=FakeDb(), article_state=state, warnings=[]
+        )
+
+        self.assertEqual(skipped, 2)
+        self.assertEqual(pending, [])
+
 
 if __name__ == "__main__":
     unittest.main()
