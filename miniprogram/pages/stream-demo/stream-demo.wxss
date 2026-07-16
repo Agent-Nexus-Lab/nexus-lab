@@ -1,0 +1,42 @@
+.endpoint-input {
+  height: 88rpx;
+  margin: 22rpx 0;
+  padding: 0 24rpx;
+  border: 1rpx solid #d5ddd8;
+  border-radius: 16rpx;
+  background: #f7faf5;
+  color: #101827;
+  font-size: 26rpx;
+  box-sizing: border-box;
+}
+
+.status-line {
+  margin-top: 14rpx;
+  color: #25324a;
+  font-size: 26rpx;
+}
+
+.empty-text,
+.note-text {
+  margin-top: 16rpx;
+  color: #64748b;
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+
+.chunk-line {
+  margin-top: 16rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid #cfe5dc;
+  border-radius: 16rpx;
+  background: #f6f9ff;
+  color: #1e293b;
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+
+.chunk-index {
+  margin-right: 12rpx;
+  color: #245f59;
+  font-weight: 900;
+}

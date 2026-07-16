@@ -1,0 +1,11 @@
+{
+  "nickname": "样例用户",
+  "campus": "江湾",
+  "identity": "本科生",
+  "raw_preference_text": "最近对天文、戏剧、图书馆活动感兴趣，晚上和周末下午有空。",
+  "interest_tags": ["天文", "戏剧", "图书馆", "参观"],
+  "preferred_campuses": ["江湾", "邯郸"],
+  "available_time": "晚上和周末下午",
+  "activity_style_tags": ["轻松", "互动"],
+  "profile_summary": "偏好天文、戏剧、图书馆和轻松互动活动。"
+}

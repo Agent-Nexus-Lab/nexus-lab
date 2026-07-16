@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas import (
@@ -6,12 +6,52 @@ from schemas import (
     SourceItem, SourceListData,
     ImportUrlRequest, ImportUrlData,
     AdminEventItem, EventListData,
+    DataHealthData,
+    CollectionRunRequest, CollectionRunData, CollectionRunListData,
+    CampusBreakdown, SourceBreakdownItem, QualitySummaryData,
 )
-from models import Source, RawDocument, Event
+from models import Source, RawDocument, Event, CollectionRun
+from collection_service import (
+    collection_run_to_dict,
+    create_collection_run,
+    execute_collection_run,
+    get_collection_runs,
+)
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+def _as_utc_naive(value: datetime) -> datetime:
+    if value.tzinfo:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def _event_is_visible(event: Event) -> bool:
+    return event.is_user_visible is not False
+
+
+def _source_bucket(event: Event, sources_by_id: dict[str, Source]) -> str:
+    if event.source_id and event.source_id in sources_by_id:
+        return sources_by_id[event.source_id].source_type or "unknown"
+    if event.source_name:
+        return event.source_name
+    return "unknown"
+
+
+def start_utc(event: Event) -> datetime | None:
+    if event.start_time is None:
+        return None
+    return _as_utc_naive(event.start_time)
+
+
+def end_utc(event: Event) -> datetime | None:
+    if event.end_time is None:
+        return None
+    return _as_utc_naive(event.end_time)
 
 
 @router.post("/sources")
@@ -129,6 +169,273 @@ def list_events(page: int = 1, page_size: int = 20, db: Session = Depends(get_db
         ))
     return {
         "code": 0,
-        "data": EventListData(items=items, total=(total-1)/page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
+        "data": EventListData(items=items, total=(total-1)//page_size+1, page=page, page_size=page_size).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.post("/import-events")
+def import_events(
+    drafts: list[dict[str, Any]] = Body(..., description="Event draft list"),
+    source_id: str | None = Body(None),
+    db: Session = Depends(get_db),
+):
+    """Batch import event drafts into the DB (upsert by source_url+title).
+
+    Mirrors the auto_collector --commit path but available via API.
+    Each draft needs at minimum a "title" field.
+    """
+    from import_events import import_many as _import_many
+
+    result = _import_many(drafts, db=db, source_id=source_id)
+    db.commit()
+
+    return {
+        "code": 0,
+        "data": result,
+        "message": f"imported={result['imported']}, updated={result['updated']}, "
+                   f"skipped={result['skipped']}, failed={result['failed']}",
+    }
+
+
+@router.post("/collection-runs")
+def trigger_collection_run(
+    req: CollectionRunRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    run = create_collection_run(
+        db=db,
+        trigger_method="manual",
+        sources=req.sources,
+    )
+    background_tasks.add_task(
+        execute_collection_run,
+        run.batch_id,
+        source_ids=req.sources,
+        limit=req.limit,
+    )
+    return {
+        "code": 0,
+        "data": CollectionRunData(**collection_run_to_dict(run)).model_dump(mode="json"),
+        "message": "collection started",
+    }
+
+
+@router.get("/collection-runs")
+def list_collection_runs(
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db),
+):
+    total = db.query(CollectionRun).count()
+    runs = get_collection_runs(
+        db=db,
+        offset=(page - 1) * page_size,
+        limit=page_size,
+    )
+    data = CollectionRunListData(
+        items=[CollectionRunData(**collection_run_to_dict(run)) for run in runs],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+    return {"code": 0, "data": data.model_dump(mode="json"), "message": "ok"}
+
+
+@router.get("/collection-runs/{batch_id}")
+def get_collection_run(batch_id: str, db: Session = Depends(get_db)):
+    runs = get_collection_runs(db=db, batch_id=batch_id, limit=1)
+    if not runs:
+        raise HTTPException(404, "采集批次不存在")
+    return {
+        "code": 0,
+        "data": CollectionRunData(**collection_run_to_dict(runs[0])).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+@router.get("/data-health")
+def get_data_health(db: Session = Depends(get_db)):
+    now = _as_utc_naive(datetime.now(timezone.utc))
+    future_3d = now + timedelta(days=3)
+    future_7d = now + timedelta(days=7)
+    future_14d = now + timedelta(days=14)
+    expired_cutoff = now - timedelta(days=7)
+
+    events = db.query(Event).all()
+    sources = db.query(Source).all()
+    sources_by_id = {source.id: source for source in sources}
+
+    visible_events = [event for event in events if _event_is_visible(event)]
+    future_events = [
+        event for event in visible_events
+        if event.start_time and _as_utc_naive(event.start_time) >= now
+    ]
+
+    def count_before(cutoff: datetime) -> int:
+        return sum(1 for event in future_events if _as_utc_naive(event.start_time) < cutoff)
+
+    source_breakdown: dict[str, int] = {}
+    for event in visible_events:
+        bucket = _source_bucket(event, sources_by_id)
+        source_breakdown[bucket] = source_breakdown.get(bucket, 0) + 1
+
+    recently_expired = sum(
+        1 for event in visible_events
+        if event.end_time
+        and expired_cutoff <= _as_utc_naive(event.end_time) < now
+    )
+
+    recent_runs = get_collection_runs(db=db, limit=3)
+    latest_run = recent_runs[0] if recent_runs else None
+    last_collection_time = latest_run.finished_at or latest_run.triggered_at if latest_run else None
+    last_collection_result = latest_run.status if latest_run else "unknown"
+
+    future_events_3d = count_before(future_3d)
+    future_events_7d = count_before(future_7d)
+    future_events_14d = count_before(future_14d)
+
+    alerts = []
+    if future_events_3d < 5:
+        alerts.append("未来 3 天活动不足 5 个，建议立即触发采集。")
+    if future_events_7d < 5:
+        alerts.append("未来 7 天活动不足 5 个，推荐结果可能偏少。")
+    if not last_collection_time:
+        alerts.append("还没有采集记录，请确认自动采集器是否已接入。")
+    elif now - _as_utc_naive(last_collection_time) > timedelta(hours=24):
+        alerts.append("最近一次采集已超过 24 小时，请检查采集任务。")
+    if last_collection_result not in {"success", "completed", "done", "ok", "unknown"}:
+        alerts.append(f"最近一次采集状态为 {last_collection_result}，需要排查。")
+
+    return {
+        "code": 0,
+        "data": DataHealthData(
+            total_events=len(visible_events),
+            future_events_3d=future_events_3d,
+            future_events_7d=future_events_7d,
+            future_events_14d=future_events_14d,
+            recently_expired=recently_expired,
+            sources_breakdown=source_breakdown,
+            last_collection_time=last_collection_time,
+            last_collection_result=last_collection_result,
+            is_healthy=len(alerts) == 0,
+            alerts=alerts,
+            collection_logs=[collection_run_to_dict(run) for run in recent_runs],
+        ).model_dump(mode="json"),
+        "message": "ok",
+    }
+
+
+# ========== 已修复时区报错的接口 ==========
+@router.get("/events/quality-summary")
+def get_quality_summary(
+    now: str | None = None,
+    campus: str | None = None,
+    source_id: str | None = None,
+    db: Session = Depends(get_db),
+):
+    ref_now: datetime
+    if now:
+        try:
+            ref_now = datetime.fromisoformat(now)
+        except ValueError:
+            ref_now = datetime.now(timezone.utc)
+    else:
+        ref_now = datetime.now(timezone.utc)
+
+    # 【核心修复】统一转为无时区UTC时间，和start_utc/end_utc完全匹配
+    ref_now = _as_utc_naive(ref_now)
+
+    events_query = db.query(Event)
+    if campus:
+        events_query = events_query.filter_by(campus=campus)
+    if source_id:
+        events_query = events_query.filter_by(source_id=source_id)
+
+    events = events_query.all()
+
+    stale_days = 7
+
+    total_events = len(events)
+    visible_events = sum(1 for e in events if e.is_user_visible is not False)
+    future_events = 0
+    expired_events = 0
+
+    for e in events:
+        st = start_utc(e)
+        et = end_utc(e)
+        if st and st >= ref_now:
+            future_events += 1
+        if et and et < ref_now:
+            expired_events += 1
+
+    stale_events = sum(
+        1 for e in events
+        if e.updated_at and (ref_now - _as_utc_naive(e.updated_at)).days > stale_days
+    )
+    missing_time_count = sum(1 for e in events if not e.start_time or not e.end_time)
+    missing_location_count = sum(1 for e in events if not e.location)
+    missing_source_url_count = sum(1 for e in events if not e.source_url)
+    missing_evidence_count = sum(1 for e in events if not e.evidence_text)
+
+    # by_campus
+    campus_map: dict[str, dict[str, int]] = {}
+    for e in events:
+        c = e.campus or "未知"
+        if c not in campus_map:
+            campus_map[c] = {"future_events": 0, "expired_events": 0}
+        st = start_utc(e)
+        et = end_utc(e)
+        if st and st >= ref_now:
+            campus_map[c]["future_events"] += 1
+        if et and et < ref_now:
+            campus_map[c]["expired_events"] += 1
+    by_campus = [
+        CampusBreakdown(campus=c, future_events=v["future_events"], expired_events=v["expired_events"])
+        for c, v in sorted(campus_map.items())
+    ]
+
+    # by_source
+    all_source_ids = {e.source_id for e in events if e.source_id}
+    sources = db.query(Source).filter(Source.id.in_(all_source_ids)).all() if all_source_ids else []
+    source_name_map = {s.id: s.name for s in sources}
+
+    source_map: dict[str, dict[str, int]] = {}
+    for e in events:
+        sid = e.source_id or "unknown"
+        if sid not in source_map:
+            source_map[sid] = {"future_events": 0, "missing_evidence_count": 0}
+        st = start_utc(e)
+        if st and st >= ref_now:
+            source_map[sid]["future_events"] += 1
+        if not e.evidence_text:
+            source_map[sid]["missing_evidence_count"] += 1
+    by_source = [
+        SourceBreakdownItem(
+            source_id=sid,
+            source_name=source_name_map.get(sid, "未知来源"),
+            future_events=v["future_events"],
+            missing_evidence_count=v["missing_evidence_count"],
+        )
+        for sid, v in sorted(source_map.items())
+    ]
+
+    return {
+        "code": 0,
+        "data": QualitySummaryData(
+            total_events=total_events,
+            future_events=future_events,
+            expired_events=expired_events,
+            visible_events=visible_events,
+            stale_events=stale_events,
+            missing_time_count=missing_time_count,
+            missing_location_count=missing_location_count,
+            missing_source_url_count=missing_source_url_count,
+            missing_evidence_count=missing_evidence_count,
+            by_campus=by_campus,
+            by_source=by_source,
+            generated_at=datetime.now(timezone.utc),
+        ).model_dump(mode="json"),
         "message": "ok",
     }

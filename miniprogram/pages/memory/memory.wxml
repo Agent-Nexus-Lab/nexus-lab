@@ -1,0 +1,88 @@
+<view class="page memory-page">
+  <view class="hero memory-hero">
+    <view class="eyebrow">偏好记忆</view>
+    <view class="title">我的推荐记忆</view>
+    <view class="subtitle">展示后端当前 active memory。删除后会停止用于下一轮推荐理解。</view>
+  </view>
+
+  <view wx:if="{{deletedNotice}}" class="notice-card">{{deletedNotice}}</view>
+
+  <view class="panel status-panel">
+    <view class="panel-head">
+      <view class="panel-title">下一轮使用状态</view>
+    </view>
+    <view class="status-copy">{{queryRewriteStatus}}</view>
+    <button class="secondary-button" loading="{{loading}}" bindtap="loadMemory">刷新记忆</button>
+  </view>
+
+  <view wx:if="{{summaryCard}}" class="panel memory-summary-card">
+    <view class="panel-head">
+      <view class="panel-title">{{summaryCard.title}}</view>
+    </view>
+    <view class="memory-content">{{summaryCard.content}}</view>
+    <view class="memory-meta-grid">
+      <view class="memory-meta-row">
+        <view class="memory-meta-label">来源摘要</view>
+        <view class="memory-meta-value">{{summaryCard.source_refs_text}}</view>
+      </view>
+      <view class="memory-meta-row">
+        <view class="memory-meta-label">更新时间</view>
+        <view class="memory-meta-value">{{summaryCard.updated_at_text}}</view>
+      </view>
+      <view class="memory-meta-row">
+        <view class="memory-meta-label">有效轮次</view>
+        <view class="memory-meta-value">{{summaryCard.expires_text}}</view>
+      </view>
+      <view class="memory-meta-row">
+        <view class="memory-meta-label">清理原因</view>
+        <view class="memory-meta-value">{{summaryCard.cleanup_reason}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="empty-state">
+    <view class="empty-title">正在读取偏好记忆</view>
+    <view class="empty-text">连接后端 /api/memory。</view>
+  </view>
+
+  <view wx:elif="{{errorMessage}}" class="empty-state warning-state">
+    <view class="empty-title">记忆读取失败</view>
+    <view class="empty-text">{{errorMessage}}</view>
+    <button class="primary-button" bindtap="loadMemory">重新读取</button>
+  </view>
+
+  <view wx:elif="{{!hasSummary}}" class="empty-state">
+    <view class="empty-title">暂无 memory_summary</view>
+    <view class="empty-text">后端还没有返回 memory_summary。可以继续生成日程或提交反馈，等待下一轮记忆总结生成。</view>
+    <button class="primary-button" bindtap="goPlan">去生成日程</button>
+  </view>
+
+  <view wx:else class="panel memory-list-panel">
+    <view class="panel-head">
+      <view class="panel-title">全部 active memory</view>
+      <view class="memory-count">{{memories.length}} 条</view>
+    </view>
+    <view wx:for="{{memories}}" wx:key="memory_id" class="memory-item">
+      <view class="memory-item-head">
+        <view>
+          <view class="memory-item-title">{{item.title}}</view>
+          <view class="memory-item-sub">{{item.memory_scope}} · {{item.source_type}}</view>
+        </view>
+      </view>
+      <view class="memory-item-content">{{item.content}}</view>
+      <view class="memory-item-meta">更新 {{item.updated_at_text}} · {{item.expires_text}}</view>
+      <button
+        class="delete-button"
+        loading="{{item.deleting}}"
+        data-id="{{item.memory_id}}"
+        data-index="{{index}}"
+        bindtap="deleteMemory"
+      >删除这条记忆</button>
+    </view>
+  </view>
+
+  <view wx:if="{{debugText}}" class="panel debug-panel">
+    <view class="panel-title">开发调试信息</view>
+    <text selectable class="debug-text">{{debugText}}</text>
+  </view>
+</view>

@@ -27,6 +27,10 @@ class Intent:
     date_scope: str = "this_week"                   # today / tomorrow / this_week
     explicit_campuses: tuple[str, ...] = ()         # campuses mentioned in request text
     max_items: int = 4                              # desired number of results
+    # query rewrite 产出（李颖哲）：enriched_query 的 embedding，供 semantic interest_match。
+    # 今天无 query rewrite，留 None → score_interest_match fallback 到 keyword。
+    query_embedding: tuple[float, ...] | None = None
+    embedding_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -61,11 +65,120 @@ class Profile:
 
 @dataclass(frozen=True)
 class Memory:
-    """Conversation context — V1 stub, reserved for future use."""
+    """Conversation context — carries session-level signals into scoring."""
 
     session_id: str = ""
     recent_query_texts: tuple[str, ...] = ()        # recent requests (for dedup/refinement)
-    recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids
+    liked_tags: tuple[str, ...] = ()                # tags the user has liked → soft boost
+    disliked_tags: tuple[str, ...] = ()             # tags the user dislikes → soft penalty
+    negative_keywords: tuple[str, ...] = ()         # keywords to penalize → soft penalty
+    liked_event_ids: tuple[str, ...] = ()           # events user liked → similar get boost
+    disliked_event_ids: tuple[str, ...] = ()        # events user disliked → similar get penalty
+    recent_plan_event_ids: tuple[str, ...] = ()     # already-recommended event_ids → repeat penalty
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any] | None) -> Memory:
+        """Build Memory from the dict returned by read_memory()."""
+        if d is None:
+            return cls()
+        return cls(
+            session_id=str(d.get("session_id") or ""),
+            recent_query_texts=tuple(d.get("recent_query_texts") or ()),
+            liked_tags=tuple(d.get("liked_tags") or ()),
+            disliked_tags=tuple(d.get("disliked_tags") or ()),
+            negative_keywords=tuple(d.get("negative_keywords") or ()),
+            liked_event_ids=tuple(d.get("liked_event_ids") or ()),
+            disliked_event_ids=tuple(d.get("disliked_event_ids") or ()),
+            recent_plan_event_ids=tuple(d.get("recent_plan_event_ids") or ()),
+        )
+
+
+# ===========================================================================
+# Memory subsets — for cache key generation (Scoring vs Display)
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class ScoringMemory:
+    """Memory subset that affects event scoring/ranking.
+
+    Used in plan_result_cache key — when these fields are unchanged,
+    the sorted result is identical and can be served from cache.
+    """
+
+    liked_tags: tuple[str, ...] = ()
+    disliked_tags: tuple[str, ...] = ()
+    negative_keywords: tuple[str, ...] = ()
+    liked_event_ids: tuple[str, ...] = ()
+    disliked_event_ids: tuple[str, ...] = ()
+    recent_plan_event_ids: tuple[str, ...] = ()
+
+    @classmethod
+    def from_memory(cls, m: Memory) -> ScoringMemory:
+        return cls(
+            liked_tags=m.liked_tags,
+            disliked_tags=m.disliked_tags,
+            negative_keywords=m.negative_keywords,
+            liked_event_ids=m.liked_event_ids,
+            disliked_event_ids=m.disliked_event_ids,
+            recent_plan_event_ids=m.recent_plan_event_ids,
+        )
+
+    def cache_hash(self) -> str:
+        import hashlib
+        import json
+
+        return hashlib.md5(
+            json.dumps(
+                {
+                    "lt": sorted(self.liked_tags),
+                    "dt": sorted(self.disliked_tags),
+                    "nk": sorted(self.negative_keywords),
+                    "le": sorted(self.liked_event_ids),
+                    "de": sorted(self.disliked_event_ids),
+                    "rp": sorted(self.recent_plan_event_ids),
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()[:12]
+
+
+@dataclass(frozen=True)
+class DisplayMemory:
+    """Memory subset that affects LLM summary/reason wording.
+
+    Used in rewrite_cache key — when these fields are unchanged,
+    LLM-generated text can be reused for the same plan items.
+    """
+
+    recent_query_texts: tuple[str, ...] = ()
+    liked_tags: tuple[str, ...] = ()
+    disliked_tags: tuple[str, ...] = ()
+
+    @classmethod
+    def from_memory(cls, m: Memory) -> DisplayMemory:
+        return cls(
+            recent_query_texts=m.recent_query_texts,
+            liked_tags=m.liked_tags,
+            disliked_tags=m.disliked_tags,
+        )
+
+    def cache_hash(self) -> str:
+        import hashlib
+        import json
+
+        return hashlib.md5(
+            json.dumps(
+                {
+                    "rq": list(self.recent_query_texts),
+                    "lt": sorted(self.liked_tags),
+                    "dt": sorted(self.disliked_tags),
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+            ).encode()
+        ).hexdigest()[:12]
 
 
 # ===========================================================================
@@ -96,6 +209,18 @@ class SoftPreferences:
     preferred_time_of_day: str = ""
     text_search: str = ""
     boost_tags: tuple[str, ...] = ()
+    # Memory-derived soft adjustments (penalties / boosts from conversation context)
+    penalty_event_ids: tuple[str, ...] = ()
+    penalty_disliked_tags: tuple[str, ...] = ()
+    penalty_negative_keywords: tuple[str, ...] = ()
+    boost_liked_tags: tuple[str, ...] = ()
+    boost_liked_event_ids: tuple[str, ...] = ()
+    penalty_disliked_event_ids: tuple[str, ...] = ()
+    # Semantic interest_match：query embedding 与 event.summary_embedding 的 cosine。
+    # 由 query rewrite 产出（李颖哲），曹昕宇入库时写 summary_embedding。
+    # 两者均存在时 score_interest_match 走语义路径，否则 fallback 到 keyword。
+    query_embedding: tuple[float, ...] | None = None
+    embedding_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -125,7 +250,7 @@ class MatchedEvent:
 
     event: dict[str, Any]
     score: float = 0.0
-    score_components: dict[str, float] = field(default_factory=dict)
+    score_components: dict[str, Any] = field(default_factory=dict)
     matched_terms: list[str] = field(default_factory=list)
 
 
@@ -140,6 +265,7 @@ class SearchResult:
     total_before_filter: int
     rejections: list[dict[str, str]] = field(default_factory=list)
     is_stale: bool = False
+    timings_ms: dict[str, float] = field(default_factory=dict)
 
 
 # ===========================================================================

@@ -13,6 +13,28 @@
     <view class="request-card">{{result.request_text}}</view>
   </view>
 
+  <view class="quick-actions">
+    <button class="history-button" bindtap="goHistory">查看历史规划</button>
+    <button class="history-button" bindtap="goMemory">查看偏好记忆</button>
+  </view>
+
+  <view wx:if="{{composer.hasContent}}" class="panel composer-panel">
+    <view class="panel-head">
+      <view class="panel-title">推荐说明</view>
+      <view class="field-name">Agent 总结</view>
+    </view>
+    <view wx:if="{{composer.summary}}" class="composer-main">{{composer.summary}}</view>
+    <view wx:if="{{composer.recommendedItemsText}}" class="composer-row">
+      <view class="composer-label">推荐重点</view>
+      <view class="composer-value">{{composer.recommendedItemsText}}</view>
+    </view>
+    <view wx:if="{{composer.tradeoffsText}}" class="composer-row">
+      <view class="composer-label">取舍说明</view>
+      <view class="composer-value">{{composer.tradeoffsText}}</view>
+    </view>
+    <view wx:if="{{composer.followUpQuestion}}" class="composer-follow">{{composer.followUpQuestion}}</view>
+  </view>
+
   <view class="panel">
     <view class="panel-head">
       <view class="panel-title">活动卡片</view>
@@ -27,7 +49,7 @@
     <view
       wx:else
       wx:for="{{result.items}}"
-      wx:key="event_id"
+      wx:key="feedback_key"
       class="event-card"
     >
       <view class="event-topline">
@@ -38,10 +60,22 @@
       <view class="event-summary">{{item.summary}}</view>
 
       <view class="event-meta">
-        <view>时间：{{item.time_text}}</view>
-        <view>地点：{{item.location}}</view>
-        <view>校区：{{item.campus}}</view>
-        <view>主办：{{item.organizer}}</view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-time"></view>
+          <view>时间：{{item.time_text}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-location"></view>
+          <view>地点：{{item.location}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-campus"></view>
+          <view>校区：{{item.campus}}</view>
+        </view>
+        <view class="event-meta-row">
+          <view class="meta-icon meta-organizer"></view>
+          <view>主办：{{item.organizer}}</view>
+        </view>
       </view>
 
       <view class="tag-row">
@@ -53,17 +87,73 @@
         >{{tag}}</view>
       </view>
 
-      <view class="reason-box">{{item.reason_text}}</view>
-      <view class="source-text">
-        来源：
-        <text
-          wx:if="{{item.has_source_url}}"
-          class="source-link"
-          data-url="{{item.source_url}}"
-          bindtap="copySourceUrl"
-        >查看来源</text>
-        <text wx:else>{{item.source_url}}</text>
+      <view wx:if="{{item.has_matched_terms}}" class="matched-term-row">
+        <view class="matched-term-label">命中词</view>
+        <view
+          wx:for="{{item.matched_terms}}"
+          wx:key="*this"
+          wx:for-item="term"
+          class="matched-term-chip"
+        >{{term}}</view>
       </view>
+
+      <view class="reason-box">{{item.reason_text}}</view>
+
+      <view wx:if="{{item.has_score_reasons}}" class="score-reason-grid">
+        <view
+          wx:for="{{item.score_reasons}}"
+          wx:key="id"
+          wx:for-item="reason"
+          class="score-reason-chip"
+        >
+          <text class="score-reason-label">{{reason.label}}</text>
+          <text class="score-reason-value">{{reason.value}}</text>
+        </view>
+      </view>
+
+      <view class="source-row">
+        <view class="source-label">来源</view>
+        <button
+          wx:if="{{item.has_source_url}}"
+          class="source-inline-link"
+          data-index="{{index}}"
+          bindtap="openSource"
+        >{{item.source_text}}</button>
+        <view wx:else class="source-inline-text">{{item.source_text}}</view>
+      </view>
+
+      <view class="feedback-row">
+        <button
+          class="feedback-button {{item.feedback_type === 'like' ? 'active' : ''}}"
+          loading="{{item.feedback_pending && item.feedback_type === 'like'}}"
+          data-index="{{index}}"
+          data-type="like"
+          bindtap="submitFeedback"
+        >
+          <view class="feedback-icon icon-like"></view>
+          <text>{{item.feedback_type === 'like' ? '已喜欢' : '喜欢'}}</text>
+        </button>
+        <button
+          class="feedback-button {{item.feedback_type === 'dislike' ? 'danger active' : ''}}"
+          loading="{{item.feedback_pending && item.feedback_type === 'dislike'}}"
+          data-index="{{index}}"
+          data-type="dislike"
+          bindtap="submitFeedback"
+        >
+          <view class="feedback-icon icon-dislike"></view>
+          <text>{{item.feedback_type === 'dislike' ? '已减少推荐' : '不感兴趣'}}</text>
+        </button>
+        <button
+          wx:if="{{item.has_source_url}}"
+          class="feedback-button source"
+          data-index="{{index}}"
+          bindtap="openSource"
+        >
+          <view class="feedback-icon icon-source"></view>
+          <text>{{item.source_clicked ? '已查看来源' : '查看来源'}}</text>
+        </button>
+      </view>
+
     </view>
   </view>
 

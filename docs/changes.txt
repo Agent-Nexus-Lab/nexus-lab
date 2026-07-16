@@ -1,0 +1,10 @@
+现在现已第二阶段规划为基础设计接口，以构建记忆功能为核心，做了如下改动：
+1. plan_runs没加date_scope因为“今日”一直在变看绝对时间就行
+2. stage并到status中，判断一下是改写部分耗时太长还是别的，改写的话不需要做cache部分
+问题：
+1. peofile接口中的memory_summary怎样聚合生成
+2. 第二阶段的架构中给plan_item新加的matched_terms和matched_reasons这个是不是要在plan_day_funct中返回还是直接删掉？
+3. plan_run的client_context空
+4. intent_parser需要封装吗
+5. plan_runs中的stage，build_schedule, rewrite后端不能区分
+6. GET /api/agent/runs/{run_id}输出的progress不存在于数据库

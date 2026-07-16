@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">技术验证</view>
+    <view class="title">分块流式输出</view>
+    <view class="subtitle">这个页面只用于验证微信小程序端能否稳定接收 chunk，不接入正式日程生成链路。</view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-title">验证接口</view>
+    <input
+      class="endpoint-input"
+      value="{{endpoint}}"
+      bindinput="onEndpointInput"
+      placeholder="/agent/stream-demo"
+    />
+    <button class="primary-button" loading="{{testing}}" bindtap="startTest">开始验证</button>
+  </view>
+
+  <view class="panel">
+    <view class="panel-title">接收结果</view>
+    <view class="status-line">状态：{{statusText}}</view>
+    <view wx:if="{{chunks.length === 0}}" class="empty-text">还没有收到分块数据。</view>
+    <view wx:for="{{chunks}}" wx:key="*this" class="chunk-line">
+      <text class="chunk-index">#{{index + 1}}</text>
+      <text selectable>{{item}}</text>
+    </view>
+  </view>
+
+  <view class="panel">
+    <view class="panel-title">本周结论占位</view>
+    <view class="note-text">正式主线继续使用 POST + GET 轮询；流式输出只验证 enableChunked 可用性。若真机或基础库不稳定，第三阶段优先考虑 WebSocket 或阶段式轮询增强。</view>
+  </view>
+</view>

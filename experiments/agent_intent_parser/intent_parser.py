@@ -13,12 +13,12 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from schemas import HardConstraint, IntentParseOutput, SoftConstraint, TimePreference
+from .schemas import HardConstraint, IntentParseOutput, SoftConstraint, TimePreference
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 MAX_RETRIES = 1
 
 DATE_SCOPE_KEYWORDS: dict[str, list[str]] = {

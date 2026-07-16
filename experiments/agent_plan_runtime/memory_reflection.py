@@ -13,36 +13,45 @@ reflect_on_memory(context) 输入（最近三轮）：
 - existing_memory_summary
 - source_refs
 
-稳定输出：
+┌──────────────────┬──────────┬──────────────────────────────────────┐
+│ 字段             │ 入库     │ 说明                                 │
+├──────────────────┼──────────┼──────────────────────────────────────┤
+│ memory_summary   │ ✅ 入库  │ 自然语言记忆摘要，存入 memory_items  │
+│ source_refs      │ ✅ 入库  │ 参与生成的 run_id 列表，用于溯源     │
+│ expires_after_turns │ ✅ 入库│ 过期轮数，超时标记 expired           │
+│ cleanup_reason   │ ✅ 入库  │ null/expired/user_requested          │
+│ prompt_version   │ ✅ 入库  │ 生成时使用的 prompt 版本号           │
+│ error            │ debug   │ LLM 调用失败时的错误信息              │
+│ used_fallback    │ debug   │ 是否使用了规则回退                   │
+└──────────────────┴──────────┴──────────────────────────────────────┘
 
-┌──────────────────────┬──────────┬────────────────────────────────────────┐
-│ 字段                 │ 入库     │ 说明                                   │
-├──────────────────────┼──────────┼────────────────────────────────────────┤
-│ memory_summary       │ ✅ 入库  │ 自然语言记忆摘要，存入 memory_items    │
-│ source_refs          │ ✅ 入库  │ 可追溯到 run_id/feedback id/event_id   │
-│ expires_after_turns  │ ✅ 入库  │ 过期轮数，超时标记 expired             │
-│ cleanup_reason       │ ✅ 入库  │ null/expired/user_requested            │
-│ status               │ ✅ 入库  │ active/expired/suppressed/             │
-│                      │          │ insufficient_evidence                  │
-│ prompt_version       │ ✅ 入库  │ 生成时使用的 prompt 版本号             │
-│ model                │ debug    │ 实际使用的模型名                       │
-│ used_fallback        │ debug    │ 是否使用了规则回退                     │
-│ error                │ debug    │ LLM 调用失败时的错误信息               │
-│ duration_ms          │ debug    │ 调用耗时（毫秒）                       │
-│ retry_count          │ debug    │ 重试次数                               │
-│ memory_strength      │ ✅ 入库  │ 记忆强度 0.0-1.0，每轮 ×0.85 衰减      │
-└──────────────────────┴──────────┴────────────────────────────────────────┘
-
-要求：
-1. 只总结有证据的偏好；不把一次偶然点击夸大成永久特征
-2. 本轮表达与旧总结冲突时以本轮为主
-3. source_refs 可追溯到 run_id、feedback id 或 event_id
-4. 证据不足时不生成新 summary，或者继续保留旧 summary
-
-生命週期函数（由曹昕宇在后端调用）：
-- decay_memory_strength(m) → 每轮 plan-day 后调用
-- is_memory_expired(m) → 判断是否过期
+生命週期函数（由后端调用）：
+- is_memory_expired(m) → 根据 cleanup_reason 判断是否过期
 - suppress_memory(m) → 用户删除后调用
+
+Usage:
+    from experiments.agent_plan_runtime.memory_reflection import reflect_on_memory
+    ...  context = {
+        "session_id": "sess_001",
+        "rounds": [
+            {
+                "round": 1,
+                "request_text": "今天下午有什么天文活动",
+                "recommended_event_titles": ["天文摄影讲座", "观星活动"],
+                "feedback": {"liked": ["天文摄影讲座"], "disliked": ["观星活动"]},
+            },
+            ...
+        ],
+        "existing_memory": None,  # or previous memory_summary dict
+    }
+
+    result = reflect_on_memory(context)
+    # => {
+    #   "memory_summary": "...",
+    #   "source_refs": ["run_001", "run_002"],
+    #   "expires_after_turns": 6,
+    #   "cleanup_reason": None,
+    # }
 """
 
 from __future__ import annotations
@@ -59,15 +68,11 @@ logger = logging.getLogger(__name__)
 
 # 与 llm.py 共享同一份 MaaS 配置
 DEFAULT_OPENAI_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
-DEFAULT_MODEL = "deepseek-v4-pro"
+DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_TIMEOUT_SECONDS = 30
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 1.0
 
-# 衰减配置
-MEMORY_STRENGTH_DECAY = 0.85          # 每轮 plan-day 后 ×0.85
-MEMORY_EXPIRY_THRESHOLD = 0.15        # 低于此值时标记 expired
-MEMORY_DEFAULT_STRENGTH = 0.85        # 新生成的 memory_summary 初始强度
 MEMORY_DEFAULT_EXPIRES_AFTER = 6      # 默认 6 轮后过期
 
 # Prompt 版本
@@ -94,7 +99,6 @@ _MEMORY_REFLECTION_SYSTEM_PROMPT = """你是复旦大学校园日程助手的记
 {
   "memory_summary": "一段 50-150 字的自然语言记忆摘要",
   "source_refs": ["run_id_1", "run_id_2"],
-  "memory_strength": 0.85,
   "expires_after_turns": 6,
   "cleanup_reason": null,
   "status": "active"
@@ -116,14 +120,8 @@ _MEMORY_REFLECTION_SYSTEM_PROMPT = """你是复旦大学校园日程助手的记
 - "用户对天文学和摄影类活动有明显偏好，连续两轮都选择了天文相关活动。对纯理论讲座不太感兴趣。偏好轻松互动的活动形式。"
 - "用户偏好实践类活动（如工作坊、动手实验），不喜欢商业路演类活动。对邯郸校区活动有地理位置偏好。"
 
-## memory_strength 规则
-- 新生成的记忆，如果有 ≥2 条有效反馈（liked 或 disliked 不为空），设为 0.85
-- 如果只有 1 条反馈，设为 0.60
-- 如果 3 轮都没有反馈，设为 0.30
-
 ## expires_after_turns 规则
 - 默认 6 轮后过期
-- 如果记忆强度低（<0.5），设为 3 轮
 
 ## source_refs 规则
 - 列出参与生成此 memory 的 run_id 列表（从输入 rounds 中获取）
@@ -208,13 +206,28 @@ def reflect_on_memory(
     """Generate memory_summary from recent N rounds of conversation.
 
     Args:
-        context: 包含 rounds / existing_memory / existing_memory_summary 等
-        base_url/model/api_key/timeout: MaaS 配置
+        context: {
+            "session_id": str,
+            "rounds": [{"round": int, "request_text": str,
+                        "recommended_event_titles": [str],
+                        "feedback": {"liked": [str], "disliked": [str]}}],
+            "existing_memory": None | {"memory_summary": str, ...},
+        }
+        base_url: MaaS API 地址，默认读环境变量。
+        model: 模型名，默认 deepseek-v4-flash。
+        api_key: API Key，默认读 MAAS_API_KEY。
+        timeout: 超时秒数。
 
     Returns:
-        固定契约字段：memory_summary / source_refs / expires_after_turns /
-        cleanup_reason / status / prompt_version / model / used_fallback /
-        error / duration_ms / retry_count / memory_strength
+        {
+            "memory_summary": str,
+            "source_refs": [str],
+            "expires_after_turns": int,
+            "cleanup_reason": None | str,
+            "error": None | str,
+            "used_fallback": bool,
+            "prompt_version": str,
+        }
     """
     start = time.perf_counter()
     resolved_model = model or os.getenv("MAAS_MODEL") or DEFAULT_MODEL
@@ -316,14 +329,10 @@ def _call_llm_reflection(
 
     existing_memory = context.get("existing_memory")
     user_payload = {
-        "rounds": rounds,
-        "existing_memory": existing_memory,
-        "existing_memory_summary": (
-            context.get("existing_memory_summary")
-            or (existing_memory or {}).get("memory_summary")
-            if isinstance(existing_memory, dict)
-            else context.get("existing_memory_summary")
-        ),
+        "rounds": context.get("rounds", []),
+        "existing_memory": context.get("existing_memory"),
+        "existing_memory_summary": context.get("existing_memory_summary"),
+        "source_refs": context.get("source_refs", []),
         "session_id": context.get("session_id"),
     }
 
@@ -405,19 +414,10 @@ def _rule_based_reflection(
         # 证据不足，保留旧 summary
         return _insufficient_evidence(existing_memory_summary, source_refs, reason=reason)
 
-    # 单次反馈不夸大为永久特征：仅 1 条反馈时降低强度
-    total = len(liked) + len(disliked)
-    strength = 0.85 if total >= 2 else 0.60
-    expires = 6 if strength >= 0.5 else 3
-
-    summary = "；".join(parts) + "。"
-    # 本轮与旧总结冲突时以本轮为主：直接用本轮总结覆盖
-
     return {
         "memory_summary": summary,
         "source_refs": source_refs,
-        "memory_strength": round(strength, 2),
-        "expires_after_turns": expires,
+        "expires_after_turns": MEMORY_DEFAULT_EXPIRES_AFTER,
         "cleanup_reason": None,
         "status": "active",
         "error": reason if reason else None,
@@ -460,12 +460,6 @@ def _normalize_reflection(
         source_refs = fallback_refs
 
     try:
-        memory_strength = float(parsed.get("memory_strength", MEMORY_DEFAULT_STRENGTH))
-    except (TypeError, ValueError):
-        memory_strength = MEMORY_DEFAULT_STRENGTH
-    memory_strength = max(0.0, min(1.0, memory_strength))
-
-    try:
         expires_after_turns = int(parsed.get("expires_after_turns", MEMORY_DEFAULT_EXPIRES_AFTER))
     except (TypeError, ValueError):
         expires_after_turns = MEMORY_DEFAULT_EXPIRES_AFTER
@@ -485,7 +479,6 @@ def _normalize_reflection(
     return {
         "memory_summary": memory_summary,
         "source_refs": [str(r) for r in source_refs],
-        "memory_strength": round(memory_strength, 2),
         "expires_after_turns": expires_after_turns,
         "cleanup_reason": cleanup_reason,
         "status": status,
@@ -525,7 +518,6 @@ def _empty_reflection(status: str, reason: str) -> dict[str, Any]:
     return {
         "memory_summary": "",
         "source_refs": [],
-        "memory_strength": 0.0,
         "expires_after_turns": 1,
         "cleanup_reason": status,
         "status": status,
@@ -538,42 +530,16 @@ def _empty_reflection(status: str, reason: str) -> dict[str, Any]:
     }
 
 
-def decay_memory_strength(memory: dict[str, Any]) -> dict[str, Any]:
-    """Apply per-round decay to memory strength.
-
-    Called after each plan-day. Returns updated memory dict.
-    """
-    current = memory.get("memory_strength", 0.0)
-    new_strength = round(current * MEMORY_STRENGTH_DECAY, 2)
-    result = dict(memory)
-    result["memory_strength"] = new_strength
-    if new_strength < MEMORY_EXPIRY_THRESHOLD and not result.get("cleanup_reason"):
-        result["cleanup_reason"] = "expired_below_threshold"
-        result["status"] = "expired"
-    else:
-        # 未过期时确保 status 存在（输入可能没有 status 字段）
-        result.setdefault("status", "active")
-    return result
-
-
 def is_memory_expired(memory: dict[str, Any]) -> bool:
-    """Check if memory should no longer be used.
-
-    user_requested is handled separately — frontend controls display,
-    backend suppresses re-generation.
-    """
+    """Check whether cleanup metadata marks the memory expired."""
     cleanup = memory.get("cleanup_reason")
     if cleanup and cleanup != "user_requested":
         return True
-    if cleanup == "user_requested":
-        return False  # user-suppressed, but not auto-expired
-    return memory.get("memory_strength", 0.0) < MEMORY_EXPIRY_THRESHOLD
+    return False
 
 
 def suppress_memory(memory: dict[str, Any]) -> dict[str, Any]:
     """Mark memory as suppressed (user deleted)."""
     result = dict(memory)
     result["cleanup_reason"] = "user_requested"
-    result["memory_strength"] = 0.0
-    result["status"] = "suppressed"
     return result

@@ -33,7 +33,7 @@ from agent_core.query import (
     SearchResult,
     SoftPreferences,
 )
-from agent_core.scoring import score_and_sort
+from agent_core.scoring import score_and_sort, score_interest_match, _cosine_similarity
 from agent_core.search_events import query_for_plan_day, search_events
 
 TZ = timezone(timedelta(hours=8))
@@ -549,6 +549,872 @@ class FixedNowTest(unittest.TestCase):
         intent = Intent(date_scope="this_week")
         result = search_events(events, intent=intent)
         self.assertEqual(result.total, 0)  # excluded as past
+
+
+# ---------------------------------------------------------------------------
+# Memory scoring tests (memory → score_and_sort integration)
+# ---------------------------------------------------------------------------
+
+
+class MemoryScoringTest(unittest.TestCase):
+    """Tests for Memory-based soft adjustments in scoring (nested structure).
+
+    覆盖保证（验收逐条核对）：
+    - 空 memory 不改变分数        → test_empty_memory_has_zero_memory_delta
+    - liked_tags 加分             → test_liked_tags_boost / test_liked_tags_capped_at_two
+    - disliked_tags 降分          → test_disliked_tags_penalty / test_disliked_tags_capped_at_two
+    - negative_keywords 降分      → test_negative_keyword_penalty / test_keyword_penalty_capped
+    - recent_plan_event_ids 降分  → test_repeat_penalty_demotes_seen_event
+    - liked/disliked 同时命中不崩 → test_liked_and_disliked_net
+    - 端到端排序翻转              → test_dislike_memory_flips_ranking_end_to_end
+                                   test_repeat_memory_flips_ranking_end_to_end
+    """
+
+    def _memory(self, m: MatchedEvent) -> dict:
+        return m.score_components.get("memory", {})
+
+    # --- repeat_penalty ---
+
+    def test_repeat_penalty_demotes_seen_event(self) -> None:
+        """Events in memory.recent_plan_event_ids get lower scores."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", start_time="2026-06-05T14:00:00+08:00"),
+            make_event(event_id="e2", title="AI 讲座", start_time="2026-06-06T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+        memory = Memory(recent_plan_event_ids=("e1",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.items[0].event["event_id"], "e2")
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("repeat_penalty", mem)
+        self.assertAlmostEqual(mem["repeat_penalty"], -0.15)
+
+    def test_repeat_penalty_no_match(self) -> None:
+        """No penalty when event_id not in recent_plan_event_ids."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", start_time="2026-06-05T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+        memory = Memory(recent_plan_event_ids=("e_other",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertNotIn("repeat_penalty", mem)
+
+    # --- disliked_penalty ---
+
+    def test_disliked_tags_penalty(self) -> None:
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI", "讲座"]),
+            make_event(event_id="e2", title="音乐演出", tags=["音乐"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(disliked_tags=("AI",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.items[0].event["event_id"], "e2")
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
+
+    def test_disliked_tags_capped_at_two(self) -> None:
+        """Disliked penalty caps at -0.20 even with 3+ matching tags."""
+        events = [
+            make_event(event_id="e1", title="AI 大模型 编程", tags=["AI", "大模型", "编程"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(disliked_tags=("AI", "大模型", "编程"))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.20)
+
+    # --- liked_boost ---
+
+    def test_liked_tags_boost(self) -> None:
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI", "讲座"]),
+            make_event(event_id="e2", title="音乐演出", tags=["音乐"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("音乐",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.items[0].event["event_id"], "e2")
+        e2 = next(m for m in result.items if m.event["event_id"] == "e2")
+        mem = self._memory(e2)
+        self.assertIn("liked_boost", mem)
+        self.assertAlmostEqual(mem["liked_boost"], 0.10)
+
+    def test_liked_tags_capped_at_two(self) -> None:
+        """Liked boost caps at +0.20 even with 3+ matching tags."""
+        events = [
+            make_event(event_id="e1", title="AI 大模型 编程", tags=["AI", "大模型", "编程"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI", "大模型", "编程"))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertAlmostEqual(mem["liked_boost"], 0.20)
+
+    # --- keyword_penalty ---
+
+    def test_negative_keyword_penalty(self) -> None:
+        events = [
+            make_event(event_id="e1", title="考试辅导讲座"),
+            make_event(event_id="e2", title="天文观测活动"),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(negative_keywords=("考试",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        self.assertEqual(result.items[0].event["event_id"], "e2")
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.10)
+
+    def test_keyword_penalty_capped(self) -> None:
+        """Keyword penalty caps at -0.20 with 3+ matching keywords."""
+        events = [
+            make_event(event_id="e1", title="考试 收费 报名 讲座"),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(negative_keywords=("考试", "收费", "报名"))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.20)
+
+    def test_keyword_case_insensitive(self) -> None:
+        """Negative keyword matching is case-insensitive."""
+        events = [
+            make_event(event_id="e1", title="Exam 考试"),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(negative_keywords=("EXAM", "考试"))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.20)
+
+    # --- empty / default memory ---
+
+    def test_empty_memory_has_zero_memory_delta(self) -> None:
+        """Empty Memory produces memory component with total_memory_delta=0."""
+        events = [make_event(event_id="e1", title="活动")]
+        intent = Intent(date_scope="this_week")
+        result = search_events(events, intent=intent, now=NOW)
+        self.assertEqual(result.total, 1)
+        e1 = result.items[0]
+        self.assertIn("memory", e1.score_components)
+        mem = e1.score_components["memory"]
+        self.assertIsInstance(mem, dict)
+        self.assertEqual(mem.get("total_memory_delta"), 0.0)
+        self.assertEqual(mem.get("matched_memory_terms"), [])
+
+    def test_memory_default_constructor(self) -> None:
+        """Memory() with no args must still work."""
+        m = Memory()
+        self.assertEqual(m.liked_tags, ())
+        self.assertEqual(m.disliked_tags, ())
+        self.assertEqual(m.negative_keywords, ())
+        self.assertEqual(m.liked_event_ids, ())
+        self.assertEqual(m.disliked_event_ids, ())
+        self.assertEqual(m.recent_plan_event_ids, ())
+        self.assertEqual(m.recent_query_texts, ())
+        self.assertEqual(m.session_id, "")
+
+    # --- soft vs hard boundary ---
+
+    def test_penalty_does_not_exclude(self) -> None:
+        """Memory penalties are soft -- events still appear in results."""
+        events = [
+            make_event(event_id="e1", title="考试通知", tags=["考试"]),
+            make_event(event_id="e2", title="音乐会", tags=["音乐"]),
+        ]
+        intent = Intent(date_scope="this_week", max_items=10)
+        profile = Profile()
+        memory = Memory(disliked_tags=("考试",), recent_plan_event_ids=("e1",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+
+    def test_memory_penalty_vs_profile_exclusion(self) -> None:
+        """Memory.disliked_tags is soft; Profile.excluded_keywords is hard rejection."""
+        events = [make_event(event_id="e1", title="考试通知", tags=["考试"])]
+        intent = Intent(date_scope="this_week")
+        mem_result = search_events(
+            events, intent=intent,
+            profile=Profile(),
+            memory=Memory(disliked_tags=("考试",)),
+            now=NOW,
+        )
+        self.assertEqual(mem_result.total, 1, "memory penalty should not reject")
+        prof_result = search_events(
+            events, intent=intent,
+            profile=Profile(excluded_keywords=("考试",)),
+            now=NOW,
+        )
+        self.assertEqual(prof_result.total, 0, "profile excluded_keywords should reject")
+
+    # --- stacking and total_memory_delta cap ---
+
+    def test_multiple_penalties_stack(self) -> None:
+        """All penalties stack but total_memory_delta clamped to [-0.30, +0.20]."""
+        events = [
+            make_event(event_id="e1", title="考试收费", tags=["考试"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            recent_plan_event_ids=("e1",),
+            disliked_tags=("考试",),             # matches tag "考试"
+            negative_keywords=("收费",),          # different term from disliked → not deduped
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        self.assertGreaterEqual(e1.score, 0.0)
+        self.assertLessEqual(e1.score, 1.0)
+        mem = self._memory(e1)
+        self.assertIn("repeat_penalty", mem)
+        self.assertIn("disliked_penalty", mem)
+        self.assertIn("keyword_penalty", mem)
+        self.assertGreaterEqual(mem["total_memory_delta"], -0.30)
+
+    def test_total_memory_delta_capped_at_minus_30(self) -> None:
+        """When penalties would exceed -0.30, total_memory_delta clamps."""
+        events = [
+            make_event(event_id="e1", title="考试 收费 AI", tags=["考试", "收费", "AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            recent_plan_event_ids=("e1",),
+            disliked_tags=("考试", "收费", "AI"),
+            negative_keywords=("考试", "收费", "AI"),
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertGreaterEqual(mem["total_memory_delta"], -0.30)
+        self.assertGreaterEqual(e1.score, 0.0)
+
+    def test_liked_and_disliked_net(self) -> None:
+        """Liked boost and disliked penalty can coexist; net may be zero."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",), disliked_tags=("AI",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["liked_boost"] + mem["disliked_penalty"], 0.0)
+        self.assertAlmostEqual(mem["total_memory_delta"], 0.0)
+
+    def test_score_clamped_to_one(self) -> None:
+        """Score never exceeds 1.0 even with heavy boost."""
+        events = [
+            make_event(
+                event_id="e1", title="AI 大模型",
+                start_time="2026-06-05T14:00:00+08:00",
+                campus="邯郸", tags=["AI", "大模型"],
+                source_url="http://example.com",
+                evidence_text="原文",
+                source_file="test.txt",
+                organizer="主办方",
+            ),
+        ]
+        intent = Intent(request_text="AI 大模型", date_scope="this_week")
+        profile = Profile(
+            campus="邯郸",
+            interest_tags=("AI", "大模型"),
+            preferred_campuses=("邯郸",),
+        )
+        memory = Memory(liked_tags=("AI", "大模型"))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        self.assertLessEqual(e1.score, 1.0)
+
+    # --- NEW: nested structure ---
+
+    def test_memory_component_is_nested(self) -> None:
+        """score_components contains a 'memory' sub-dict with required keys."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",), disliked_tags=("考试",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        self.assertIn("memory", e1.score_components)
+        mem = e1.score_components["memory"]
+        self.assertIsInstance(mem, dict)
+        for key in ("total_memory_delta", "matched_memory_terms", "explanation", "details"):
+            self.assertIn(key, mem, f"memory component missing key: {key}")
+
+    # --- NEW: matched_memory_terms ---
+
+    def test_matched_memory_terms_populated(self) -> None:
+        """matched_memory_terms lists all matched signals."""
+        events = [
+            make_event(event_id="e1", title="AI 创业讲座", tags=["AI", "创业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",), disliked_tags=("创业",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        terms = mem["matched_memory_terms"]
+        self.assertTrue(any("喜欢:" in t for t in terms), f"expected liked term in {terms}")
+        self.assertTrue(any("排除:" in t for t in terms), f"expected disliked term in {terms}")
+
+    # --- NEW: explanation ---
+
+    def test_explanation_not_empty_when_memory_active(self) -> None:
+        """explanation is populated when memory adjustments are active."""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", tags=["AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_tags=("AI",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertTrue(len(mem["explanation"]) > 0, "explanation should not be empty")
+
+    def test_explanation_empty_when_no_memory(self) -> None:
+        """explanation is empty string when memory is empty."""
+        events = [make_event(event_id="e1", title="活动")]
+        intent = Intent(date_scope="this_week")
+        result = search_events(events, intent=intent, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertEqual(mem["explanation"], "")
+
+    # --- NEW: details per adjustment ---
+
+    def test_memory_details_per_adjustment(self) -> None:
+        """Each memory adjustment has a corresponding detail entry."""
+        events = [
+            make_event(event_id="e1", title="AI 创业讲座", tags=["AI", "创业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+            recent_plan_event_ids=("e1",),
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        details = mem["details"]
+        self.assertIsInstance(details, list)
+        detail_types = {d["type"] for d in details}
+        self.assertIn("liked_boost", detail_types)
+        self.assertIn("disliked_penalty", detail_types)
+        self.assertIn("repeat_penalty", detail_types)
+        for d in details:
+            for key in ("type", "delta", "matched", "matched_field", "source", "reason"):
+                self.assertIn(key, d, f"detail missing key: {key}")
+
+    # --- NEW: event_id similarity ---
+
+    def test_liked_event_ids_extract_tags(self) -> None:
+        """Events similar to liked_event_ids get a boost via shared tags."""
+        events = [
+            make_event(event_id="e1", title="科技讲座", tags=["科技"]),
+            make_event(event_id="e_liked", title="科技峰会", tags=["科技", "AI"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(liked_event_ids=("e_liked",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("liked_boost", mem)
+        self.assertGreater(mem["liked_boost"], 0)
+        liked_details = [d for d in mem["details"] if d["type"] == "liked_boost"]
+        self.assertTrue(any("liked_event_ids" in d.get("source", "") for d in liked_details))
+
+    def test_disliked_event_ids_extract_tags(self) -> None:
+        """Events similar to disliked_event_ids get penalized via shared tags."""
+        events = [
+            make_event(event_id="e1", title="创业讲座", tags=["创业"]),
+            make_event(event_id="e_disliked", title="创业峰会", tags=["创业", "商业"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(disliked_event_ids=("e_disliked",))
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertLess(mem["disliked_penalty"], 0)
+
+    # --- NEW: timings ---
+
+    def test_timings_in_search_result(self) -> None:
+        """SearchResult includes timings_ms with key phases."""
+        events = [make_event(event_id="e1", title="活动", start_time="2026-06-05T14:00:00+08:00")]
+        intent = Intent(date_scope="this_week")
+        result = search_events(events, intent=intent, now=NOW)
+        self.assertIn("hard_constraints", result.timings_ms)
+        self.assertIn("score_and_sort", result.timings_ms)
+        self.assertIn("filter_and_score", result.timings_ms)
+        self.assertIn("search_events_total", result.timings_ms)
+        self.assertGreater(result.timings_ms["search_events_total"], 0)
+
+    # --- NEW: dedup between disliked_penalty and keyword_penalty ---
+
+    def test_keyword_dedup_with_disliked_tags(self) -> None:
+        """Same term in disliked_tags and negative_keywords penalized only once."""
+        events = [
+            make_event(event_id="e1", title="创业路演大赛", tags=["创业"]),
+            make_event(event_id="e2", title="天文观测", tags=["天文"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("创业",),
+            negative_keywords=("创业",),  # same term as disliked → should be deduped
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        self.assertEqual(result.total, 2)
+        e1 = next(m for m in result.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1)
+        # disliked_penalty should exist (matched via tag)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
+        # keyword_penalty should NOT exist (deduped because "创业" already matched as disliked tag)
+        self.assertNotIn("keyword_penalty", mem)
+        # Only one "排除:创业" entry
+        terms = mem["matched_memory_terms"]
+        self.assertEqual(terms.count("排除:创业"), 1, f"expected 1 '排除:创业', got {terms}")
+
+    def test_keyword_no_dedup_when_disliked_not_matched(self) -> None:
+        """Keyword NOT in disliked_tags is penalized normally."""
+        events = [
+            make_event(event_id="e1", title="考试报名通知"),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("创业",),              # "创业" not in event
+            negative_keywords=("考试",),          # "考试" IS in title
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        # disliked_penalty should NOT exist (no match)
+        self.assertNotIn("disliked_penalty", mem)
+        # keyword_penalty should exist (normal operation, no dedup needed)
+        self.assertIn("keyword_penalty", mem)
+        self.assertAlmostEqual(mem["keyword_penalty"], -0.10)
+
+    def test_keyword_dedup_case_insensitive(self) -> None:
+        """Dedup between disliked and keyword is case-insensitive."""
+        events = [
+            make_event(event_id="e1", title="ENTREPRENEURSHIP 创业", tags=["ENTREPRENEURSHIP"]),
+        ]
+        intent = Intent(date_scope="this_week")
+        profile = Profile()
+        memory = Memory(
+            disliked_tags=("entrepreneurship",),  # matches "ENTREPRENEURSHIP" in tags
+            negative_keywords=("Entrepreneurship",),  # same, different case → deduped
+        )
+        result = search_events(events, intent=intent, profile=profile, memory=memory, now=NOW)
+        e1 = result.items[0]
+        mem = self._memory(e1)
+        self.assertIn("disliked_penalty", mem)
+        self.assertNotIn("keyword_penalty", mem, "keyword should be deduped (case-insensitive)")
+
+    # --- NEW: end-to-end before/after ranking flip ---
+
+    def test_dislike_memory_flips_ranking_end_to_end(self) -> None:
+        """同一批 events：空 memory 时 e1 排前；dislike memory 时 e2 反超，
+        且 e1.score_components.memory 写入 disliked_penalty。"""
+        events = [
+            make_event(event_id="e1", title="AI 创业路演", tags=["AI", "创业"],
+                       start_time="2026-06-05T14:00:00+08:00"),
+            make_event(event_id="e2", title="AI 学术报告", tags=["AI", "学术"],
+                       start_time="2026-06-05T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+
+        # before：无 memory，e1 因 interest 命中更多 tag 排在前
+        before = search_events(events, intent=intent, profile=profile, memory=Memory(), now=NOW)
+        self.assertEqual(before.items[0].event["event_id"], "e1")
+        before_mem = self._memory(before.items[0])
+        self.assertEqual(before_mem.get("total_memory_delta"), 0.0)
+
+        # after：dislike "创业"，e1 被软降权，e2 反超
+        after = search_events(events, intent=intent, profile=profile,
+                              memory=Memory(disliked_tags=("创业",)), now=NOW)
+        self.assertEqual(after.items[0].event["event_id"], "e2")
+        e1_after = next(m for m in after.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1_after)
+        self.assertIn("disliked_penalty", mem)
+        self.assertAlmostEqual(mem["disliked_penalty"], -0.10)
+        self.assertLess(mem["total_memory_delta"], 0.0)
+
+    def test_repeat_memory_flips_ranking_end_to_end(self) -> None:
+        """e1 刚被推荐过 → repeat_penalty 让 e2 反超。"""
+        events = [
+            make_event(event_id="e1", title="AI 讲座", start_time="2026-06-05T14:00:00+08:00"),
+            make_event(event_id="e2", title="AI 讲座", start_time="2026-06-06T14:00:00+08:00"),
+        ]
+        intent = Intent(request_text="AI", date_scope="this_week")
+        profile = Profile(interest_tags=("AI",))
+        before = search_events(events, intent=intent, profile=profile, memory=Memory(), now=NOW)
+        self.assertEqual(before.items[0].event["event_id"], "e1")
+        after = search_events(events, intent=intent, profile=profile,
+                              memory=Memory(recent_plan_event_ids=("e1",)), now=NOW)
+        self.assertEqual(after.items[0].event["event_id"], "e2")
+        e1_after = next(m for m in after.items if m.event["event_id"] == "e1")
+        mem = self._memory(e1_after)
+        self.assertIn("repeat_penalty", mem)
+        self.assertAlmostEqual(mem["repeat_penalty"], -0.15)
+
+    # --- NEW: ScoringMemory / DisplayMemory ---
+
+    def test_scoring_memory_from_memory(self) -> None:
+        """ScoringMemory.from_memory() extracts scoring-relevant fields."""
+        from agent_core.query import ScoringMemory
+        m = Memory(
+            liked_tags=("AI", "展览"),
+            disliked_tags=("创业",),
+            negative_keywords=("收费",),
+            liked_event_ids=("e1", "e2"),
+            disliked_event_ids=("e3",),
+            recent_plan_event_ids=("e4",),
+            recent_query_texts=("test",),           # NOT in ScoringMemory
+            session_id="sess-123",                  # NOT in ScoringMemory
+        )
+        sm = ScoringMemory.from_memory(m)
+        self.assertEqual(sm.liked_tags, ("AI", "展览"))
+        self.assertEqual(sm.disliked_tags, ("创业",))
+        self.assertEqual(sm.negative_keywords, ("收费",))
+        self.assertEqual(sm.liked_event_ids, ("e1", "e2"))
+        self.assertEqual(sm.disliked_event_ids, ("e3",))
+        self.assertEqual(sm.recent_plan_event_ids, ("e4",))
+
+    def test_scoring_memory_cache_hash_stable(self) -> None:
+        """Same ScoringMemory fields → same cache_hash."""
+        from agent_core.query import ScoringMemory
+        sm1 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        sm2 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        self.assertEqual(sm1.cache_hash(), sm2.cache_hash())
+
+    def test_scoring_memory_cache_hash_changes(self) -> None:
+        """Different ScoringMemory fields → different cache_hash."""
+        from agent_core.query import ScoringMemory
+        sm1 = ScoringMemory(liked_tags=("AI", "展览"), disliked_tags=("创业",))
+        sm2 = ScoringMemory(liked_tags=("展览",), disliked_tags=("创业",))
+        self.assertNotEqual(sm1.cache_hash(), sm2.cache_hash())
+
+    def test_display_memory_from_memory(self) -> None:
+        """DisplayMemory.from_memory() extracts display-relevant fields."""
+        from agent_core.query import DisplayMemory
+        m = Memory(
+            recent_query_texts=("test query",),
+            liked_tags=("AI", "展览"),
+            disliked_tags=("创业",),
+            negative_keywords=("收费",),            # NOT in DisplayMemory
+            liked_event_ids=("e1",),                # NOT in DisplayMemory
+        )
+        dm = DisplayMemory.from_memory(m)
+        self.assertEqual(dm.recent_query_texts, ("test query",))
+        self.assertEqual(dm.liked_tags, ("AI", "展览"))
+        self.assertEqual(dm.disliked_tags, ("创业",))
+
+    def test_display_memory_cache_hash_stable(self) -> None:
+        """Same DisplayMemory fields → same cache_hash."""
+        from agent_core.query import DisplayMemory
+        dm1 = DisplayMemory(
+            recent_query_texts=("q1", "q2"),
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+        )
+        dm2 = DisplayMemory(
+            recent_query_texts=("q1", "q2"),
+            liked_tags=("AI",),
+            disliked_tags=("创业",),
+        )
+        self.assertEqual(dm1.cache_hash(), dm2.cache_hash())
+
+    def test_scoring_memory_default_empty(self) -> None:
+        """ScoringMemory() with no args has empty fields and valid hash."""
+        from agent_core.query import ScoringMemory
+        sm = ScoringMemory()
+        self.assertEqual(sm.liked_tags, ())
+        self.assertEqual(sm.cache_hash(), ScoringMemory().cache_hash())
+
+    def test_display_memory_default_empty(self) -> None:
+        """DisplayMemory() with no args has empty fields and valid hash."""
+        from agent_core.query import DisplayMemory
+        dm = DisplayMemory()
+        self.assertEqual(dm.recent_query_texts, ())
+        self.assertEqual(dm.cache_hash(), DisplayMemory().cache_hash())
+
+    # --- NEW: ScoringMemory / DisplayMemory hash 边界（影响排序 vs 影响文案） ---
+
+    def test_scoring_memory_hash_ignores_recent_query_texts(self) -> None:
+        """recent_query_texts 是文案信号，变化不应改变 ScoringMemory hash（排序缓存仍命中）。"""
+        from agent_core.query import ScoringMemory
+        m1 = Memory(liked_tags=("AI",), recent_query_texts=("q1",))
+        m2 = Memory(liked_tags=("AI",), recent_query_texts=("q1", "q2"))
+        self.assertEqual(
+            ScoringMemory.from_memory(m1).cache_hash(),
+            ScoringMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_scoring_memory_hash_changes_with_disliked_tags(self) -> None:
+        """disliked_tags 影响排序，变化必须改变 ScoringMemory hash（缓存失效）。"""
+        from agent_core.query import ScoringMemory
+        m1 = Memory(liked_tags=("AI",))
+        m2 = Memory(liked_tags=("AI",), disliked_tags=("创业",))
+        self.assertNotEqual(
+            ScoringMemory.from_memory(m1).cache_hash(),
+            ScoringMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_ignores_scoring_only_fields(self) -> None:
+        """negative_keywords/liked_event_ids/recent_plan_event_ids 只影响排序，
+        变化不应改变 DisplayMemory hash（文案缓存仍命中）。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",), liked_tags=("AI",), disliked_tags=("创业",))
+        m2 = Memory(
+            recent_query_texts=("q1",), liked_tags=("AI",), disliked_tags=("创业",),
+            negative_keywords=("收费",), liked_event_ids=("e1",), recent_plan_event_ids=("e2",),
+        )
+        self.assertEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_changes_with_recent_query_texts(self) -> None:
+        """recent_query_texts 影响文案，变化必须改变 DisplayMemory hash。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",))
+        m2 = Memory(recent_query_texts=("q1", "q2"))
+        self.assertNotEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
+    def test_display_memory_hash_changes_with_disliked_tags(self) -> None:
+        """disliked_tags 同时影响文案，变化必须改变 DisplayMemory hash。"""
+        from agent_core.query import DisplayMemory
+        m1 = Memory(recent_query_texts=("q1",))
+        m2 = Memory(recent_query_texts=("q1",), disliked_tags=("创业",))
+        self.assertNotEqual(
+            DisplayMemory.from_memory(m1).cache_hash(),
+            DisplayMemory.from_memory(m2).cache_hash(),
+        )
+
+    # --- NEW: hash 测试与真实 cache key 一致性（task 3） ---
+
+    def test_scoring_memory_hash_matches_plan_cache_key(self) -> None:
+        """ScoringMemory.cache_hash() 必须与 plan_service._compute_scoring_memory_hash 一致。
+
+        单测证明的字段边界只有和真实 cache key 派生逻辑同源才有效。若两套实现漂移
+        （例如 plan_service 漏了 disliked_event_ids），单测全绿但线上 cache 会错误命中。
+        """
+        from agent_core.query import ScoringMemory
+        # backend/ 在 repo root，加到 path 以便 import backend.plan_service
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_scoring_memory_hash
+
+        # 非空 memory：字段集与排序逻辑必须逐字段一致
+        cases = [
+            {"liked_tags": ["AI"], "disliked_tags": ["创业"]},
+            {
+                "liked_tags": ["AI", "ML"],
+                "recent_plan_event_ids": ["e1", "e2"],
+                "negative_keywords": ["收费"],
+                "disliked_event_ids": ["e9"],
+                "liked_event_ids": ["e3"],
+            },
+        ]
+        for c in cases:
+            mem = Memory.from_dict(c)
+            self.assertEqual(
+                ScoringMemory.from_memory(mem).cache_hash(),
+                _compute_scoring_memory_hash(c),
+                f"scoring hash mismatch for {c}",
+            )
+
+    def test_scoring_memory_empty_case_asymmetry_pinned(self) -> None:
+        """空 memory 的归一化两侧不同：plan_service 短路成 md5('{}')，ScoringMemory 建空 dict。
+
+        不是 bug——两侧都确定性，同输入永远同 hash，cache 仍正确命中。钉死此处，避免
+        任意一侧悄悄改空归一化而另一侧没跟上。
+        """
+        from agent_core.query import ScoringMemory
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_scoring_memory_hash
+
+        empty_dataclass_hash = ScoringMemory.from_memory(Memory()).cache_hash()
+        plan_service_empty_hash = _compute_scoring_memory_hash(None)
+        # 两侧各自确定性
+        self.assertEqual(empty_dataclass_hash, ScoringMemory.from_memory(Memory()).cache_hash())
+        self.assertEqual(plan_service_empty_hash, _compute_scoring_memory_hash(None))
+        # 已知不相等（归一化差异），钉死
+        self.assertNotEqual(empty_dataclass_hash, plan_service_empty_hash)
+
+    def test_display_memory_hash_matches_rewrite_cache_key(self) -> None:
+        """DisplayMemory.cache_hash() 必须与 plan_service._compute_display_memory_hash 一致。"""
+        from agent_core.query import DisplayMemory
+        _repo_root = str(Path(__file__).resolve().parents[2])
+        if _repo_root not in sys.path:
+            sys.path.insert(0, _repo_root)
+        from backend.plan_service import _compute_display_memory_hash
+
+        cases = [
+            {"recent_query_texts": ["q1"], "liked_tags": ["AI"], "disliked_tags": ["创业"]},
+            {"recent_query_texts": ["q1", "q2"], "liked_tags": ["AI", "ML"]},
+        ]
+        for c in cases:
+            mem = Memory.from_dict(c)
+            self.assertEqual(
+                DisplayMemory.from_memory(mem).cache_hash(),
+                _compute_display_memory_hash(c),
+                f"display hash mismatch for {c}",
+            )
+
+
+class SemanticInterestMatchTest(unittest.TestCase):
+    """semantic interest_match：cosine 路径 + keyword fallback。"""
+
+    def test_cosine_similarity_basic(self) -> None:
+        # 平行向量 sim=1，正交 sim=0，反向 sim=-1
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [1, 0]), 1.0)
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [0, 1]), 0.0)
+        self.assertAlmostEqual(_cosine_similarity([1, 0], [-1, 0]), -1.0)
+        # 退化输入
+        self.assertEqual(_cosine_similarity([], [1, 0]), 0.0)
+        self.assertEqual(_cosine_similarity([0, 0], [1, 0]), 0.0)
+
+    def test_semantic_path_when_embeddings_present(self) -> None:
+        event = make_event(event_id="e1", title="AI 讲座")
+        event["summary_embedding"] = [1.0, 0.0, 0.0]
+        prefs = SoftPreferences(
+            query_embedding=(1.0, 0.0, 0.0),
+            embedding_model="test-embed-v1",
+        )
+        score, matched, detail = score_interest_match(event, prefs)
+        self.assertAlmostEqual(score, 1.0)  # (1+1)/2
+        self.assertEqual(matched, [])
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "semantic")
+        self.assertAlmostEqual(detail["semantic_similarity"], 1.0)
+        self.assertAlmostEqual(detail["normalized_interest_match"], 1.0)
+        self.assertEqual(detail["embedding_model"], "test-embed-v1")
+        self.assertAlmostEqual(detail["score"], 1.0)
+
+    def test_semantic_normalization_clamps_to_01(self) -> None:
+        # 反向向量 raw_sim=-1 → normalized=0
+        event = make_event(event_id="e1", title="x")
+        event["summary_embedding"] = [1.0, 0.0]
+        prefs = SoftPreferences(query_embedding=(-1.0, 0.0))
+        score, _, detail = score_interest_match(event, prefs)
+        self.assertAlmostEqual(score, 0.0)
+        self.assertAlmostEqual(detail["semantic_similarity"], -1.0)
+
+    def test_keyword_fallback_when_no_query_embedding(self) -> None:
+        # event 有 summary_embedding 但 preferences 无 query_embedding → keyword fallback
+        event = make_event(event_id="e1", title="AI 大模型讲座", tags=["AI"])
+        event["summary_embedding"] = [1.0, 0.0]
+        prefs = SoftPreferences(interest_terms=("AI",))
+        score, matched, detail = score_interest_match(event, prefs)
+        # keyword 路径返回 detail dict（A4：fallback_reason 标注）
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "keyword_fallback")
+        self.assertEqual(detail["fallback_reason"], "query_embedding_missing")
+        self.assertIn("AI", matched)
+        self.assertGreater(score, 0.0)
+
+    def test_keyword_fallback_when_no_event_embedding(self) -> None:
+        # preferences 有 query_embedding 但 event 无 summary_embedding → keyword fallback
+        event = make_event(event_id="e1", title="AI 讲座", tags=["AI"])
+        prefs = SoftPreferences(interest_terms=("AI",), query_embedding=(1.0, 0.0))
+        score, matched, detail = score_interest_match(event, prefs)
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["method"], "keyword_fallback")
+        self.assertEqual(detail["fallback_reason"], "summary_embedding_missing")
+        self.assertIn("AI", matched)
+
+    def test_semantic_components_shape_in_score_and_sort(self) -> None:
+        # 端到端：score_and_sort 的 components["interest_match"] 在语义模式下是 dict
+        events = [
+            make_event(event_id="e1", title="AI 讲座"),
+            make_event(event_id="e2", title="体育"),
+        ]
+        events[0]["summary_embedding"] = [1.0, 0.0]
+        events[1]["summary_embedding"] = [0.0, 1.0]
+        prefs = SoftPreferences(
+            query_embedding=(1.0, 0.0),
+            embedding_model="test-embed-v1",
+        )
+        results = score_and_sort(events, preferences=prefs, now=NOW)
+        e1 = next(r for r in results if r.event["event_id"] == "e1")
+        e2 = next(r for r in results if r.event["event_id"] == "e2")
+        im1 = e1.score_components["interest_match"]
+        im2 = e2.score_components["interest_match"]
+        self.assertIsInstance(im1, dict)
+        self.assertEqual(im1["method"], "semantic")
+        # e1 与 query 平行 → 归一化 1.0；e2 正交 → 0.5
+        self.assertAlmostEqual(im1["normalized_interest_match"], 1.0)
+        self.assertAlmostEqual(im2["normalized_interest_match"], 0.5)
+        self.assertGreater(e1.score, e2.score)
+
+    def test_keyword_path_unchanged_when_no_embeddings(self) -> None:
+        # 无任何 embedding → keyword fallback，interest_match 是 dict（method=keyword_fallback），不回归
+        events = [
+            make_event(event_id="e1", title="AI 大模型讲座", tags=["AI", "讲座"]),
+            make_event(event_id="e2", title="体育比赛", tags=["体育"]),
+        ]
+        prefs = SoftPreferences(interest_terms=("AI", "大模型"))
+        results = score_and_sort(events, preferences=prefs, now=NOW)
+        e1 = next(r for r in results if r.event["event_id"] == "e1")
+        im1 = e1.score_components["interest_match"]
+        self.assertIsInstance(im1, dict)
+        self.assertEqual(im1["method"], "keyword_fallback")
+        self.assertEqual(im1["fallback_reason"], "both_embeddings_missing")
+        self.assertGreater(e1.score, e2_score := next(
+            r for r in results if r.event["event_id"] == "e2").score)
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ class ProfileData(BaseModel):
     available_time: Optional[str] = None
     activity_style_tags: Optional[list[str]] = None
     profile_summary: Optional[str] = None
+    memory_summary: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -47,12 +48,18 @@ class PlanDayRequest(BaseModel):
     """POST /api/agent/plan-day 请求体"""
     request_text: str = Field(..., max_length=500, description="用户自然语言需求描述")
     date_scope: str = Field(..., description="today / tomorrow / this_week")
+    reference_now: Optional[datetime] = Field(
+        None,
+        description="Explicit test/debug clock. Production requests should omit it.",
+    )
 
 
 class PlanDayResponseData(BaseModel):
     """POST /api/agent/plan-day 响应 data（202 Accepted）"""
     run_id: str
     status: str  # "queued"
+    stage: str
+    poll_after_ms: int
 
 
 # ============================================================
@@ -61,6 +68,7 @@ class PlanDayResponseData(BaseModel):
 
 class RunItem(BaseModel):
     """日程中的单个活动条目"""
+    plan_item_id: str
     event_id: str
     title: str
     summary: Optional[str] = None
@@ -71,7 +79,10 @@ class RunItem(BaseModel):
     organizer: Optional[str] = None
     tags: Optional[list[str]] = None
     source_url: Optional[str] = None
+    source_name: Optional[str] = None
     reason_text: Optional[str] = None
+    score: Optional[float] = None
+    score_components: Optional[dict] = None
     display_order: int
     quality_score: Optional[float] = None
 
@@ -84,11 +95,66 @@ class RunStatusData(BaseModel):
     title: Optional[str] = None
     summary: Optional[str] = None
     date_scope: Optional[str] = None
+    request_text: Optional[str] = None
     items: Optional[list[RunItem]] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     error_message: Optional[str] = None
     debug: Optional[str] = None
+    memory_used: Optional[dict] = None
+    stage: Optional[str] = None  # loading / scoring / scheduling / rewriting / completed / failed
+    stage_message: Optional[str] = None
+    progress: Optional[float] = None  # 0.0 - 1.0
+    cache_hit: Optional[bool] = None
+    timings_ms: Optional[dict] = None
+
+
+class FeedbackEventRequest(BaseModel):
+    """POST /api/feedback/event 请求体"""
+    event_id: str
+    plan_id: Optional[str] = None
+    plan_item_id: Optional[str] = None
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / clicked_source")
+    feedback_source: str = Field(..., description="result_card / source_page / history_page / system")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackEventData(BaseModel):
+    """POST /api/feedback/event 响应 data"""
+    feedback_id: str
+    memory_candidate_ids: list[str] = []
+    message: str = "feedback saved"
+
+
+# ============================================================
+# 记忆查询 — GET /api/memory
+# ============================================================
+
+class MemoryItemData(BaseModel):
+    """GET /api/memory 单条记忆"""
+    memory_id: str
+    memory_type: str
+    memory_scope: str
+    content: str
+    structured_content: Optional[dict] = None
+    source_type: str
+    source_ref: Optional[str] = None
+    confidence: float
+    priority: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: Optional[datetime] = None
+
+
+class MemoryListData(BaseModel):
+    """GET /api/memory 响应 data（分页）"""
+    items: list[MemoryItemData]
+    total: int
+    page: int
+    page_size: int
 
 
 # ============================================================
@@ -188,6 +254,62 @@ class ImportUrlData(BaseModel):
 # 后台管理 — events
 # ============================================================
 
+# ============================================================
+# 活动反馈 — POST /api/feedback/event
+# ============================================================
+
+class FeedbackEventRequest(BaseModel):
+    """POST /api/feedback/event 请求体"""
+    event_id: str
+    plan_id: Optional[str] = None
+    plan_item_id: Optional[str] = None
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / clicked_source")
+    feedback_source: str = Field(..., description="result_card / source_page / history_page / system")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackEventData(BaseModel):
+    """POST /api/feedback/event 响应 data"""
+    feedback_id: str
+    memory_candidate_ids: list[str] = []
+    message: str = "feedback saved"
+
+
+# ============================================================
+# 记忆查询 — GET /api/memory
+# ============================================================
+
+class MemoryItemData(BaseModel):
+    """GET /api/memory 单条记忆"""
+    memory_id: str
+    memory_type: str
+    memory_scope: str
+    content: str
+    structured_content: Optional[dict] = None
+    source_type: str
+    source_ref: Optional[str] = None
+    confidence: float
+    priority: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    expires_at: Optional[datetime] = None
+
+
+class MemoryListData(BaseModel):
+    """GET /api/memory 响应 data（分页）"""
+    items: list[MemoryItemData]
+    total: int
+    page: int
+    page_size: int
+
+
+# ============================================================
+# 后台管理 — events
+# ============================================================
+
 class AdminEventItem(BaseModel):
     """GET /api/admin/events 列表中每条活动"""
     event_id: str
@@ -213,3 +335,119 @@ class EventListData(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class DataHealthData(BaseModel):
+    """GET /api/admin/data-health 响应 data"""
+    total_events: int
+    future_events_3d: int
+    future_events_7d: int
+    future_events_14d: int
+    recently_expired: int
+    sources_breakdown: dict[str, int]
+    last_collection_time: Optional[datetime] = None
+    last_collection_result: str
+    is_healthy: bool
+    alerts: list[str]
+    collection_logs: list[dict] = Field(default_factory=list)
+
+
+class CollectionRunRequest(BaseModel):
+    sources: Optional[list[str]] = None
+    limit: int = Field(10, ge=1, le=100)
+
+
+class CollectionRunData(BaseModel):
+    batch_id: str
+    triggered_at: datetime
+    finished_at: Optional[datetime] = None
+    trigger_method: str
+    status: str
+    sources: list[str]
+    fetched_count: int
+    extracted_count: int
+    imported_count: int
+    updated_count: int
+    skipped_count: int
+    failed_count: int
+    failure_reason: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+class CollectionRunListData(BaseModel):
+    items: list[CollectionRunData]
+    total: int
+    page: int
+    page_size: int
+
+
+class CampusBreakdown(BaseModel):
+    """quality-summary by_campus 条目"""
+    campus: str
+    future_events: int
+    expired_events: int
+
+
+class SourceBreakdownItem(BaseModel):
+    """quality-summary by_source 条目"""
+    source_id: str
+    source_name: str
+    future_events: int
+    missing_evidence_count: int
+
+
+class QualitySummaryData(BaseModel):
+    """GET /api/admin/events/quality-summary 响应 data"""
+    total_events: int
+    future_events: int
+    expired_events: int
+    visible_events: int
+    stale_events: int
+    missing_time_count: int
+    missing_location_count: int
+    missing_source_url_count: int
+    missing_evidence_count: int
+    by_campus: list[CampusBreakdown]
+    by_source: list[SourceBreakdownItem]
+    generated_at: datetime
+
+
+# ============================================================
+# 计划级反馈 — POST /api/feedback/plan
+# ============================================================
+
+class FeedbackPlanRequest(BaseModel):
+    """POST /api/feedback/plan 请求体"""
+    plan_id: str
+    run_id: Optional[str] = None
+    feedback_type: str = Field(..., description="like / dislike / regenerate / too_many_conflicts / not_enough_items / not_relevant")
+    comment: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class FeedbackPlanData(BaseModel):
+    """POST /api/feedback/plan 响应 data"""
+    feedback_id: str
+    message: str = "plan feedback saved"
+
+
+# ============================================================
+# 记忆确认/拒绝 — POST /api/memory/{memory_id}/confirm | reject
+# ============================================================
+
+class MemoryActionRequest(BaseModel):
+    """POST /api/memory/{memory_id}/confirm 或 reject 请求体"""
+    comment: Optional[str] = None
+
+
+class MemoryActionData(BaseModel):
+    """POST /api/memory/{memory_id}/confirm 或 reject 响应 data"""
+    memory_id: str
+    status: str
+    last_confirmed_at: Optional[datetime] = None
+
+
+# ============================================================
+# 更新后的 RunItem / RunStatusData（含 memory 相关字段）
+# 注：RunItem 已在上方定义，此处仅为 memory_used 补充到 RunStatusData
+# ============================================================

@@ -1,0 +1,46 @@
+{
+  "dry_run": false,
+  "commit": false,
+  "limit_accounts": 3,
+  "scanned_accounts": 3,
+  "total_articles": 15,
+  "new_articles": 15,
+  "extraction_summary": {
+    "total_articles_processed": 15,
+    "extracted_ok": 0,
+    "extracted_fail": 15,
+    "fail_reasons": {
+      "no_events_extracted": 15
+    }
+  },
+  "extracted_event_drafts": 0,
+  "imported": 0,
+  "per_account": [
+    {
+      "account": "复旦天协",
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
+      "event_drafts": 0
+    },
+    {
+      "account": "复旦剧社",
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
+      "event_drafts": 0
+    },
+    {
+      "account": "复旦大学学生合唱团",
+      "fetched": 5,
+      "new_articles": 5,
+      "extracted_ok": 0,
+      "extracted_fail": 5,
+      "event_drafts": 0
+    }
+  ],
+  "event_drafts": [],
+  "warnings": []
+}

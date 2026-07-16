@@ -3,13 +3,17 @@
     "pages/profile/profile",
     "pages/plan/plan",
     "pages/loading/loading",
-    "pages/result/result"
+    "pages/result/result",
+    "pages/history/history",
+    "pages/memory/memory",
+    "pages/source/source",
+    "pages/stream-demo/stream-demo"
   ],
   "window": {
     "navigationBarTitleText": "校园日程 AI 助手",
-    "navigationBarBackgroundColor": "#f7f9fc",
+    "navigationBarBackgroundColor": "#f4f6f0",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f7f9fc"
+    "backgroundColor": "#f4f6f0"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

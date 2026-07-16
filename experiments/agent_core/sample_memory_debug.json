@@ -1,0 +1,49 @@
+{
+  "scenario": "用户喜欢 AI、不喜欢创业、e1 刚被推荐过（命中 liked+disliked+repeat）",
+  "now": "2026-06-01T12:00:00+08:00",
+  "ranking": [
+    "e2",
+    "e1"
+  ],
+  "event_id": "e1",
+  "base_score": 0.7867,
+  "final_score": 0.6367,
+  "score_components.memory": {
+    "total_memory_delta": -0.15,
+    "matched_memory_terms": [
+      "重复推荐:e1",
+      "排除:创业",
+      "喜欢:AI"
+    ],
+    "explanation": "命中喜欢标签: AI；命中不感兴趣标签: 创业；近期已推荐过，降权。综合负向影响 -0.15",
+    "details": [
+      {
+        "type": "repeat_penalty",
+        "delta": -0.15,
+        "matched": "e1",
+        "matched_field": "event_id",
+        "source": "recent_plan_event_ids",
+        "reason": "近期已推荐过活动 e1"
+      },
+      {
+        "type": "disliked_penalty",
+        "delta": -0.1,
+        "matched": "创业",
+        "matched_field": "title",
+        "source": "disliked_tags",
+        "reason": "命中不感兴趣标签: 创业"
+      },
+      {
+        "type": "liked_boost",
+        "delta": 0.1,
+        "matched": "AI",
+        "matched_field": "title",
+        "source": "liked_tags",
+        "reason": "命中喜欢标签: AI"
+      }
+    ],
+    "repeat_penalty": -0.15,
+    "disliked_penalty": -0.1,
+    "liked_boost": 0.1
+  }
+}

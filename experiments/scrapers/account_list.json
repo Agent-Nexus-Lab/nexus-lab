@@ -5,624 +5,696 @@
       "name": "复旦天协",
       "keyword": "复旦天协",
       "enabled": true,
-      "notes": "复旦大学天文协会 — 观星、讲座、定向等活动"
+      "notes": "复旦大学天文协会 — 观星、讲座、定向等活动",
+      "category": "体育"
     },
-
     {
       "id": "fd_drama",
       "name": "复旦剧社",
       "keyword": "复旦剧社",
       "enabled": true,
-      "notes": "复旦剧社 — 话剧演出、戏剧工作坊"
+      "notes": "复旦剧社 — 话剧演出、戏剧工作坊",
+      "category": "文艺"
     },
     {
       "id": "fd_choir",
       "name": "复旦大学学生合唱团",
       "keyword": "复旦大学学生合唱团",
       "enabled": true,
-      "notes": "学生合唱团 — 音乐会、演出"
+      "notes": "学生合唱团 — 音乐会、演出",
+      "category": "文艺"
     },
     {
       "id": "fd_art_troupe",
       "name": "复旦大学团委学生艺术团",
       "keyword": "复旦大学团委学生艺术团",
       "enabled": true,
-      "notes": "校级艺术团总管 — 演出、艺术活动"
+      "notes": "校级艺术团总管 — 演出、艺术活动",
+      "category": "文艺"
     },
     {
       "id": "fd_music",
       "name": "复旦民乐团",
       "keyword": "复旦民乐团",
       "enabled": true,
-      "notes": "民乐团 — 民族音乐会、演出"
+      "notes": "民乐团 — 民族音乐会、演出",
+      "category": "文艺"
     },
     {
       "id": "fd_guitar",
       "name": "复旦吉他协会",
       "keyword": "复旦吉他协会",
       "enabled": true,
-      "notes": "吉他协会 — 弹唱会、教学班"
+      "notes": "吉他协会 — 弹唱会、教学班",
+      "category": "文艺"
     },
     {
       "id": "fd_dance",
       "name": "复旦学生舞蹈团",
       "keyword": "复旦学生舞蹈团",
       "enabled": true,
-      "notes": "学生舞蹈团 — 舞蹈演出、快闪"
+      "notes": "学生舞蹈团 — 舞蹈演出、快闪",
+      "category": "文艺"
     },
     {
       "id": "fd_film",
       "name": "复旦电影摄影",
       "keyword": "复旦电影摄影",
       "enabled": true,
-      "notes": "电影摄影社 — 放映会、摄影活动"
+      "notes": "电影摄影社 — 放映会、摄影活动",
+      "category": "文艺"
     },
     {
       "id": "fd_photo",
       "name": "复旦研究生摄影社",
       "keyword": "复旦研究生摄影社",
       "enabled": false,
-      "notes": "研究生摄影社 — 影展、采风"
+      "notes": "研究生摄影社 — 影展、采风",
+      "category": "文艺"
     },
     {
       "id": "fd_shuhua",
       "name": "复旦书画",
       "keyword": "复旦书画",
       "enabled": false,
-      "notes": "书画协会 — 书法绘画展览"
+      "notes": "书画协会 — 书法绘画展览",
+      "category": "文艺"
     },
     {
       "id": "fd_poetry",
       "name": "复旦诗社",
       "keyword": "复旦诗社",
       "enabled": true,
-      "notes": "复旦诗社 — 诗歌朗诵会、创作沙龙"
+      "notes": "复旦诗社 — 诗歌朗诵会、创作沙龙",
+      "category": "讲座"
     },
     {
       "id": "fd_speech",
       "name": "复旦大学演讲与口才协会",
       "keyword": "复旦大学演讲与口才协会",
       "enabled": true,
-      "notes": "演讲与口才 — 演讲比赛、辩论赛"
+      "notes": "演讲与口才 — 演讲比赛、辩论赛",
+      "category": "比赛"
     },
     {
       "id": "fd_mun",
       "name": "复旦模联FDU",
       "keyword": "复旦模联FDU",
       "enabled": true,
-      "notes": "模拟联合国 — 模联大会、学术培训"
+      "notes": "模拟联合国 — 模联大会、学术培训",
+      "category": "讲座"
     },
     {
       "id": "fd_liberal",
       "name": "复旦大学博雅学社",
       "keyword": "复旦大学博雅学社",
       "enabled": false,
-      "notes": "博雅学社 — 人文读书会、沙龙"
+      "notes": "博雅学社 — 人文读书会、沙龙",
+      "category": "讲座"
     },
     {
       "id": "fd_translator",
       "name": "复旦大学翻译社",
       "keyword": "复旦大学翻译社",
       "enabled": false,
-      "notes": "翻译社 — 翻译比赛、语言交流"
+      "notes": "翻译社 — 翻译比赛、语言交流",
+      "category": "比赛"
     },
-
     {
       "id": "fd_football",
       "name": "复旦大学足球协会",
       "keyword": "复旦大学足球协会",
       "enabled": true,
-      "notes": "足球协会 — 院系联赛、看球活动"
+      "notes": "足球协会 — 院系联赛、看球活动",
+      "category": "体育"
     },
     {
       "id": "fd_badminton",
       "name": "复旦羽协",
       "keyword": "复旦羽协",
       "enabled": true,
-      "notes": "羽毛球协会 — 羽球比赛、训练"
+      "notes": "羽毛球协会 — 羽球比赛、训练",
+      "category": "比赛"
     },
     {
       "id": "fd_pingpong",
       "name": "乒乓复旦",
       "keyword": "乒乓复旦",
       "enabled": false,
-      "notes": "乒乓球协会 — 乒乓赛事"
+      "notes": "乒乓球协会 — 乒乓赛事",
+      "category": "体育"
     },
     {
       "id": "fd_martial",
       "name": "复旦武协",
       "keyword": "复旦武协",
       "enabled": false,
-      "notes": "武术协会 — 武术训练、表演"
+      "notes": "武术协会 — 武术训练、表演",
+      "category": "体育"
     },
     {
       "id": "fd_taekwondo",
       "name": "复旦跆拳道",
       "keyword": "复旦跆拳道",
       "enabled": false,
-      "notes": "跆拳道协会"
+      "notes": "跆拳道协会",
+      "category": "体育"
     },
     {
       "id": "fd_running",
       "name": "复旦跑协",
       "keyword": "复旦跑协",
       "enabled": false,
-      "notes": "跑步协会 — 校园跑、马拉松"
+      "notes": "跑步协会 — 校园跑、马拉松",
+      "category": "体育"
     },
     {
       "id": "fd_cycling",
       "name": "复旦车协",
       "keyword": "复旦车协",
       "enabled": true,
-      "notes": "自行车协会 — 骑行活动、修车摊"
+      "notes": "自行车协会 — 骑行活动、修车摊",
+      "category": "体育"
     },
     {
       "id": "fd_hiking",
       "name": "复旦大学登山探险协会",
       "keyword": "复旦大学登山探险协会",
       "enabled": true,
-      "notes": "登山协会 — 户外徒步、露营"
+      "notes": "登山协会 — 户外徒步、露营",
+      "category": "体育"
     },
     {
       "id": "fd_climbing",
       "name": "复旦攀岩",
       "keyword": "复旦攀岩",
       "enabled": false,
-      "notes": "攀岩协会 — 攀岩训练、比赛"
+      "notes": "攀岩协会 — 攀岩训练、比赛",
+      "category": "比赛"
     },
-
     {
       "id": "fudan_univ",
       "name": "复旦大学",
       "keyword": "复旦大学",
       "enabled": true,
-      "notes": "校级官方订阅号 — 重大通知、校园新闻"
+      "notes": "校级官方订阅号 — 重大通知、校园新闻",
+      "category": "其他"
     },
     {
       "id": "fd_xxb",
       "name": "复旦信息办",
       "keyword": "复旦信息办",
       "enabled": true,
-      "notes": "信息化办公室 — 系统通知、服务公告（服务号，每月4次群发）"
+      "notes": "信息化办公室 — 系统通知、服务公告（服务号，每月4次群发）",
+      "category": "其他"
     },
     {
       "id": "fd_jwc",
       "name": "复旦大学教务处",
       "keyword": "复旦大学教务处",
       "enabled": true,
-      "notes": "教务通知、选课、考试安排"
+      "notes": "教务通知、选课、考试安排",
+      "category": "其他"
     },
     {
       "id": "fd_xsfz",
       "name": "复旦大学学生发展中心",
       "keyword": "复旦大学学生发展中心",
       "enabled": false,
-      "notes": "学生发展支持，启用后观察活动密度"
+      "notes": "学生发展支持，启用后观察活动密度",
+      "category": "就业"
     },
-
     {
       "id": "fd_su",
       "name": "复旦大学学生会",
       "keyword": "复旦大学学生会",
       "enabled": true,
-      "notes": "校级学生活动主渠道 — 晚会、比赛、文化节"
+      "notes": "校级学生活动主渠道 — 晚会、比赛、文化节",
+      "category": "比赛"
     },
     {
       "id": "fd_tw",
       "name": "复旦共青团",
       "keyword": "复旦共青团",
       "enabled": true,
-      "notes": "团委官方 — 社会实践、评优、主题教育"
+      "notes": "团委官方 — 社会实践、评优、主题教育",
+      "category": "其他"
     },
     {
       "id": "fd_shetuan",
       "name": "复旦大学社团服务中心",
       "keyword": "复旦大学社团服务中心",
       "enabled": true,
-      "notes": "社团活动汇总 — 百团大战、社团文化节"
+      "notes": "社团活动汇总 — 百团大战、社团文化节",
+      "category": "其他"
     },
     {
       "id": "fd_xiaoyan",
       "name": "复小研",
       "keyword": "复小研",
       "enabled": true,
-      "notes": "复旦大学研究生会 — 研究生学术/文体活动"
+      "notes": "复旦大学研究生会 — 研究生学术/文体活动",
+      "category": "讲座"
     },
-
     {
       "id": "fd_tongshi",
       "name": "复旦通识教育",
       "keyword": "复旦通识教育",
       "enabled": true,
-      "notes": "通识讲座、学术活动 — 活动密度高、质量好"
+      "notes": "通识讲座、学术活动 — 活动密度高、质量好",
+      "category": "讲座"
     },
     {
       "id": "fd_job",
       "name": "复旦就业",
       "keyword": "复旦就业",
       "enabled": true,
-      "notes": "学生职业发展教育服务中心 — 招聘会、宣讲会、生涯指导"
+      "notes": "学生职业发展教育服务中心 — 招聘会、宣讲会、生涯指导",
+      "category": "就业"
     },
     {
       "id": "fd_library",
       "name": "复旦大学图书馆",
       "keyword": "复旦大学图书馆",
       "enabled": true,
-      "notes": "读书会、展览、信息素养培训"
+      "notes": "读书会、展览、信息素养培训",
+      "category": "讲座"
     },
     {
       "id": "fd_sports",
       "name": "复旦大学体育教学部",
       "keyword": "复旦大学体育教学部",
       "enabled": true,
-      "notes": "体育赛事、校运会、游泳馆开放日"
+      "notes": "体育赛事、校运会、游泳馆开放日",
+      "category": "体育"
     },
     {
       "id": "fd_wenbo",
       "name": "复旦文博",
       "keyword": "复旦文博",
       "enabled": true,
-      "notes": "博物馆展览、文物讲座"
+      "notes": "博物馆展览、文物讲座",
+      "category": "讲座"
     },
     {
       "id": "fd_innovation",
       "name": "复旦大学创新创业学院",
       "keyword": "复旦大学创新创业学院",
       "enabled": true,
-      "notes": "创业比赛、工作坊、路演"
+      "notes": "创业比赛、工作坊、路演",
+      "category": "比赛"
     },
     {
       "id": "fd_psych",
       "name": "复旦大学心理健康教育中心",
       "keyword": "复旦大学心理健康教育中心",
       "enabled": false,
-      "notes": "心理讲座、团体辅导 — 启用后观察"
+      "notes": "心理讲座、团体辅导 — 启用后观察",
+      "category": "讲座"
     },
-
     {
       "id": "fd_qingzhi",
       "name": "复旦团委青志",
       "keyword": "复旦团委青志",
       "enabled": true,
-      "notes": "团委青年志愿者 — 志愿活动招募"
+      "notes": "团委青年志愿者 — 志愿活动招募",
+      "category": "志愿服务"
     },
     {
       "id": "fd_youth",
       "name": "复旦青年",
       "keyword": "复旦青年",
       "enabled": true,
-      "notes": "复旦青年报社 — 学生媒体，可能有活动报道含活动信息"
+      "notes": "复旦青年报社 — 学生媒体，可能有活动报道含活动信息",
+      "category": "其他"
     },
-
     {
       "id": "fd_art",
       "name": "复旦大学艺术研究院",
       "keyword": "复旦大学艺术研究院",
       "enabled": true,
-      "notes": "艺术展览、演出、学术讲座"
+      "notes": "艺术展览、演出、学术讲座",
+      "category": "讲座"
     },
-
     {
       "id": "fd_zhaosheng",
       "name": "复旦招生",
       "keyword": "复旦招生",
       "enabled": true,
-      "notes": "招生办 — 校园开放日、招生宣讲"
+      "notes": "招生办 — 校园开放日、招生宣讲",
+      "category": "其他"
     },
     {
       "id": "fd_alumni",
       "name": "复旦校友服务平台",
       "keyword": "复旦校友服务平台",
       "enabled": true,
-      "notes": "校友会 — 校友日、返校活动（服务号，每月4次群发）"
+      "notes": "校友会 — 校友日、返校活动（服务号，每月4次群发）",
+      "category": "就业"
     },
-
     {
       "id": "fd_international",
       "name": "复旦国际",
       "keyword": "复旦国际",
       "enabled": true,
-      "notes": "国际合作与交流处 — 国际交流项目、留学生活动"
+      "notes": "国际合作与交流处 — 国际交流项目、留学生活动",
+      "category": "其他"
     },
     {
       "id": "fd_keqing",
       "name": "复旦大学克卿书院",
       "keyword": "复旦大学克卿书院",
       "enabled": true,
-      "notes": "克卿书院活动 — 书院导师沙龙、文化活动"
+      "notes": "克卿书院活动 — 书院导师沙龙、文化活动",
+      "category": "讲座"
     },
     {
       "id": "fd_renzhong",
       "name": "复旦大学任重书院",
       "keyword": "复旦大学任重书院",
       "enabled": true,
-      "notes": "任重书院 — 人文类书院活动"
+      "notes": "任重书院 — 人文类书院活动",
+      "category": "其他"
     },
     {
       "id": "fd_zhide",
       "name": "复旦大学志德书院",
       "keyword": "复旦大学志德书院",
       "enabled": true,
-      "notes": "志德书院活动"
+      "notes": "志德书院活动",
+      "category": "其他"
     },
     {
       "id": "fd_tengfei",
       "name": "复旦大学腾飞书院",
       "keyword": "复旦大学腾飞书院",
       "enabled": true,
-      "notes": "腾飞书院 — 理工类书院活动"
+      "notes": "腾飞书院 — 理工类书院活动",
+      "category": "其他"
     },
     {
       "id": "fd_xide",
       "name": "复旦大学希德书院",
       "keyword": "复旦大学希德书院",
       "enabled": true,
-      "notes": "希德书院活动"
+      "notes": "希德书院活动",
+      "category": "其他"
     },
     {
       "id": "fd_shuyuan",
       "name": "书院在复旦",
       "keyword": "书院在复旦",
       "enabled": true,
-      "notes": "五大书院联合平台 — 书院资讯汇总"
+      "notes": "五大书院联合平台 — 书院资讯汇总",
+      "category": "其他"
     },
-
     {
       "id": "fd_qingyunge",
       "name": "复旦卿云歌",
       "keyword": "复旦卿云歌",
       "enabled": true,
-      "notes": "学工部思政办 — 主题教育、优秀学生风采"
+      "notes": "学工部思政办 — 主题教育、优秀学生风采",
+      "category": "其他"
     },
     {
       "id": "fd_zizhu",
       "name": "复旦资助",
       "keyword": "复旦资助",
       "enabled": true,
-      "notes": "学生资助管理中心 — 资助政策、成才辅助"
+      "notes": "学生资助管理中心 — 资助政策、成才辅助",
+      "category": "其他"
     },
     {
       "id": "fd_jiayuan",
       "name": "复旦家园",
       "keyword": "复旦家园",
       "enabled": false,
-      "notes": "本科生助学成才家园"
+      "notes": "本科生助学成才家园",
+      "category": "其他"
     },
     {
       "id": "fd_yuanqu",
       "name": "园园在复旦",
       "keyword": "园园在复旦",
       "enabled": true,
-      "notes": "学生生活园区 — 园区活动与服务"
+      "notes": "学生生活园区 — 园区活动与服务",
+      "category": "其他"
     },
-
     {
       "id": "fd_chinese",
       "name": "惠风钟文",
       "keyword": "惠风钟文",
       "enabled": true,
-      "notes": "复旦大学中文系 — 学术讲座、文化活动"
+      "notes": "复旦大学中文系 — 学术讲座、文化活动",
+      "category": "讲座"
     },
     {
       "id": "fd_gjs",
       "name": "萤窗诂籍",
       "keyword": "萤窗诂籍",
       "enabled": true,
-      "notes": "复旦大学古籍整理研究所 — 学术讲座、读书会"
+      "notes": "复旦大学古籍整理研究所 — 学术讲座、读书会",
+      "category": "讲座"
     },
     {
       "id": "fd_foreignlang",
       "name": "复旦外文",
       "keyword": "复旦外文",
       "enabled": true,
-      "notes": "外国语言文学学院"
+      "notes": "外国语言文学学院",
+      "category": "文艺"
     },
     {
       "id": "fd_polymer",
       "name": "复旦高材生",
       "keyword": "复旦高材生",
       "enabled": false,
-      "notes": "高分子科学系"
+      "notes": "高分子科学系",
+      "category": "其他"
     },
     {
       "id": "fd_environment",
       "name": "复旦大学环境",
       "keyword": "复旦大学环境",
       "enabled": false,
-      "notes": "环境科学与工程系"
+      "notes": "环境科学与工程系",
+      "category": "其他"
     },
     {
       "id": "fd_nuclear",
       "name": "复旦核科学",
       "keyword": "复旦核科学",
       "enabled": false,
-      "notes": "核科学与技术系"
+      "notes": "核科学与技术系",
+      "category": "其他"
     },
     {
       "id": "fd_nursing",
       "name": "复旦大学护理学院",
       "keyword": "复旦大学护理学院",
       "enabled": false,
-      "notes": "护理学院"
+      "notes": "护理学院",
+      "category": "其他"
     },
     {
       "id": "fd_publichealth",
       "name": "复旦大学公共卫生学院",
       "keyword": "复旦大学公共卫生学院",
       "enabled": true,
-      "notes": "公共卫生学院 — 健康讲座、学术报告"
+      "notes": "公共卫生学院 — 健康讲座、学术报告",
+      "category": "讲座"
     },
     {
       "id": "fd_materials",
       "name": "复旦大学材料科学系",
       "keyword": "复旦大学材料科学系",
       "enabled": false,
-      "notes": "材料科学系"
+      "notes": "材料科学系",
+      "category": "其他"
     },
     {
       "id": "fd_datasci",
       "name": "复旦大学大数据学院",
       "keyword": "复旦大学大数据学院",
       "enabled": true,
-      "notes": "大数据学院 — 数据科学讲座"
+      "notes": "大数据学院 — 数据科学讲座",
+      "category": "讲座"
     },
     {
       "id": "fd_socialwork",
       "name": "复旦社工",
       "keyword": "复旦社工",
       "enabled": false,
-      "notes": "社会工作学系"
+      "notes": "社会工作学系",
+      "category": "其他"
     },
     {
       "id": "fd_aero",
       "name": "复旦大学航空航天系",
       "keyword": "复旦大学航空航天系",
       "enabled": false,
-      "notes": "航空航天系"
+      "notes": "航空航天系",
+      "category": "其他"
     },
     {
       "id": "fd_lightsource",
       "name": "复旦电光源",
       "keyword": "复旦电光源",
       "enabled": false,
-      "notes": "电光源研究所"
+      "notes": "电光源研究所",
+      "category": "其他"
     },
     {
       "id": "fd_info_college",
       "name": "复旦信院学生",
       "keyword": "复旦信院学生",
       "enabled": false,
-      "notes": "信息科学与工程学院学生号"
+      "notes": "信息科学与工程学院学生号",
+      "category": "其他"
     },
-
     {
       "id": "fd_ancientbooks",
       "name": "复旦大学中华古籍保护研究院",
       "keyword": "复旦大学中华古籍保护研究院",
       "enabled": false,
-      "notes": "中华古籍保护研究院"
+      "notes": "中华古籍保护研究院",
+      "category": "其他"
     },
     {
       "id": "fd_wenshi",
       "name": "复旦大学文史研究院",
       "keyword": "复旦大学文史研究院",
       "enabled": true,
-      "notes": "文史研究院 — 学术讲座、论坛"
+      "notes": "文史研究院 — 学术讲座、论坛",
+      "category": "讲座"
     },
     {
       "id": "fd_highered",
       "name": "复旦大学高等教育研究所",
       "keyword": "复旦大学高等教育研究所",
       "enabled": false,
-      "notes": "高等教育研究所"
+      "notes": "高等教育研究所",
+      "category": "其他"
     },
     {
       "id": "fd_fddi",
       "name": "复旦发展研究院",
       "keyword": "复旦发展研究院",
       "enabled": true,
-      "notes": "发展研究院 — 政策论坛、学术报告"
+      "notes": "发展研究院 — 政策论坛、学术报告",
+      "category": "讲座"
     },
     {
       "id": "fd_brgg",
       "name": "一带一路及全球治理研究院",
       "keyword": "一带一路及全球治理研究院",
       "enabled": false,
-      "notes": "一带一路研究院"
+      "notes": "一带一路研究院",
+      "category": "体育"
     },
-
     {
       "id": "fd_pedia",
       "name": "旦旦情报局",
       "keyword": "旦旦情报局",
       "enabled": true,
-      "notes": "第三方校园信息平台 — 活动汇总、讲座信息"
+      "notes": "第三方校园信息平台 — 活动汇总、讲座信息",
+      "category": "讲座"
     },
     {
       "id": "fd_99degrees",
       "name": "九十九度",
       "keyword": "九十九度",
       "enabled": true,
-      "notes": "复旦大学学生杂志 — 校园深度报道、活动推荐"
+      "notes": "复旦大学学生杂志 — 校园深度报道、活动推荐",
+      "category": "其他"
     },
     {
       "id": "fd_hundan",
       "name": "混旦",
       "keyword": "混旦",
       "enabled": true,
-      "notes": "第三方校园生活平台"
+      "notes": "第三方校园生活平台",
+      "category": "其他"
     },
     {
       "id": "fd_xbs",
       "name": "复旦小助手",
       "keyword": "复旦小助手",
       "enabled": false,
-      "notes": "第三方校园助手"
+      "notes": "第三方校园助手",
+      "category": "其他"
     },
     {
       "id": "fd_quan",
       "name": "复旦校园",
       "keyword": "复旦校园",
       "enabled": false,
-      "notes": "第三方校园资讯 — 观察内容质量后决定启用"
+      "notes": "第三方校园资讯 — 观察内容质量后决定启用",
+      "category": "其他"
     },
-
     {
       "id": "fd_xinwen",
       "name": "复旦大学新闻学院",
       "keyword": "复旦大学新闻学院",
       "enabled": true,
-      "notes": "新闻学院学术讲座、文化节"
+      "notes": "新闻学院学术讲座、文化节",
+      "category": "讲座"
     },
     {
       "id": "fd_cs",
       "name": "复旦大学计算机科学技术学院",
       "keyword": "复旦大学计算机科学技术学院",
       "enabled": true,
-      "notes": "计算机学院 — 技术讲座、比赛、企业参访"
+      "notes": "计算机学院 — 技术讲座、比赛、企业参访",
+      "category": "比赛"
     },
     {
       "id": "fd_sme",
       "name": "复旦大学微电子学院",
       "keyword": "复旦大学微电子学院",
       "enabled": true,
-      "notes": "微电子学院 — 学术讲座、产业论坛"
+      "notes": "微电子学院 — 学术讲座、产业论坛",
+      "category": "讲座"
     },
     {
       "id": "fd_econ",
       "name": "复旦大学经济学院",
       "keyword": "复旦大学经济学院",
       "enabled": true,
-      "notes": "经济学院 — 学术讲座、业界论坛"
+      "notes": "经济学院 — 学术讲座、业界论坛",
+      "category": "讲座"
     },
     {
       "id": "fd_management",
       "name": "复旦管院",
       "keyword": "复旦管院",
       "enabled": true,
-      "notes": "管理学院 — 职业发展、行业分享"
+      "notes": "管理学院 — 职业发展、行业分享",
+      "category": "就业"
     },
     {
       "id": "fd_philosophy",
       "name": "复旦大学哲学学院",
       "keyword": "复旦大学哲学学院",
       "enabled": true,
-      "notes": "哲学学院 — 学术讲座、读书会"
+      "notes": "哲学学院 — 学术讲座、读书会",
+      "category": "讲座"
     },
     {
       "id": "fd_basic_med",
       "name": "复旦大学基础医学院",
       "keyword": "复旦大学基础医学院",
       "enabled": true,
-      "notes": "基础医学院 — 学术报告、医学科普"
+      "notes": "基础医学院 — 学术报告、医学科普",
+      "category": "讲座"
     },
-
     {
       "id": "fd_zhongshan",
       "name": "复旦大学附属中山医院",
       "keyword": "复旦大学附属中山医院",
       "enabled": true,
-      "notes": "中山医院 — 健康讲座、义诊活动"
+      "notes": "中山医院 — 健康讲座、义诊活动",
+      "category": "讲座"
     }
   ],
   "default_max_articles": 5,
