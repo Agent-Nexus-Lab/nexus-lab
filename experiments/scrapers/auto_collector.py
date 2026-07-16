@@ -2,12 +2,12 @@
 """自动采集：遍历 enabled 账号 → cn8n 取文章 → MaaS 提取 → mapper → event drafts。
 
 三段接线，每段缺依赖则降级 + 记 warning：
-  - 抓取段：cn8n_client 未落地 → 跳过真实抓取
-  - 提取段：maas_extract 仍为 stub → extracted_events=[]（李颖哲替换后自动生效）
-  - 入库段：EventImportService 未落地 → 只输出 drafts 不写库
+  - 抓取段：cn8n_client 调 cn8n，先取文章列表，再取 article_html 正文
+  - 提取段：maas_extract 调 Collection V2，输出结构化活动 drafts
+  - 入库段：database.import_events.import_many 正式 upsert 到 events 表
 
 正文 fallback：
-  - get_article_detail_text 不可用 → 用 cn8n 返回的 digest 作为 article_text
+  - get_article_detail_text 失败或无正文 → 用 cn8n 返回的 digest 作为 article_text
   - digest 也为空 → 标记 "无正文可用"
 
 CLI：
@@ -24,9 +24,9 @@ cron 触发路径：
 
 最小配置字段（需曹昕宇确认后端持久化）：
     enabled: bool              # 是否启用定时采集
-    schedule: str              # cron 表达式，默认 "0 8,18 * * *"
+    schedule: str              # cron 表达式，当前后端默认每天 00:43/08:43/16:43
     sources: list[str]         # 账号 id 列表，默认全部 enabled
-    max_articles_per_source: int  # 单次每个账号最大文章数，默认 5
+    max_articles_per_source: int  # 单次每个账号最大文章数，默认 2
     timeout_seconds: int       # 单次采集总超时，默认 600
 
 曹昕宇需提供：
@@ -52,6 +52,19 @@ ACCOUNT_CURSOR = _HERE / "account_cursor.json"
 ACCOUNT_CURSOR_KEY = "collection:account_cursor"
 EVENTS_JSON = _REPO_ROOT / "database" / "events.json"
 DEFAULT_LIMIT = 3  # 默认只扫前 3 个 enabled 账号，避免消耗 API 额度
+DEFAULT_ARTICLES_PER_ACCOUNT = 2  # 每个账号只处理最新两篇，避免重复正文/LLM调用
+
+
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+ARTICLES_PER_ACCOUNT = _positive_int_env(
+    "CN8N_ARTICLES_PER_ACCOUNT", DEFAULT_ARTICLES_PER_ACCOUNT
+)
 
 # 账号分类值域（用于 category_breakdown 统计）
 ACCOUNT_CATEGORIES = ("讲座", "文艺", "体育", "比赛", "就业", "志愿服务", "其他")
@@ -290,6 +303,7 @@ def collect_account(account: dict, *, dry_run: bool, cn8n_mod,
                 "would_fetch": False, "articles": []}
     try:
         articles = cn8n_mod.get_wechat_history(account.get("name"), page=1) or []
+        articles = articles[:ARTICLES_PER_ACCOUNT]
     except Exception as e:  # noqa: BLE001
         warnings.append(f"抓取 {account.get('name')} 失败: {e}")
         articles = []
@@ -566,6 +580,43 @@ def dedupe_articles(articles: list[dict], seen_urls: set[str]) -> list[dict]:
     return new
 
 
+def filter_unprocessed_articles(
+    articles: list[dict], *, db=None, article_state=None,
+    warnings: list[str],
+) -> tuple[list[dict], int]:
+    """在取正文/MaaS 前过滤已完成或已判定无活动的文章。
+
+    生产环境有 article_state 时按 source_url 做跨轮去重；失败中的文章保留，
+    允许后续轮次按 retry_count 规则重试。没有 DB 时保持原有单轮行为。
+    """
+    if not (db and article_state):
+        return articles, 0
+
+    pending: list[dict] = []
+    already_processed = 0
+    for article in articles:
+        source_url = article.get("source_url") or article.get("url")
+        if not source_url:
+            pending.append(article)
+            continue
+        try:
+            previous = article_state.is_article_processed(db, source_url, None)
+        except Exception as e:  # noqa: BLE001
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            warnings.append(f"预去重失败 {source_url}: {e}")
+            pending.append(article)
+            continue
+        status = previous.get("status") if isinstance(previous, dict) else None
+        if status == "completed" or (status and str(status).startswith("skipped_")):
+            already_processed += 1
+            continue
+        pending.append(article)
+    return pending, already_processed
+
+
 def _commit_to_events_json(drafts: list[dict],
                            path: Path = EVENTS_JSON) -> dict:
     """停gap 入库：把 6-field drafts 合并进 database/events.json。
@@ -700,12 +751,17 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
     text_quality_breakdown: dict[str, int] = {"full": 0, "partial": 0, "insufficient": 0, "none": 0}
     review_queue: list[dict] = []
     retry_summary = {"total_retried": 0, "max_retry_reached": 0, "auth_failures": 0}
+    already_processed_total = 0
 
     if samples:
         # 样例模式：读本地 5 篇全文文章，不走 cn8n
         articles = load_sample_articles()
         total_articles = len(articles)
         new_articles = dedupe_articles(articles, seen_urls)
+        new_articles, already_processed = filter_unprocessed_articles(
+            new_articles, db=db, article_state=article_state_mod, warnings=warnings
+        )
+        already_processed_total += already_processed
         account_drafts: list[dict] = []
         ok = fail = 0
         for art in new_articles:
@@ -733,6 +789,7 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             "account": "samples",
             "fetched": len(articles),
             "new_articles": len(new_articles),
+            "already_processed": already_processed,
             "extracted_ok": ok,
             "extracted_fail": fail,
             "event_drafts": len(account_drafts),
@@ -764,6 +821,10 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
             articles = res.get("articles", [])
             total_articles += len(articles)
             new_articles = dedupe_articles(articles, seen_urls)
+            new_articles, already_processed = filter_unprocessed_articles(
+                new_articles, db=db, article_state=article_state_mod, warnings=warnings
+            )
+            already_processed_total += already_processed
             account_drafts = []
             ok = fail = 0
             for art in new_articles:
@@ -791,6 +852,7 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
                 "account": res.get("account"),
                 "fetched": len(articles),
                 "new_articles": len(new_articles),
+                "already_processed": already_processed,
                 "extracted_ok": ok,
                 "extracted_fail": fail,
                 "event_drafts": len(account_drafts),
@@ -848,6 +910,7 @@ def run(dry_run: bool = True, commit: bool = False, commit_json: bool = False,
         "category_breakdown": cat_breakdown,
         "total_articles": total_articles,
         "new_articles": sum(p["new_articles"] for p in per_account),
+        "already_processed": already_processed_total,
         "extraction_summary": {
             "total_articles_processed": extracted_ok + extracted_fail,
             "extracted_ok": extracted_ok,
